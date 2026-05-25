@@ -299,6 +299,14 @@ const Login: React.FC = () => {
                   }}>
                     NBSN
                   </h2>
+                  {/* Environment Badge for Staging */}
+                  {window.location.hostname !== 'localhost' && !window.location.hostname.includes('www') && (
+                    <div className="mt-2">
+                      <span className="badge rounded-pill bg-warning text-dark px-3 py-2 shadow-sm border border-warning">
+                        <i className="fas fa-flask me-2"></i>STAGING ENVIRONMENT
+                      </span>
+                    </div>
+                  )}
                   <p className="text-muted fw-medium mb-0" style={{ fontSize: '0.85rem' }}>
                     Skills Development & Training Portal
                   </p>
