@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { southAfricaData, type District, type Municipality } from '../data/southAfricaData';
+import ProjectForm from './ProjectForm';
 
 interface Project {
   id: number;
@@ -121,10 +122,17 @@ const SDPDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sdps, setSdps] = useState<any[]>([]);
+  const [filteredSdps, setFilteredSdps] = useState<any[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users'>('overview');
+  const [selectedSdp, setSelectedSdp] = useState<any | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Side panel and project states
+  const [showSidePanel, setShowSidePanel] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -390,7 +398,7 @@ const SDPDashboard: React.FC = () => {
     let filtered = sdps;
 
     if (searchTerm) {
-      filtered = filtered.filter(sdp =>
+      filtered = filtered.filter((sdp: any) =>
         sdp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (sdp.contactPerson && sdp.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (sdp.description && sdp.description.toLowerCase().includes(searchTerm.toLowerCase()))
