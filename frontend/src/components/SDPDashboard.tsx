@@ -613,145 +613,6 @@ const SDPDashboard: React.FC = () => {
     setActiveSection('update-project');
   };
 
-  const handleInputChange = (field: keyof SDPFormData, value: string) => {
-    setSdpFormData(prev => ({ ...prev, [field]: value }));
-    if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: '' }));
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const errors: Record<string, string> = {};
-
-    if (!sdpFormData.sdpName.trim()) {
-      errors.sdpName = 'SDP name is required';
-    }
-
-    if (!sdpFormData.emailAddress.trim()) {
-      errors.emailAddress = 'Email address is required';
-    } else if (!/\S+@\S+\.\S+/.test(sdpFormData.emailAddress)) {
-      errors.emailAddress = 'Please enter a valid email address';
-    }
-
-    if (!sdpFormData.contactPerson.trim()) {
-      errors.contactPerson = 'Contact person is required';
-    }
-
-    if (!selectedProvince) {
-      errors.province = 'Province is required';
-    }
-
-    if (!selectedDistrict) {
-      errors.district = 'District is required';
-    }
-
-    if (!selectedMunicipality) {
-      errors.municipality = 'Municipality is required';
-    }
-
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-
-    if (!user?.clientId) {
-      alert('Your account is not linked to a client. Please log in with a client account.');
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const province = southAfricaData.find(p => p.id.toString() === selectedProvince);
-      const district = availableDistricts.find(d => d.id.toString() === selectedDistrict);
-      const municipality = availableMunicipalities.find(m => m.id.toString() === selectedMunicipality);
-
-      const registrationData = {
-        sdpName: sdpFormData.sdpName.trim(),
-        registrationNumber: sdpFormData.registrationNumber,
-        businessDescription: sdpFormData.businessDescription,
-        accreditationNumber: sdpFormData.accreditationNumber,
-        beneficiaries: sdpFormData.beneficiaries ? parseInt(sdpFormData.beneficiaries) : null,
-        province: province?.name || '',
-        district: district?.name || '',
-        municipality: municipality?.name || '',
-        physicalAddress: sdpFormData.physicalAddress,
-        emailAddress: sdpFormData.emailAddress.trim(),
-        phoneNumber: sdpFormData.phoneNumber,
-        contactPerson: sdpFormData.contactPerson,
-        website: sdpFormData.website,
-        clientId: user.clientId
-      };
-
-      const token = localStorage.getItem('token');
-      const response = await fetch('/api/SkillsDevelopmentProviders/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(registrationData)
-      });
-
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        // Reset form
-        setSdpFormData({
-          sdpName: '',
-          registrationNumber: '',
-          businessDescription: '',
-          accreditationNumber: '',
-          beneficiaries: '',
-          physicalAddress: '',
-          emailAddress: '',
-          phoneNumber: '',
-          contactPerson: '',
-          website: ''
-        });
-        setSelectedProvince('');
-        setSelectedDistrict('');
-        setSelectedMunicipality('');
-        setFormErrors({});
-        
-        alert(`SDP registered successfully! ${result.message}`);
-        setActiveSection('overview');
-        
-        // Refresh SDP list
-        window.location.reload();
-      } else {
-        const errorMessage = result.message || 'Failed to register SDP';
-        alert(`Error: ${errorMessage}`);
-      }
-    } catch (error) {
-      console.error('Error submitting SDP form:', error);
-      alert('An error occurred while registering the SDP. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const getStatusBadge = (status: number) => {
-    switch (status) {
-      case 1:
-        return <span className="badge bg-success">Active</span>;
-      case 2:
-        return <span className="badge bg-secondary">Inactive</span>;
-      case 3:
-        return <span className="badge bg-warning">Suspended</span>;
-      case 4:
-        return <span className="badge bg-info">Pending Approval</span>;
-      default:
-        return <span className="badge bg-secondary">Unknown</span>;
-    }
-  };
-
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -1713,13 +1574,13 @@ const SDPDashboard: React.FC = () => {
 
     // If phases are set up, use existing phase data
     const phases = projectBudget?.phases || [];
-    const totalAllocated = phases.reduce((sum, phase) => sum + phase.allocatedBudget, 0);
+    const totalAllocated = phases.reduce((sum: number, phase: ProjectPhase) => sum + phase.allocatedBudget, 0);
     
     return {
       projectId: project.id,
       totalBudget: project.budgetAmount,
       totalAllocated,
-      totalSpent: phases.reduce((sum, phase) => sum + phase.spentBudget, 0),
+      totalSpent: phases.reduce((sum: number, phase: ProjectPhase) => sum + phase.spentBudget, 0),
       remainingBudget: project.budgetAmount - totalAllocated,
       numberOfPhases: numberOfPhases,
       phases: phases
@@ -1856,121 +1717,16 @@ const SDPDashboard: React.FC = () => {
     setActivePhase(phases[0].id);
   };
 
-  // Add a new phase
-  const addNewPhase = () => {
-    if (!projectBudget || !selectedProject) return;
-
-    const newPhaseId = `phase-${projectBudget.phases.length + 1}`;
-    const phase: ProjectPhase = {
-      id: newPhaseId,
-      name: newPhase.name || `Phase ${projectBudget.phases.length + 1}`,
-      description: newPhase.description || `Project phase ${projectBudget.phases.length + 1}`,
-      allocatedBudget: newPhase.allocatedBudget,
-      spentBudget: 0,
-      remainingBudget: newPhase.allocatedBudget,
-      startDate: newPhase.startDate,
-      endDate: newPhase.endDate,
-      lineItems: createPhaseLineItems(selectedProject, newPhase.allocatedBudget)
-    };
-
-    const updatedPhases = [...projectBudget.phases, phase];
-    const totalAllocated = updatedPhases.reduce((sum, p) => sum + p.allocatedBudget, 0);
-
-    setProjectBudget({
-      ...projectBudget,
-      phases: updatedPhases,
-      numberOfPhases: updatedPhases.length,
-      totalAllocated,
-      remainingBudget: projectBudget.totalBudget - totalAllocated
-    });
-
-    // Reset new phase form
-    setNewPhase({
-      name: '',
-      description: '',
-      allocatedBudget: 0,
-      startDate: '',
-      endDate: ''
-    });
-  };
-
-  // Update phase budget allocation
-  const updatePhaseBudget = (phaseId: string, newBudget: number) => {
-    if (!projectBudget) return;
-
-    // Check if new budget would exceed total budget
-    const otherPhasesTotal = projectBudget.phases
-      .filter(p => p.id !== phaseId)
-      .reduce((sum, p) => sum + p.allocatedBudget, 0);
-
-    if (otherPhasesTotal + newBudget > projectBudget.totalBudget) {
-      const maxAllowed = projectBudget.totalBudget - otherPhasesTotal;
-      alert(`⚠️ Phase Budget Limit Exceeded!\n\nTotal budget: R${projectBudget.totalBudget.toLocaleString()}\nOther phases total: R${otherPhasesTotal.toLocaleString()}\nMaximum allowed for this phase: R${maxAllowed.toLocaleString()}`);
-      return;
-    }
-
-    const updatedPhases = projectBudget.phases.map(phase => {
-      if (phase.id === phaseId) {
-        const newLineItems = selectedProject ? createPhaseLineItems(selectedProject, newBudget) : phase.lineItems;
-        return {
-          ...phase,
-          allocatedBudget: newBudget,
-          remainingBudget: newBudget - phase.spentBudget,
-          lineItems: newLineItems
-        };
-      }
-      return phase;
-    });
-
-    const totalAllocated = updatedPhases.reduce((sum, p) => sum + p.allocatedBudget, 0);
-
-    setProjectBudget({
-      ...projectBudget,
-      phases: updatedPhases,
-      totalAllocated,
-      remainingBudget: projectBudget.totalBudget - totalAllocated
-    });
-  };
-
-  // Update stipend calculation manually when needed
-  const updateStipendCalculation = () => {
-    if (projectBudget && selectedProject && projectFormData.stipendAmount > 0) {
-      const stipendTotal = projectFormData.stipendAmount * selectedProject.numberOfBeneficiaries * 4; // 4 months
-      
-      const updatedLineItems = projectBudget.lineItems.map(item => {
-        if (item.id === 'stipend') {
-          return {
-            ...item,
-            allocatedAmount: stipendTotal,
-            remainingAmount: stipendTotal - item.spentAmount,
-            description: `Learner stipends for 4 months (${selectedProject.numberOfBeneficiaries} learners × R${projectFormData.stipendAmount} × 4 months)`
-          };
-        }
-        return item;
-      });
-
-      const totalAllocated = updatedLineItems.reduce((sum, item) => sum + item.allocatedAmount, 0);
-      const remainingBudget = projectBudget.totalBudget - totalAllocated;
-
-      setProjectBudget({
-        ...projectBudget,
-        lineItems: updatedLineItems,
-        totalAllocated,
-        remainingBudget
-      });
-    }
-  };
-
   // Validate per-learner cost changes (for phase-based budgets)
-  const validatePerLearnerCostUpdate = (costType: keyof typeof perLearnerCosts, newCostPerLearner: number): boolean => {
+  const validatePerLearnerCostUpdate = (_costType: keyof typeof perLearnerCosts, newCostPerLearner: number): boolean => {
     if (!selectedProject || !projectBudget || !phaseSetupComplete) return true; // Allow if phases not set up yet
 
     const learnerCount = selectedProject.numberOfBeneficiaries;
     const newTotalForThisCategory = newCostPerLearner * learnerCount;
 
     // For phase-based budgets, validate against total project budget
-    const currentTotalAllocated = projectBudget.phases.reduce((sum, phase) => 
-      sum + phase.lineItems.reduce((phaseSum, item) => phaseSum + item.allocatedAmount, 0), 0);
+    const currentTotalAllocated = projectBudget.phases.reduce((sum: number, phase: ProjectPhase) => 
+      sum + phase.lineItems.reduce((phaseSum: number, item: BudgetLineItem) => phaseSum + item.allocatedAmount, 0), 0);
 
     // Calculate what the new total would be across all phases
     const estimatedNewTotal = (projectFormData.stipendAmount || 0) * learnerCount * 4 + newTotalForThisCategory;
@@ -1996,7 +1752,7 @@ const SDPDashboard: React.FC = () => {
     // Calculate what the total would be with this new amount for this phase
     const otherItemsTotal = phase.lineItems
       .filter(item => item.id !== itemId)
-      .reduce((sum, item) => sum + item.allocatedAmount, 0);
+      .reduce((sum: number, item: BudgetLineItem) => sum + item.allocatedAmount, 0);
     
     const proposedTotal = otherItemsTotal + newAmount;
     
@@ -2020,7 +1776,7 @@ const SDPDashboard: React.FC = () => {
           return item;
         });
 
-        const phaseAllocated = updatedLineItems.reduce((sum, item) => sum + item.allocatedAmount, 0);
+        const phaseAllocated = updatedLineItems.reduce((sum: number, item: BudgetLineItem) => sum + item.allocatedAmount, 0);
         
         return {
           ...p,
@@ -2031,8 +1787,8 @@ const SDPDashboard: React.FC = () => {
       return p;
     });
 
-    const totalAllocated = updatedPhases.reduce((sum, phase) => 
-      sum + phase.lineItems.reduce((phaseSum, item) => phaseSum + item.allocatedAmount, 0), 0);
+    const totalAllocated = updatedPhases.reduce((sum: number, phase: ProjectPhase) => 
+      sum + phase.lineItems.reduce((phaseSum: number, item: BudgetLineItem) => phaseSum + item.allocatedAmount, 0), 0);
 
     setProjectBudget({
       ...projectBudget,
@@ -2059,7 +1815,7 @@ const SDPDashboard: React.FC = () => {
     const updatedPhases = projectBudget.phases.map(phase => {
       if (phase.id === activePhase) {
         const updatedLineItems = [...phase.lineItems, newItem];
-        const phaseAllocated = updatedLineItems.reduce((sum, item) => sum + item.allocatedAmount, 0);
+        const phaseAllocated = updatedLineItems.reduce((sum: number, item: BudgetLineItem) => sum + item.allocatedAmount, 0);
         
         return {
           ...phase,
@@ -2070,8 +1826,8 @@ const SDPDashboard: React.FC = () => {
       return phase;
     });
 
-    const totalAllocated = updatedPhases.reduce((sum, phase) => 
-      sum + phase.lineItems.reduce((phaseSum, item) => phaseSum + item.allocatedAmount, 0), 0);
+    const totalAllocated = updatedPhases.reduce((sum: number, phase: ProjectPhase) => 
+      sum + phase.lineItems.reduce((phaseSum: number, item: BudgetLineItem) => phaseSum + item.allocatedAmount, 0), 0);
 
     setProjectBudget({
       ...projectBudget,
@@ -2095,7 +1851,7 @@ const SDPDashboard: React.FC = () => {
     const updatedPhases = projectBudget.phases.map(phase => {
       if (phase.id === activePhase) {
         const updatedLineItems = phase.lineItems.filter(item => item.id !== itemId);
-        const phaseAllocated = updatedLineItems.reduce((sum, item) => sum + item.allocatedAmount, 0);
+        const phaseAllocated = updatedLineItems.reduce((sum: number, item: BudgetLineItem) => sum + item.allocatedAmount, 0);
         
         return {
           ...phase,
@@ -2106,8 +1862,8 @@ const SDPDashboard: React.FC = () => {
       return phase;
     });
 
-    const totalAllocated = updatedPhases.reduce((sum, phase) => 
-      sum + phase.lineItems.reduce((phaseSum, item) => phaseSum + item.allocatedAmount, 0), 0);
+    const totalAllocated = updatedPhases.reduce((sum: number, phase: ProjectPhase) => 
+      sum + phase.lineItems.reduce((phaseSum: number, item: BudgetLineItem) => phaseSum + item.allocatedAmount, 0), 0);
 
     setProjectBudget({
       ...projectBudget,
@@ -2351,8 +2107,8 @@ const SDPDashboard: React.FC = () => {
                       const newStipendTotal = newValue * learnerCount * 4;
                       
                       // Calculate total of all per-learner costs
-                      const perLearnerTotal = Object.values(perLearnerCosts).reduce((sum, cost) => {
-                        return sum + (cost * learnerCount);
+                      const perLearnerTotal = Object.values(perLearnerCosts).reduce((sum: number, cost: number) => {
+                        return sum + (cost * (selectedProject?.numberOfBeneficiaries || 0));
                       }, 0);
                       
                       const totalWithNewStipend = newStipendTotal + perLearnerTotal;
