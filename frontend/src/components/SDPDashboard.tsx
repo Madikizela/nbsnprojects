@@ -2,24 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { southAfricaData, type District, type Municipality } from '../data/southAfricaData';
 
-interface SkillsDevelopmentProvider {
-  id: number;
-  name: string;
-  description?: string;
-  address?: string;
-  contactPerson?: string;
-  status: number;
-  clientId: number;
-  createdAt: string;
-  updatedAt: string;
-  client?: {
-    id: number;
-    name: string;
-  };
-  users?: any[];
-  departments?: any[];
-}
-
 interface Project {
   id: number;
   projectName: string;
@@ -140,12 +122,9 @@ const SDPDashboard: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users'>('overview');
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Side panel and project states
-  const [showSidePanel, setShowSidePanel] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -154,8 +133,6 @@ const SDPDashboard: React.FC = () => {
   const [usersLoading, setUsersLoading] = useState(false);
 
   // Modal states
-  const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
-  const [showUpdateProjectModal, setShowUpdateProjectModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   // Department form state
