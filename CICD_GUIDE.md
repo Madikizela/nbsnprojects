@@ -1,40 +1,47 @@
-# CI/CD Setup Guide for GitHub Actions
+# CI/CD Multi-Environment Setup Guide
 
-This guide explains how to set up the automated deployment for your NBSN System using GitHub Actions and cPanel.
+This guide explains how to manage two separate environments (**Staging** and **Production**) using GitHub Actions and cPanel.
 
-## 1. Prerequisites
-- Your code must be pushed to a GitHub repository.
-- You must have SSH access enabled in your cPanel account.
-- You must have FTP access details for your cPanel account.
+## 1. Environment Logic
+The system uses branch-based deployment:
+- **`develop` branch**: Deploys automatically to your **Staging** server.
+- **`main` branch**: Deploys automatically to your **Production** server.
 
 ## 2. GitHub Secrets Configuration
-To enable the deployment, you need to add the following secrets to your GitHub repository:
+You must configure separate secrets for both environments in GitHub (**Settings** > **Secrets** > **Actions**).
 
-1. Go to your repository on GitHub.
-2. Navigate to **Settings** > **Secrets and variables** > **Actions**.
-3. Click **New repository secret** for each of the following:
+### **Production Secrets (main branch)**
+- `PROD_FTP_SERVER`
+- `PROD_FTP_USERNAME`
+- `PROD_FTP_PASSWORD`
+- `PROD_SSH_HOST`
+- `PROD_SSH_USERNAME`
+- `PROD_SSH_PRIVATE_KEY`
+- `PROD_SSH_PORT` (Optional)
 
-### **Frontend (FTP)**
-- `FTP_SERVER`: Your FTP host (e.g., `ftp.yourdomain.com`).
-- `FTP_USERNAME`: Your FTP username.
-- `FTP_PASSWORD`: Your FTP password.
+### **Staging Secrets (develop branch)**
+- `STAGING_FTP_SERVER`
+- `STAGING_FTP_USERNAME`
+- `STAGING_FTP_PASSWORD`
+- `STAGING_SSH_HOST`
+- `STAGING_SSH_USERNAME`
+- `STAGING_SSH_PRIVATE_KEY`
+- `STAGING_SSH_PORT` (Optional)
 
-### **Backend (SSH)**
-- `SSH_HOST`: Your server IP or domain.
-- `SSH_USERNAME`: Your cPanel username.
-- `SSH_PRIVATE_KEY`: Your SSH private key.
-  - *Generate this in cPanel under "SSH Access" and add the public key to "Authorized Keys".*
-- `SSH_PORT`: (Optional) Usually `22` or `2222`.
+## 3. Deployment Workflow
+1.  **Develop & Test**: Work on your features in a local branch.
+2.  **Push to Staging**: Merge your changes into the `develop` branch and push to GitHub. The system will build and deploy to your Staging server.
+3.  **Verify**: Test your changes on the Staging URL.
+4.  **Go Live**: Once verified, create a Pull Request from `develop` to `main`. After merging, the system will build and deploy to your Production server.
 
-## 3. How it Works
-Every time you push code to the `main` branch:
-1. **GitHub** builds your .NET backend and React frontend.
-2. **Frontend** files are automatically uploaded to your `public_html` folder via FTP.
-3. **Backend** binaries are uploaded to `~/nbsn_api` via SSH.
-4. **Backend** process is automatically restarted on the server.
+## 4. Server Folder Structure
+To keep environments separate on your cPanel account, it is recommended to use different subdomains or folders:
+- **Production**: `public_html` and `~/nbsn_api`
+- **Staging**: `public_html/staging` (or a subdomain folder) and `~/nbsn_api_staging`
 
-## 4. Mobile App (Manual Step)
-CI/CD for mobile apps (APK) is possible but complex for cPanel. It is recommended to continue building the APK locally and uploading it to your site manually as needed.
+*Note: You will need to update the `server-dir` and `target` paths in `.github/workflows/deploy.yml` if your staging folders are different from production.*
 
-## 5. Security Note
-Your `.env` file should **NEVER** be pushed to GitHub. The backend on the server will use the `.env` file you manually created in the `~/nbsn_api` folder.
+## 5. Environment Variables (.env)
+Each server must have its own `.env` file in its respective backend folder.
+- **Staging `.env`**: Point to a staging database (e.g., `user_nbsn_staging`).
+- **Production `.env`**: Point to the live production database.

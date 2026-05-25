@@ -1,14 +1,18 @@
-name: CI/CD Deployment to cPanel
+name: CI/CD Multi-Environment Deployment
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "develop" ]
   workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     
+    # Define environment based on branch
+    environment:
+      name: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+
     steps:
     - uses: actions/checkout@v4
 
@@ -39,8 +43,6 @@ jobs:
     - name: Build Frontend
       run: |
         cd frontend
-        # Create a temporary .env for the build process if needed
-        # Variables starting with VITE_ are picked up automatically
         npm run build
       env:
         VITE_API_URL: /api
@@ -49,9 +51,9 @@ jobs:
     - name: Deploy Frontend to cPanel (FTP)
       uses: SamKirkland/FTP-Deploy-Action@v4.3.5
       with:
-        server: ${{ secrets.FTP_SERVER }}
-        username: ${{ secrets.FTP_USERNAME }}
-        password: ${{ secrets.FTP_PASSWORD }}
+        server: ${{ github.ref == 'refs/heads/main' && secrets.PROD_FTP_SERVER || secrets.STAGING_FTP_SERVER }}
+        username: ${{ github.ref == 'refs/heads/main' && secrets.PROD_FTP_USERNAME || secrets.STAGING_FTP_USERNAME }}
+        password: ${{ github.ref == 'refs/heads/main' && secrets.PROD_FTP_PASSWORD || secrets.STAGING_FTP_PASSWORD }}
         local-dir: ./frontend/dist/
         server-dir: public_html/
         dangerous-clean-slate: false
@@ -60,10 +62,10 @@ jobs:
     - name: Deploy Backend to cPanel (SSH)
       uses: appleboy/scp-action@v0.1.7
       with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: ${{ secrets.SSH_PORT || 22 }}
+        host: ${{ github.ref == 'refs/heads/main' && secrets.PROD_SSH_HOST || secrets.STAGING_SSH_HOST }}
+        username: ${{ github.ref == 'refs/heads/main' && secrets.PROD_SSH_USERNAME || secrets.STAGING_SSH_USERNAME }}
+        key: ${{ github.ref == 'refs/heads/main' && secrets.PROD_SSH_PRIVATE_KEY || secrets.STAGING_SSH_PRIVATE_KEY }}
+        port: ${{ (github.ref == 'refs/heads/main' && secrets.PROD_SSH_PORT) || secrets.STAGING_SSH_PORT || 22 }}
         source: "backend/publish/*"
         target: "~/nbsn_api"
         strip_components: 2
@@ -71,14 +73,12 @@ jobs:
     - name: Restart Backend Process (SSH)
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.SSH_HOST }}
-        username: ${{ secrets.SSH_USERNAME }}
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        port: ${{ secrets.SSH_PORT || 22 }}
+        host: ${{ github.ref == 'refs/heads/main' && secrets.PROD_SSH_HOST || secrets.STAGING_SSH_HOST }}
+        username: ${{ github.ref == 'refs/heads/main' && secrets.PROD_SSH_USERNAME || secrets.STAGING_SSH_USERNAME }}
+        key: ${{ github.ref == 'refs/heads/main' && secrets.PROD_SSH_PRIVATE_KEY || secrets.STAGING_SSH_PRIVATE_KEY }}
+        port: ${{ (github.ref == 'refs/heads/main' && secrets.PROD_SSH_PORT) || secrets.STAGING_SSH_PORT || 22 }}
         script: |
           cd ~/nbsn_api
-          # Kill existing process if running (using port or name)
           fuser -k 5213/tcp || true
-          # Start the new process in the background
           chmod +x backend
           nohup ./backend --urls "http://127.0.0.1:5213" > app.log 2>&1 &
