@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct Dashboard Access Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-link { display: block; margin: 10px 0; padding: 10px; background: #f8f9fa; border: 1px solid #ddd; text-decoration: none; color: #333; }
+        .test-link:hover { background: #e9ecef; }
+    </style>
+</head>
+<body>
+    <h1>Direct Dashboard Access Test</h1>
+    <p>Click these links to test if the dashboard routes work directly:</p>
+    
+    <a href="http://localhost:5173/qa-manager-dashboard" target="_blank" class="test-link">
+        🎯 QA Manager Dashboard
+    </a>
+    
+    <a href="http://localhost:5173/logistics-manager-dashboard" target="_blank" class="test-link">
+        🚛 Logistics Manager Dashboard
+    </a>
+    
+    <a href="http://localhost:5173/admin-manager-dashboard" target="_blank" class="test-link">
+        👔 Admin Manager Dashboard
+    </a>
+    
+    <a href="http://localhost:5173/sdp-dashboard" target="_blank" class="test-link">
+        🏢 SDP Dashboard (for comparison)
+    </a>
+    
+    <a href="http://localhost:5173/login" target="_blank" class="test-link">
+        🔐 Login Page (for comparison)
+    </a>
+    
+    <h2>What to Check:</h2>
+    <ul>
+        <li>If any of the dashboard links show a blank page, there's an issue with that component</li>
+        <li>If they show "404" or redirect to login, there's a routing issue</li>
+        <li>If they load properly, the issue is with the login routing logic</li>
+        <li>Check the browser console (F12) for any JavaScript errors</li>
+    </ul>
+    
+    <h2>Expected Behavior:</h2>
+    <ul>
+        <li>Each dashboard should show a page with cards/tiles for different functions</li>
+        <li>The page title should match the dashboard type</li>
+        <li>No blank screens or errors</li>
+    </ul>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Minimal Admin Dashboard</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-container { border: 1px solid #ccc; padding: 20px; margin: 10px 0; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Admin Dashboard Debugging</h1>
+    
+    <div class="test-container">
+        <h2>Current Issue Analysis</h2>
+        <p>The AdminManagerDashboard is still showing a blank screen. Let's debug step by step:</p>
+        
+        <h3>Possible Causes:</h3>
+        <ol>
+            <li><strong>JavaScript Error</strong> - Check browser console for errors</li>
+            <li><strong>CSS/Theme Issue</strong> - Theme colors might be causing invisible content</li>
+            <li><strong>Component Rendering Issue</strong> - React component not rendering properly</li>
+            <li><strong>Asset Loading Issue</strong> - Logo or other assets not loading</li>
+            <li><strong>Authentication Issue</strong> - User data not available in localStorage</li>
+        </ol>
+        
+        <h3>Debug Steps:</h3>
+        <ol>
+            <li>Open browser developer tools (F12)</li>
+            <li>Check Console tab for JavaScript errors</li>
+            <li>Check Network tab for failed asset loads</li>
+            <li>Check Application/Storage tab for localStorage data</li>
+            <li>Try accessing the route directly: /admin-manager-dashboard</li>
+        </ol>
+        
+        <h3>Quick Test:</h3>
+        <p>Try this in browser console when on the admin dashboard page:</p>
+        <pre>
+// Check if user data exists
+console.log('User data:', localStorage.getItem('user'));
+
+// Check if React is rendering
+console.log('React components:', document.querySelectorAll('[data-reactroot]'));
+
+// Check for any errors
+console.log('Errors:', window.onerror);
+        </pre>
+    </div>
+    
+    <div class="test-container">
+        <h2>Temporary Fix - Simple Dashboard</h2>
+        <p>If the complex dashboard isn't working, we can create a simple version that just shows basic content without all the advanced features.</p>
+    </div>
+</body>
+</html>

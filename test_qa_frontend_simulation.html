@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QA Frontend Simulation Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .card { border: 1px solid #ddd; border-radius: 8px; margin: 10px 0; padding: 15px; }
+        .card-header { background-color: #4facfe; color: white; padding: 10px; margin: -15px -15px 15px -15px; border-radius: 8px 8px 0 0; }
+        .metric-card { display: inline-block; margin: 10px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; min-width: 200px; text-align: center; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        .loading { background-color: #fff3cd; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>QA Frontend Simulation Test</h1>
+    <p>This simulates the QA Manager Dashboard behavior</p>
+    
+    <button onclick="simulateQAManagerLogin()">Simulate QA Manager Login</button>
+    <button onclick="resetTest()">Reset Test</button>
+    
+    <div id="qaOverview" class="card hidden">
+        <div class="card-header">
+            <h4>🎯 Quality Assurance Overview</h4>
+        </div>
+        <div id="qaContent">
+            <div id="loadingState" class="loading">
+                <p>Loading QA metrics...</p>
+            </div>
+            <div id="errorState" class="error hidden">
+                <h6>No QA Data Available</h6>
+                <p>Unable to load Quality Assurance metrics.</p>
+            </div>
+            <div id="successState" class="success hidden">
+                <div id="metricsCards"></div>
+                <div id="unitStandardSection" class="hidden">
+                    <h5>📋 Unit Standard Assessment Breakdown</h5>
+                    <button onclick="toggleUnitStandardDetails()">Show Details</button>
+                    <div id="unitStandardDetails" class="hidden">
+                        <div id="unitStandardLoading" class="loading hidden">Loading unit standard breakdown...</div>
+                        <div id="unitStandardTable" class="hidden"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="logs" class="card">
+        <div class="card-header">
+            <h4>📋 Test Logs</h4>
+        </div>
+        <div id="logContent">
+            <p>Click "Simulate QA Manager Login" to start the test</p>
+        </div>
+    </div>
+
+    <script>
+        let qaMetrics = null;
+        let unitStandardBreakdown = [];
+        let showingDetails = false;
+
+        function log(message) {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toLocaleTimeString();
+            logContent.innerHTML += `<p><strong>[${timestamp}]</strong> ${message}</p>`;
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+
+        function resetTest() {
+            document.getElementById('qaOverview').classList.add('hidden');
+            document.getElementById('logContent').innerHTML = '<p>Click "Simulate QA Manager Login" to start the test</p>';
+            qaMetrics = null;
+            unitStandardBreakdown = [];
+            showingDetails = false;
+        }
+
+        async function simulateQAManagerLogin() {
+            log('🔐 Simulating QA Manager login (role: SDPModerator)');
+            document.getElementById('qaOverview').classList.remove('hidden');
+            
+            // Show loading state
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('errorState').classList.add('hidden');
+            document.getElementById('successState').classList.add('hidden');
+            
+            log('📡 Fetching QA metrics from API...');
+            
+            try {
+                const response = await fetch('http://192.168.68.117:5213/api/QAOverview/metrics');
+                
+                if (response.ok) {
+                    qaMetrics = await response.json();
+                    log('✅ QA metrics loaded successfully');
+                    log(`📊 Found: ${qaMetrics.totalQualifications} qualifications, ${qaMetrics.totalUnitStandards} unit standards, ${qaMetrics.totalQuestions} questions`);
+                    
+                    // Hide loading, show success
+                    document.getElementById('loadingState').classList.add('hidden');
+                    document.getElementById('successState').classList.remove('hidden');
+                    
+                    // Render metrics cards
+                    renderMetricsCards();
+                    
+                    // Show unit standard section
+                    document.getElementById('unitStandardSection').classList.remove('hidden');
+                    
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                log(`❌ Error fetching QA metrics: ${error.message}`);
+                
+                // Hide loading, show error
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('errorState').classList.remove('hidden');
+            }
+        }
+
+        function renderMetricsCards() {
+            const cardsContainer = document.getElementById('metricsCards');
+            cardsContainer.innerHTML = `
+                <div class="metric-card" style="background-color: #e8f5e8;">
+                    <h5>📚 Qualifications</h5>
+                    <p><strong>${qaMetrics.totalQualifications}</strong> Total</p>
+                    <small>${qaMetrics.legacyQualifications} Legacy, ${qaMetrics.occupationalQualifications} Occupational</small>
+                </div>
+                <div class="metric-card" style="background-color: #fff3cd;">
+                    <h5>📋 Unit Standards</h5>
+                    <p><strong>${qaMetrics.totalUnitStandards}</strong> Total</p>
+                    <small>${qaMetrics.legacyUnitStandards} Legacy, ${qaMetrics.occupationalUnitStandards} Occupational</small>
+                </div>
+                <div class="metric-card" style="background-color: #d1ecf1;">
+                    <h5>❓ Assessment Questions</h5>
+                    <p><strong>${qaMetrics.totalQuestions}</strong> Total</p>
+                    <small>${qaMetrics.formativeQuestions} Formative, ${qaMetrics.summativeQuestions} Summative</small>
+                </div>
+                <div class="metric-card" style="background-color: #f8d7da;">
+                    <h5>📝 Assessments</h5>
+                    <p><strong>${qaMetrics.totalAssessments}</strong> Total</p>
+                    <small>${qaMetrics.formativeAssessments} Formative, ${qaMetrics.summativeAssessments} Summative</small>
+                </div>
+                <div class="metric-card" style="background-color: #e2e3e5;">
+                    <h5>🎯 Active Projects</h5>
+                    <p><strong>${qaMetrics.activeProjectsWithQualifications}</strong> Projects</p>
+                    <small>${qaMetrics.projectQualifications} Qualifications, ${qaMetrics.projectUnitStandards} Unit Standards</small>
+                </div>
+            `;
+        }
+
+        async function toggleUnitStandardDetails() {
+            const detailsDiv = document.getElementById('unitStandardDetails');
+            const button = event.target;
+            
+            if (!showingDetails) {
+                log('📋 Loading unit standard breakdown...');
+                detailsDiv.classList.remove('hidden');
+                document.getElementById('unitStandardLoading').classList.remove('hidden');
+                button.textContent = 'Hide Details';
+                showingDetails = true;
+                
+                try {
+                    const response = await fetch('http://192.168.68.117:5213/api/QAOverview/unit-standard-breakdown');
+                    
+                    if (response.ok) {
+                        unitStandardBreakdown = await response.json();
+                        log(`✅ Unit standard breakdown loaded: ${unitStandardBreakdown.length} unit standards`);
+                        
+                        // Hide loading, show table
+                        document.getElementById('unitStandardLoading').classList.add('hidden');
+                        renderUnitStandardTable();
+                        
+                    } else {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                } catch (error) {
+                    log(`❌ Error fetching unit standard breakdown: ${error.message}`);
+                    document.getElementById('unitStandardLoading').innerHTML = `<p class="error">Error: ${error.message}</p>`;
+                }
+            } else {
+                detailsDiv.classList.add('hidden');
+                button.textContent = 'Show Details';
+                showingDetails = false;
+                log('📋 Unit standard details hidden');
+            }
+        }
+
+        function renderUnitStandardTable() {
+            const tableContainer = document.getElementById('unitStandardTable');
+            
+            if (unitStandardBreakdown.length === 0) {
+                tableContainer.innerHTML = '<p>No unit standards with assessment questions found.</p>';
+                tableContainer.classList.remove('hidden');
+                return;
+            }
+            
+            let tableHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Unit Standard</th>
+                            <th>Level</th>
+                            <th>Credits</th>
+                            <th>Formative Questions</th>
+                            <th>Summative Questions</th>
+                            <th>Logbook Questions</th>
+                            <th>Total Questions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            unitStandardBreakdown.forEach(us => {
+                tableHtml += `
+                    <tr>
+                        <td><strong>${us.unitStandardName}</strong></td>
+                        <td>${us.level}</td>
+                        <td>${us.credits}</td>
+                        <td>${us.formativeQuestions} (${us.formativeAssessments} assessments)</td>
+                        <td>${us.summativeQuestions} (${us.summativeAssessments} assessments)</td>
+                        <td>0 (not yet implemented)</td>
+                        <td><strong>${us.formativeQuestions + us.summativeQuestions}</strong></td>
+                    </tr>
+                `;
+            });
+            
+            const totalQuestions = unitStandardBreakdown.reduce((sum, us) => sum + us.formativeQuestions + us.summativeQuestions, 0);
+            const totalFormative = unitStandardBreakdown.reduce((sum, us) => sum + us.formativeQuestions, 0);
+            const totalSummative = unitStandardBreakdown.reduce((sum, us) => sum + us.summativeQuestions, 0);
+            
+            tableHtml += `
+                    </tbody>
+                </table>
+                <p><strong>Summary:</strong> ${unitStandardBreakdown.length} unit standards with assessment questions. 
+                Total: ${totalQuestions} questions (${totalFormative} formative, ${totalSummative} summative)</p>
+            `;
+            
+            tableContainer.innerHTML = tableHtml;
+            tableContainer.classList.remove('hidden');
+            
+            log(`📊 Unit standard table rendered with ${unitStandardBreakdown.length} rows`);
+            
+            // Log some examples as requested by user
+            unitStandardBreakdown.slice(0, 3).forEach((us, index) => {
+                log(`📋 Example ${index + 1}: "${us.unitStandardName}" has ${us.formativeQuestions} formative questions, ${us.summativeQuestions} summative questions, 0 logbook questions`);
+            });
+        }
+    </script>
+</body>
+</html>

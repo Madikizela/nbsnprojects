@@ -47,7 +47,7 @@ namespace backend.Controllers
         [HttpPost]
         public async Task<ActionResult<Course>> CreateCourse(Course course)
         {
-            course.CreatedAt = DateTime.UtcNow;
+            course.CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
             _context.Courses.Add(course);
             await _context.SaveChangesAsync();
 
@@ -63,7 +63,7 @@ namespace backend.Controllers
                 return BadRequest();
             }
 
-            course.UpdatedAt = DateTime.UtcNow;
+            course.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
             _context.Entry(course).State = EntityState.Modified;
 
             try

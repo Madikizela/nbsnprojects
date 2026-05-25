@@ -1,36 +1,53 @@
-using backend.Models;
 using Microsoft.EntityFrameworkCore;
+using backend.Models;
+using System.Security.Cryptography;
+using System.Text;
+using backend.Services.Interfaces;
 
 namespace backend.Services
 {
-    /// <summary>
-    /// Service for seeding initial data into the database
-    /// </summary>
     public class DataSeedingService : IDataSeedingService
     {
         private readonly ApplicationDbContext _context;
-        private readonly IPasswordHashingService _passwordHashingService;
         private readonly ILogger<DataSeedingService> _logger;
-
-        // Default system admin credentials
+        private readonly IPasswordHashingService _passwordHasher;
         private const string DEFAULT_ADMIN_EMAIL = "admin@system.local";
-        private const string DEFAULT_ADMIN_PASSWORD = "Admin@123!System";
-        private const string DEFAULT_ADMIN_FIRST_NAME = "System";
-        private const string DEFAULT_ADMIN_LAST_NAME = "Administrator";
+        private const string DEFAULT_ADMIN_PASSWORD = "Admin@123";
 
         public DataSeedingService(
-            ApplicationDbContext context,
-            IPasswordHashingService passwordHashingService,
-            ILogger<DataSeedingService> logger)
+            ApplicationDbContext context, 
+            ILogger<DataSeedingService> _logger,
+            IPasswordHashingService passwordHasher)
         {
             _context = context;
-            _passwordHashingService = passwordHashingService;
-            _logger = logger;
+            this._logger = _logger;
+            _passwordHasher = passwordHasher;
         }
 
-        /// <summary>
-        /// Seeds the database with initial data including default system admin user
-        /// </summary>
+        public async Task<bool> DefaultSystemAdminExistsAsync()
+        {
+            return await _context.SystemAdmins.AnyAsync(a => a.Email == DEFAULT_ADMIN_EMAIL);
+        }
+
+        public async Task CreateDefaultSystemAdminAsync()
+        {
+            var admin = new SystemAdmin
+            {
+                Email = DEFAULT_ADMIN_EMAIL,
+                Username = "admin",
+                FirstName = "System",
+                LastName = "Administrator",
+                PasswordHash = _passwordHasher.HashPassword(DEFAULT_ADMIN_PASSWORD),
+                Status = SystemAdminStatus.Active,
+                AccessLevel = SystemAdminLevel.SuperAdmin,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            _context.SystemAdmins.Add(admin);
+            await _context.SaveChangesAsync();
+        }
+
         public async Task SeedInitialDataAsync()
         {
             try
@@ -51,6 +68,15 @@ namespace backend.Services
                     _logger.LogInformation("Default system admin user already exists. Skipping creation.");
                 }
 
+                // Seed other data
+                await SeedLearningPathwaysAsync();
+                await SeedQualificationTypesAsync();
+                await SeedLegacyDataAsync();
+                await SeedClientsAsync();
+                await SeedOccupationalDataAsync();
+                // await SeedSampleProjectsAsync(); // Skipped due to foreign key requirements
+                await SeedSampleUsersAsync();
+
                 _logger.LogInformation("Database seeding process completed successfully.");
             }
             catch (Exception ex)
@@ -60,61 +86,138 @@ namespace backend.Services
             }
         }
 
-        /// <summary>
-        /// Creates the default system admin user if it doesn't exist
-        /// </summary>
-        public async Task CreateDefaultSystemAdminAsync()
+        private async Task SeedLearningPathwaysAsync()
         {
-            try
+            if (!await _context.LearningPathways.AnyAsync())
             {
-                // Hash the default password
-                var hashedPassword = _passwordHashingService.HashPassword(DEFAULT_ADMIN_PASSWORD);
-
-                // Create the default system admin user
-                var defaultAdmin = new User
+                var pathways = new[]
                 {
-                    FirstName = DEFAULT_ADMIN_FIRST_NAME,
-                    LastName = DEFAULT_ADMIN_LAST_NAME,
-                    Email = DEFAULT_ADMIN_EMAIL,
-                    PasswordHash = hashedPassword,
-                    Role = UserRole.SystemAdmin,
-                    Status = UserStatus.Active,
-                    PhoneNumber = "+1-000-000-0000", // Default system phone
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    ClientId = null, // System admin is not associated with any client
-                    SkillsDevelopmentProviderId = null, // System admin is not associated with any SDP
-                    DepartmentId = null // System admin is not associated with any department
+                    new LearningPathway { PathwayId = 1, Name = "Internship", Synced = 0 },
+                    new LearningPathway { PathwayId = 2, Name = "Apprenticeship (Artisans)", Synced = 0 },
+                    new LearningPathway { PathwayId = 3, Name = "Learnership", Synced = 0 },
+                    new LearningPathway { PathwayId = 4, Name = "Short Skills Programme", Synced = 0 },
+                    new LearningPathway { PathwayId = 5, Name = "ARPL", Synced = 0 },
+                    new LearningPathway { PathwayId = 6, Name = "RPL", Synced = 0 },
+                    new LearningPathway { PathwayId = 7, Name = "Bursary", Synced = 0 },
+                    new LearningPathway { PathwayId = 8, Name = "University Student Placement", Synced = 0 },
+                    new LearningPathway { PathwayId = 9, Name = "Work Integrated Learning", Synced = 0 }
                 };
 
-                // Add to database
-                _context.Users.Add(defaultAdmin);
+                _context.LearningPathways.AddRange(pathways);
                 await _context.SaveChangesAsync();
-
-                _logger.LogInformation("Default system admin user created with email: {Email}", DEFAULT_ADMIN_EMAIL);
-                _logger.LogWarning("IMPORTANT: Default admin password is '{Password}'. Please change it immediately after first login!", DEFAULT_ADMIN_PASSWORD);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to create default system admin user.");
-                throw;
+                _logger.LogInformation("Learning pathways seeded successfully.");
             }
         }
 
-        /// <summary>
-        /// Checks if the default system admin user exists
-        /// </summary>
-        public async Task<bool> DefaultSystemAdminExistsAsync()
+        private async Task SeedQualificationTypesAsync()
         {
-            try
+            if (!await _context.QualificationTypes.AnyAsync())
             {
-                return await _context.Users
-                    .AnyAsync(u => u.Email == DEFAULT_ADMIN_EMAIL && u.Role == UserRole.SystemAdmin);
+                var qualificationTypes = new[]
+                {
+                    new QualificationType { Id = 1, Name = "Legacy", Description = "Legacy qualifications from previous system" },
+                    new QualificationType { Id = 2, Name = "Occupational", Description = "Occupational qualifications from QCTO" }
+                };
+
+                _context.QualificationTypes.AddRange(qualificationTypes);
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("Qualification types seeded successfully.");
             }
-            catch (Exception ex)
+        }
+
+        private async Task SeedLegacyDataAsync()
+        {
+            if (!await _context.LegacyQualifications.AnyAsync())
             {
-                _logger.LogError(ex, "Failed to check if default system admin exists.");
-                throw;
+                var qualifications = new[]
+                {
+                    new LegacyQualification { Name = "National Certificate: IT", Level = "5", Credits = 120, QualificationType = "Full Qualification", QualificationId = 12345 },
+                    new LegacyQualification { Name = "Further Education and Training: Business", Level = "4", Credits = 140, QualificationType = "Full Qualification", QualificationId = 67890 }
+                };
+                _context.LegacyQualifications.AddRange(qualifications);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private async Task SeedClientsAsync()
+        {
+            if (!await _context.Clients.AnyAsync())
+            {
+                var clients = new[]
+                {
+                    new Client { Name = "Global Tech Solutions", Email = "contact@globaltech.com", Status = ClientStatus.Active },
+                    new Client { Name = "Industrial Manufacturing Co", Email = "info@industrial.com", Status = ClientStatus.Active }
+                };
+                _context.Clients.AddRange(clients);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private async Task SeedOccupationalDataAsync()
+        {
+            if (!await _context.OccupationalQualifications.AnyAsync())
+            {
+                var qualifications = new[]
+                {
+                    new OccupationalQualification { QualificationId = 1001, Name = "Occupational Certificate: Software Developer", Level = "6", Credits = 360, QualificationType = "Occupational", QualityPartner = "QCTO", Trade = "IT" },
+                    new OccupationalQualification { QualificationId = 1002, Name = "Occupational Certificate: Electrician", Level = "4", Credits = 240, QualificationType = "Occupational", QualityPartner = "QCTO", Trade = "Engineering" }
+                };
+                _context.OccupationalQualifications.AddRange(qualifications);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private async Task SeedSampleProjectsAsync()
+        {
+            if (!await _context.Projects.AnyAsync())
+            {
+                var client = await _context.Clients.FirstOrDefaultAsync();
+                if (client != null)
+                {
+                    var projects = new[]
+                    {
+                        new Project 
+                        { 
+                            ProjectName = "Junior Developer Program 2024", 
+                            StartDate = DateTime.UtcNow, 
+                            EndDate = DateTime.UtcNow.AddYears(1), 
+                            ClientId = client.Id,
+                            ContractNumber = "CONT-2024-001",
+                            FinancialYear = "2024/2025",
+                            NumberOfBeneficiaries = 20,
+                            Province = "Gauteng",
+                            ProjectFunder = "Funder A",
+                            LeadEmployerPartner = "Partner X",
+                            BudgetAmount = 1000000m
+                        }
+                    };
+                    _context.Projects.AddRange(projects);
+                    await _context.SaveChangesAsync();
+                }
+            }
+        }
+
+        private async Task SeedSampleUsersAsync()
+        {
+            if (!await _context.Users.AnyAsync())
+            {
+                var testUsers = new[]
+                {
+                    new User
+                    {
+                        Email = "manager@nbsn.local",
+                        Username = "nbsn_manager",
+                        FirstName = "NBSN",
+                        LastName = "Manager",
+                        PasswordHash = _passwordHasher.HashPassword("Admin@123"),
+                        Role = UserRole.SDPAdministrator,
+                        Status = UserStatus.Active,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                };
+                _context.Users.AddRange(testUsers);
+                await _context.SaveChangesAsync();
             }
         }
     }

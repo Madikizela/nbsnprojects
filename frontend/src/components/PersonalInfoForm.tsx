@@ -1,28 +1,28 @@
 import React, { useState } from 'react';
-import {
-  EmailIcon,
-  BuildingIcon,
-  CalendarIcon,
-  DocumentIcon,
-  GlobeIcon,
-  InfoCircleIcon,
-  ExclamationCircleIcon,
-  ExclamationTriangleIcon
-} from './CustomIcons';
 
-interface PersonalInfoFormData {
-  firstName: string;
-  lastName: string;
+interface CompanyFormData {
+  companyName: string;
+  registrationNumber: string;
   email: string;
   phoneNumber: string;
-  dateOfBirth: string;
+  establishedDate: string;
   address: string;
-  department: string;
+  industry: string;
+}
+
+interface CompanyFormErrors {
+  companyName?: string;
+  registrationNumber?: string;
+  email?: string;
+  phoneNumber?: string;
+  establishedDate?: string;
+  address?: string;
+  industry?: string;
 }
 
 interface PersonalInfoFormProps {
-  initialData?: Partial<PersonalInfoFormData>;
-  onSubmit: (data: PersonalInfoFormData) => Promise<void>;
+  initialData?: Partial<CompanyFormData>;
+  onSubmit: (data: CompanyFormData) => Promise<void>;
   onCancel?: () => void;
 }
 
@@ -31,80 +31,67 @@ const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
   onSubmit,
   onCancel
 }) => {
-  const [formData, setFormData] = useState<PersonalInfoFormData>({
-    firstName: initialData.firstName || '',
-    lastName: initialData.lastName || '',
+  const [formData, setFormData] = useState<CompanyFormData>({
+    companyName: initialData.companyName || '',
+    registrationNumber: initialData.registrationNumber || '',
     email: initialData.email || '',
     phoneNumber: initialData.phoneNumber || '',
-    dateOfBirth: initialData.dateOfBirth || '',
+    establishedDate: initialData.establishedDate || '',
     address: initialData.address || '',
-    department: initialData.department || 'Information Technology'
+    industry: initialData.industry || ''
   });
 
-  const [errors, setErrors] = useState<Partial<PersonalInfoFormData>>({});
+  const [errors, setErrors] = useState<CompanyFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  // Validation functions
-  const validateEmail = (email: string): string => {
-    if (!email) return 'Email is required';
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) return 'Please enter a valid email address';
-    return '';
-  };
-
-  const validatePhoneNumber = (phone: string): string => {
-    if (!phone) return '';
-    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-    if (!phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''))) {
-      return 'Please enter a valid phone number';
-    }
-    return '';
-  };
-
-  const validateName = (name: string, fieldName: string): string => {
-    if (!name.trim()) return `${fieldName} is required`;
-    if (name.trim().length < 2) return `${fieldName} must be at least 2 characters`;
-    if (!/^[a-zA-Z\s]+$/.test(name)) return `${fieldName} can only contain letters and spaces`;
-    return '';
-  };
-
-  const validateDateOfBirth = (date: string): string => {
-    if (!date) return '';
-    const birthDate = new Date(date);
-    const today = new Date();
-    const age = today.getFullYear() - birthDate.getFullYear();
-    
-    if (birthDate > today) return 'Date of birth cannot be in the future';
-    if (age < 16) return 'You must be at least 16 years old';
-    if (age > 100) return 'Please enter a valid date of birth';
-    return '';
-  };
-
-  const handleInputChange = (field: keyof PersonalInfoFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
     
     // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+    if (errors[name as keyof CompanyFormData]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
     }
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<PersonalInfoFormData> = {};
+    const newErrors: CompanyFormErrors = {};
 
-    newErrors.firstName = validateName(formData.firstName, 'First name');
-    newErrors.lastName = validateName(formData.lastName, 'Last name');
-    newErrors.email = validateEmail(formData.email);
-    newErrors.phoneNumber = validatePhoneNumber(formData.phoneNumber);
-    newErrors.dateOfBirth = validateDateOfBirth(formData.dateOfBirth);
+    // Company Name validation
+    if (!formData.companyName.trim()) {
+      newErrors.companyName = 'Company name is required';
+    } else if (formData.companyName.trim().length < 2) {
+      newErrors.companyName = 'Company name must be at least 2 characters';
+    }
 
-    // Remove empty error messages
-    Object.keys(newErrors).forEach(key => {
-      if (!newErrors[key as keyof PersonalInfoFormData]) {
-        delete newErrors[key as keyof PersonalInfoFormData];
+    // Registration Number validation
+    if (!formData.registrationNumber.trim()) {
+      newErrors.registrationNumber = 'Registration number is required';
+    } else if (formData.registrationNumber.trim().length < 3) {
+      newErrors.registrationNumber = 'Registration number must be at least 3 characters';
+    }
+
+    // Email validation
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
+    // Phone Number validation (optional but if provided, should be valid)
+    if (formData.phoneNumber && !/^[\d\s\-\+\(\)]+$/.test(formData.phoneNumber)) {
+      newErrors.phoneNumber = 'Please enter a valid phone number';
+    }
+
+    // Established Date validation (optional but if provided, should not be in the future)
+    if (formData.establishedDate) {
+      const selectedDate = new Date(formData.establishedDate);
+      const today = new Date();
+      if (selectedDate > today) {
+        newErrors.establishedDate = 'Established date cannot be in the future';
       }
-    });
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -135,37 +122,33 @@ const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-      <div className="bg-gradient-to-r from-gray-50 to-blue-50 px-8 py-6 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-2xl font-bold text-gray-800">Personal Information</h3>
-            <p className="text-gray-600 mt-1">Update your personal details and contact information</p>
+    <div className="card shadow-lg border-0">
+      <div className="card-header bg-primary text-white">
+        <div className="d-flex align-items-center justify-content-between">
+          <div className="d-flex align-items-center">
+            <div className="me-3 p-2 bg-white bg-opacity-10 rounded">
+              <i className="bi bi-building-fill fs-4"></i>
+            </div>
+            <div>
+              <h3 className="card-title mb-0">Company Information</h3>
+              <p className="card-text text-white text-opacity-75 mb-0">Update your company details and contact information</p>
+            </div>
           </div>
-          <div className="flex space-x-3">
+          <div>
             <button
               type="button"
               onClick={toggleEdit}
-              className={`group relative px-6 py-3 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center space-x-2 font-medium border ${
-                isEditing
-                  ? 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white border-gray-400 hover:border-gray-300'
-                  : 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border-blue-500 hover:border-blue-400'
-              }`}
+              className={`btn ${isEditing ? 'btn-outline-light' : 'btn-light'} d-flex align-items-center`}
             >
-              <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-10 rounded-xl transition-opacity duration-300"></div>
               {isEditing ? (
                 <>
-                  <svg className="w-5 h-5 mr-2 relative z-10" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
-                  </svg>
-                  <span className="relative z-10">Cancel</span>
+                  <i className="bi bi-x-lg me-2"></i>
+                  Cancel
                 </>
               ) : (
                 <>
-                  <svg className="w-5 h-5 mr-2 relative z-10" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
-                  </svg>
-                  <span className="relative z-10">Edit Profile</span>
+                  <i className="bi bi-pencil-fill me-2"></i>
+                  Edit Profile
                 </>
               )}
             </button>
@@ -173,268 +156,251 @@ const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* First Name */}
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <DocumentIcon className="w-4 h-4 mr-2 text-blue-600" />
-              First Name *
+      <div className="card-body p-4">
+        <form onSubmit={handleSubmit} className="row g-3">
+          {/* Company Name */}
+          <div className="col-md-6">
+            <label htmlFor="companyName" className="form-label fw-semibold">
+              <i className="bi bi-building-fill me-2 text-primary"></i>
+              Company Name <span className="text-danger">*</span>
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <DocumentIcon className="w-5 h-5 text-gray-400" />
-              </div>
+            <div className="input-group">
+              <span className="input-group-text bg-light border-end-0">
+                <i className="bi bi-building text-muted"></i>
+              </span>
               <input
                 type="text"
-                value={formData.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-                className={`w-full pl-12 pr-5 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 text-gray-800 font-medium placeholder-gray-500 hover:border-gray-400 ${
-                  isEditing 
-                    ? errors.firstName 
-                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                      : 'border-gray-300 bg-white'
-                    : 'border-gray-300 bg-gray-50'
-                }`}
-                placeholder="Enter your first name"
-                readOnly={!isEditing}
+                id="companyName"
+                name="companyName"
+                value={formData.companyName}
+                onChange={handleInputChange}
                 disabled={!isEditing}
+                placeholder="Enter company name"
+                className={`form-control border-start-0 ${errors.companyName ? 'is-invalid' : ''} ${!isEditing ? 'bg-light' : ''}`}
+                required
               />
+              {errors.companyName && (
+                <div className="invalid-feedback d-flex align-items-center">
+                  <i className="bi bi-exclamation-circle-fill me-1"></i>
+                  {errors.companyName}
+                </div>
+              )}
             </div>
-            {errors.firstName && (
-              <p className="text-red-600 text-sm mt-1 flex items-center">
-                <ExclamationCircleIcon className="w-4 h-4 mr-1" />
-                {errors.firstName}
-              </p>
-            )}
           </div>
 
-          {/* Last Name */}
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <DocumentIcon className="w-4 h-4 mr-2 text-blue-600" />
-              Last Name *
+          {/* Registration Number */}
+          <div className="col-md-6">
+            <label htmlFor="registrationNumber" className="form-label fw-semibold">
+              <i className="bi bi-card-text me-2 text-primary"></i>
+              Registration Number <span className="text-danger">*</span>
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <DocumentIcon className="w-5 h-5 text-gray-400" />
-              </div>
+            <div className="input-group">
+              <span className="input-group-text bg-light border-end-0">
+                <i className="bi bi-card-text text-muted"></i>
+              </span>
               <input
                 type="text"
-                value={formData.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
-                className={`w-full pl-12 pr-5 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 text-gray-800 font-medium placeholder-gray-500 hover:border-gray-400 ${
-                  isEditing 
-                    ? errors.lastName 
-                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                      : 'border-gray-300 bg-white'
-                    : 'border-gray-300 bg-gray-50'
-                }`}
-                placeholder="Enter your last name"
-                readOnly={!isEditing}
+                id="registrationNumber"
+                name="registrationNumber"
+                value={formData.registrationNumber}
+                onChange={handleInputChange}
                 disabled={!isEditing}
+                placeholder="Enter registration number"
+                className={`form-control border-start-0 ${errors.registrationNumber ? 'is-invalid' : ''} ${!isEditing ? 'bg-light' : ''}`}
+                required
               />
+              {errors.registrationNumber && (
+                <div className="invalid-feedback d-flex align-items-center">
+                  <i className="bi bi-exclamation-circle-fill me-1"></i>
+                  {errors.registrationNumber}
+                </div>
+              )}
             </div>
-            {errors.lastName && (
-              <p className="text-red-600 text-sm mt-1 flex items-center">
-                <ExclamationCircleIcon className="w-4 h-4 mr-1" />
-                {errors.lastName}
-              </p>
-            )}
           </div>
 
           {/* Email Address */}
-          <div className="md:col-span-2 space-y-2">
-            <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <EmailIcon className="w-4 h-4 mr-2 text-blue-600" />
-              Email Address *
+          <div className="col-12">
+            <label htmlFor="email" className="form-label fw-semibold">
+              <i className="bi bi-envelope-fill me-2 text-primary"></i>
+              Company Email Address <span className="text-danger">*</span>
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <EmailIcon className="w-5 h-5 text-gray-400" />
-              </div>
+            <div className="input-group">
+              <span className="input-group-text bg-light border-end-0">
+                <i className="bi bi-envelope text-muted"></i>
+              </span>
               <input
                 type="email"
+                id="email"
+                name="email"
                 value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                className={`w-full pl-12 pr-5 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 text-gray-800 font-medium placeholder-gray-500 hover:border-gray-400 ${
-                  isEditing 
-                    ? errors.email 
-                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                      : 'border-gray-300 bg-white'
-                    : 'border-gray-300 bg-gray-50'
-                }`}
-                placeholder="Enter your email address"
-                readOnly={!isEditing}
+                onChange={handleInputChange}
                 disabled={!isEditing}
+                placeholder="company@example.com"
+                className={`form-control border-start-0 ${errors.email ? 'is-invalid' : ''} ${!isEditing ? 'bg-light' : ''}`}
+                required
               />
+              {errors.email && (
+                <div className="invalid-feedback d-flex align-items-center">
+                  <i className="bi bi-exclamation-circle-fill me-1"></i>
+                  {errors.email}
+                </div>
+              )}
             </div>
-            {errors.email && (
-              <p className="text-red-600 text-sm mt-1 flex items-center">
-                <ExclamationCircleIcon className="w-4 h-4 mr-1" />
-                {errors.email}
-              </p>
-            )}
           </div>
 
           {/* Phone Number */}
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <GlobeIcon className="w-4 h-4 mr-2 text-blue-600" />
-              Phone Number
+          <div className="col-md-6">
+            <label htmlFor="phoneNumber" className="form-label fw-semibold">
+              <i className="bi bi-telephone-fill me-2 text-primary"></i>
+              Company Phone Number
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <GlobeIcon className="w-5 h-5 text-gray-400" />
-              </div>
+            <div className="input-group">
+              <span className="input-group-text bg-light border-end-0">
+                <i className="bi bi-telephone text-muted"></i>
+              </span>
               <input
                 type="tel"
+                id="phoneNumber"
+                name="phoneNumber"
                 value={formData.phoneNumber}
-                onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                className={`w-full pl-12 pr-5 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 text-gray-800 font-medium placeholder-gray-500 hover:border-gray-400 ${
-                  isEditing 
-                    ? errors.phoneNumber 
-                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                      : 'border-gray-300 bg-white'
-                    : 'border-gray-300 bg-gray-50'
-                }`}
-                placeholder="Enter your phone number"
-                readOnly={!isEditing}
+                onChange={handleInputChange}
                 disabled={!isEditing}
+                placeholder="Enter company phone number"
+                className={`form-control border-start-0 ${errors.phoneNumber ? 'is-invalid' : ''} ${!isEditing ? 'bg-light' : ''}`}
               />
+              {errors.phoneNumber && (
+                <div className="invalid-feedback d-flex align-items-center">
+                  <i className="bi bi-exclamation-circle-fill me-1"></i>
+                  {errors.phoneNumber}
+                </div>
+              )}
             </div>
-            {errors.phoneNumber && (
-              <p className="text-red-600 text-sm mt-1 flex items-center">
-                <ExclamationCircleIcon className="w-4 h-4 mr-1" />
-                {errors.phoneNumber}
-              </p>
-            )}
           </div>
 
-          {/* Date of Birth */}
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <CalendarIcon className="w-4 h-4 mr-2 text-blue-600" />
-              Date of Birth
+          {/* Established Date */}
+          <div className="col-md-6">
+            <label htmlFor="establishedDate" className="form-label fw-semibold">
+              <i className="bi bi-calendar-fill me-2 text-primary"></i>
+              Established Date
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <CalendarIcon className="w-5 h-5 text-gray-400" />
-              </div>
+            <div className="input-group">
+              <span className="input-group-text bg-light border-end-0">
+                <i className="bi bi-calendar text-muted"></i>
+              </span>
               <input
                 type="date"
-                value={formData.dateOfBirth}
-                onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                className={`w-full pl-12 pr-5 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 text-gray-800 font-medium placeholder-gray-500 hover:border-gray-400 ${
-                  isEditing 
-                    ? errors.dateOfBirth 
-                      ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-200' 
-                      : 'border-gray-300 bg-white'
-                    : 'border-gray-300 bg-gray-50'
-                }`}
-                readOnly={!isEditing}
+                id="establishedDate"
+                name="establishedDate"
+                value={formData.establishedDate}
+                onChange={handleInputChange}
                 disabled={!isEditing}
+                placeholder="yyyy/mm/dd"
+                className={`form-control border-start-0 ${errors.establishedDate ? 'is-invalid' : ''} ${!isEditing ? 'bg-light' : ''}`}
               />
+              {errors.establishedDate && (
+                <div className="invalid-feedback d-flex align-items-center">
+                  <i className="bi bi-exclamation-circle-fill me-1"></i>
+                  {errors.establishedDate}
+                </div>
+              )}
             </div>
-            {errors.dateOfBirth && (
-              <p className="text-red-600 text-sm mt-1 flex items-center">
-                <ExclamationCircleIcon className="w-4 h-4 mr-1" />
-                {errors.dateOfBirth}
-              </p>
-            )}
           </div>
 
-          {/* Address */}
-          <div className="md:col-span-2 space-y-2">
-            <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <GlobeIcon className="w-4 h-4 mr-2 text-blue-600" />
-              Address
+          {/* Company Address */}
+          <div className="col-12">
+            <label htmlFor="address" className="form-label fw-semibold">
+              <i className="bi bi-geo-alt-fill me-2 text-primary"></i>
+              Company Address
             </label>
-            <div className="relative">
-              <div className="absolute top-4 left-0 pl-4 flex items-start pointer-events-none">
-                <GlobeIcon className="w-5 h-5 text-gray-400 mt-1" />
-              </div>
-              <textarea
-                rows={4}
+            <div className="input-group">
+              <span className="input-group-text bg-light border-end-0">
+                <i className="bi bi-geo-alt text-muted"></i>
+              </span>
+              <input
+                type="text"
+                id="address"
+                name="address"
                 value={formData.address}
-                onChange={(e) => handleInputChange('address', e.target.value)}
-                className={`w-full pl-12 pr-5 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 text-gray-800 font-medium placeholder-gray-500 hover:border-gray-400 resize-none ${
-                  isEditing 
-                    ? 'border-gray-300 bg-white'
-                    : 'border-gray-300 bg-gray-50'
-                }`}
-                placeholder="Enter your full address"
-                readOnly={!isEditing}
+                onChange={handleInputChange}
                 disabled={!isEditing}
+                placeholder="Enter company address"
+                className={`form-control border-start-0 ${errors.address ? 'is-invalid' : ''} ${!isEditing ? 'bg-light' : ''}`}
               />
+              {errors.address && (
+                <div className="invalid-feedback d-flex align-items-center">
+                  <i className="bi bi-exclamation-circle-fill me-1"></i>
+                  {errors.address}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Department */}
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <BuildingIcon className="w-4 h-4 mr-2 text-blue-600" />
-              Department
+          {/* Industry */}
+          <div className="col-12">
+            <label htmlFor="industry" className="form-label fw-semibold">
+              <i className="bi bi-briefcase-fill me-2 text-primary"></i>
+              Industry
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <BuildingIcon className="w-5 h-5 text-gray-400" />
-              </div>
+            <div className="input-group">
+              <span className="input-group-text bg-light border-end-0">
+                <i className="bi bi-briefcase text-muted"></i>
+              </span>
               <select
-                value={formData.department}
-                onChange={(e) => handleInputChange('department', e.target.value)}
-                className={`w-full pl-12 pr-5 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 text-gray-800 font-medium hover:border-gray-400 appearance-none ${
-                  isEditing 
-                    ? 'border-gray-300 bg-white'
-                    : 'border-gray-300 bg-gray-50'
-                }`}
+                id="industry"
+                name="industry"
+                value={formData.industry}
+                onChange={handleInputChange}
                 disabled={!isEditing}
+                className={`form-select border-start-0 ${errors.industry ? 'is-invalid' : ''} ${!isEditing ? 'bg-light' : ''}`}
               >
+                <option value="">Select Industry</option>
                 <option value="Information Technology">Information Technology</option>
-                <option value="Business Administration">Business Administration</option>
-                <option value="Engineering">Engineering</option>
                 <option value="Healthcare">Healthcare</option>
                 <option value="Finance">Finance</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Human Resources">Human Resources</option>
+                <option value="Education">Education</option>
+                <option value="Manufacturing">Manufacturing</option>
+                <option value="Retail">Retail</option>
+                <option value="Construction">Construction</option>
+                <option value="Transportation">Transportation</option>
+                <option value="Energy">Energy</option>
+                <option value="Agriculture">Agriculture</option>
+                <option value="Other">Other</option>
               </select>
-              <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/>
-                </svg>
-              </div>
+              {errors.industry && (
+                <div className="invalid-feedback d-flex align-items-center">
+                  <i className="bi bi-exclamation-circle-fill me-1"></i>
+                  {errors.industry}
+                </div>
+              )}
             </div>
           </div>
-        </div>
 
-        {/* Save Button - Only visible when editing */}
-        {isEditing && (
-          <div className="flex justify-end mt-8 pt-6 border-t border-gray-200">
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 disabled:transform-none flex items-center space-x-2"
-            >
-              {isSubmitting ? (
-                <>
-                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
-                  </svg>
-                  <span>Save Changes</span>
-                </>
-              )}
-            </button>
-          </div>
-        )}
-      </form>
+          {/* Save Button - Only visible when editing */}
+          {isEditing && (
+            <div className="col-12 d-flex justify-content-end mt-4">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="btn btn-primary px-4 py-2 d-flex align-items-center"
+              >
+                {isSubmitting ? (
+                  <>
+                    <div className="spinner-border spinner-border-sm me-2" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <i className="bi bi-check-circle-fill me-2"></i>
+                    Save Changes
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </form>
+      </div>
     </div>
   );
 };

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ClientForm from './ClientForm';
 import PersonalInfoForm from './PersonalInfoForm';
+import nbsnLogo from '../assets/nbsn-logo.png';
 
 interface User {
   id: number;
@@ -42,6 +43,7 @@ const Dashboard = () => {
 
   const menuItems = [
     { id: 'clients', label: 'Client Management', icon: '🏢' },
+    { id: 'sdp', label: 'SDP Management', icon: '🎓' },
     { id: 'profile', label: 'Profile', icon: '👤' },
   ];
 
@@ -61,10 +63,8 @@ const Dashboard = () => {
               <h3 className="h4 mb-0 text-white">Client Operations</h3>
               <button 
                 onClick={() => setActiveSection('add-client')}
-                className="btn btn-success d-flex align-items-center shadow-lg"
+                className="btn btn-success d-flex align-items-center shadow-lg hover-lift"
                 style={{background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)', border: 'none', transform: 'translateY(0)', transition: 'all 0.3s ease'}}
-                onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'}
-                onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}
               >
                 <svg className="me-2" width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
@@ -281,13 +281,80 @@ const Dashboard = () => {
             </div>
           </div>
         );
+      case 'sdp':
+        return (
+          <div className="container-fluid">
+            <div className="card text-white mb-4 border-0 shadow-lg" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', backdropFilter: 'blur(10px)'}}>
+              <div className="card-body p-4">
+                <h2 className="card-title h3 mb-2">SDP Management 🎓</h2>
+                <p className="card-text opacity-90">Manage Skills Development Providers</p>
+              </div>
+            </div>
+            
+            <div className="d-flex justify-content-between align-items-center mb-4">
+              <h3 className="h4 mb-0 text-white">SDP Operations</h3>
+              <button 
+                onClick={() => navigate('/sdp-dashboard')}
+                className="btn btn-primary d-flex align-items-center shadow-lg hover-lift"
+                style={{background: 'linear-gradient(135deg, #007bff 0%, #6610f2 100%)', border: 'none', transform: 'translateY(0)', transition: 'all 0.3s ease'}}
+              >
+                <svg className="me-2" width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
+                </svg>
+                Open SDP Dashboard
+              </button>
+            </div>
+            
+            <div className="row g-4">
+              <div className="col-md-6">
+                <div className="card h-100 shadow-lg border-0" style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
+                  <div className="card-body">
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h4 className="card-title h5 text-white">Manage SDPs</h4>
+                      <span className="badge bg-primary">Active</span>
+                    </div>
+                    <p className="card-text text-white-50 mb-3">View, edit, and manage all Skills Development Providers in the system.</p>
+                    <button 
+                      onClick={() => navigate('/sdp-dashboard')}
+                      className="btn btn-outline-light btn-sm"
+                    >
+                      View All SDPs
+                    </button>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="col-md-6">
+                <div className="card h-100 shadow-lg border-0" style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
+                  <div className="card-body">
+                    <div className="d-flex justify-content-between align-items-center mb-3">
+                      <h4 className="card-title h5 text-white">Add New SDP</h4>
+                      <span className="badge bg-success">Create</span>
+                    </div>
+                    <p className="card-text text-white-50 mb-3">Register new Skills Development Providers to expand your network.</p>
+                    <button 
+                      onClick={() => navigate('/sdp-dashboard')}
+                      className="btn btn-outline-light btn-sm"
+                    >
+                      Add SDP
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
       case 'profile':
         return (
           <PersonalInfoForm 
             initialData={{
-              firstName: user?.firstName || '',
-              lastName: user?.lastName || '',
-              email: user?.email || ''
+              companyName: '',
+              registrationNumber: '',
+              email: user?.email || '',
+              phoneNumber: '',
+              establishedDate: '',
+              address: '',
+              industry: ''
             }}
             onSubmit={async (formData) => {
               // Here you would typically send the data to your backend
@@ -301,6 +368,28 @@ const Dashboard = () => {
     }
   };
 
+  useEffect(() => {
+    // Redirect Client users away from System Admin dashboard
+    if (!user) return;
+
+    const userAny: any = user as any;
+    const userType = userAny?.userType;
+    const role = userAny?.role;
+    const accessLevel = userAny?.accessLevel;
+    const clientId = userAny?.clientId;
+
+    const isClient =
+      userType === 'ClientAdmin' ||
+      role === 'ClientAdmin' ||
+      role === 3 ||
+      accessLevel === 3 ||
+      (typeof clientId === 'number' && clientId !== null);
+
+    if (isClient) {
+      navigate('/client-dashboard');
+    }
+  }, [user, navigate]);
+
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -313,21 +402,27 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-vh-100 w-100 d-flex flex-column" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
+    <>
+      <style dangerouslySetInnerHTML={{__html: `
+        .hover-lift:hover {
+          transform: translateY(-2px) !important;
+        }
+      `}} />
+      <div className="min-vh-100 w-100 d-flex flex-column" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
       {/* Bootstrap Navigation */}
       <nav className="navbar navbar-expand-lg navbar-dark shadow-lg flex-shrink-0" style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(255, 255, 255, 0.2)'}}>
         <div className="container-fluid">
           <div className="navbar-brand d-flex align-items-center">
             <img 
-              src="/src/assets/logo.png" 
-              alt="RLMS Logo" 
+              src={nbsnLogo} 
+              alt="NBSN Logo" 
               width="40" 
               height="40" 
               className="me-3"
-              style={{objectFit: 'contain'}}
+              style={{objectFit: 'contain', borderRadius: '4px'}}
             />
             <h1 className="h3 mb-0 fw-bold text-white">
-              RLMS
+              NBSN
             </h1>
           </div>
           <div className="d-flex align-items-center">
@@ -389,6 +484,7 @@ const Dashboard = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 

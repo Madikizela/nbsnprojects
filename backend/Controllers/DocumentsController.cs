@@ -312,7 +312,7 @@ namespace backend.Controllers
                         null, $"Expiry date set to {request.ExpiryDate}", GetClientIpAddress(), GetUserAgent());
                 }
 
-                document.UpdatedAt = DateTime.UtcNow;
+                document.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
                 await _context.SaveChangesAsync();
 
                 return NoContent();

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Check Current URL After Login</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .info { background: #d1ecf1; }
+        .warning { background: #fff3cd; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Check Current URL After Login</h1>
+    
+    <div class="step info">
+        <h3>Instructions</h3>
+        <ol>
+            <li>Login to the frontend with QA Manager credentials</li>
+            <li>After login, check the URL in the address bar</li>
+            <li>Check the page title and content</li>
+            <li>Report back what you see</li>
+        </ol>
+    </div>
+    
+    <div class="step warning">
+        <h3>What to Check</h3>
+        <ul>
+            <li><strong>URL:</strong> Should be <code>http://localhost:5173/sdp-manager-dashboard</code></li>
+            <li><strong>Page Title:</strong> Should show "Quality Assurance Manager Dashboard"</li>
+            <li><strong>Content:</strong> Should show QA Overview section</li>
+        </ul>
+    </div>
+    
+    <div class="step">
+        <h3>Possible Scenarios</h3>
+        <h4>Scenario 1: Wrong URL</h4>
+        <p>If URL is <code>/sdp-dashboard</code> instead of <code>/sdp-manager-dashboard</code>, then the routing logic is still broken.</p>
+        
+        <h4>Scenario 2: Correct URL, Wrong Component</h4>
+        <p>If URL is correct but showing wrong dashboard, there might be a route configuration issue.</p>
+        
+        <h4>Scenario 3: Correct URL, Correct Component, Wrong Content</h4>
+        <p>If everything is correct but QA Overview is not showing, there might be a role check issue in the component.</p>
+    </div>
+    
+    <div class="step">
+        <h3>Debug Steps</h3>
+        <ol>
+            <li>Open browser developer tools (F12)</li>
+            <li>Go to Console tab</li>
+            <li>Login and watch for console logs</li>
+            <li>Look for "Login Debug" and "Routing to" messages</li>
+            <li>Check Network tab for API calls</li>
+        </ol>
+    </div>
+    
+    <p><a href="http://localhost:5173" target="_blank" style="font-size: 18px; padding: 10px 20px; background: #007bff; color: white; text-decoration: none; border-radius: 5px;">Open Frontend</a></p>
+</body>
+</html>

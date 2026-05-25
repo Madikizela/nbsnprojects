@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Blank Screen</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 10px 0; padding: 10px; border-left: 4px solid #007bff; background: #f8f9fa; }
+        .step.success { border-color: #28a745; background: #d4edda; }
+        .step.error { border-color: #dc3545; background: #f8d7da; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
+        pre { background: #f1f1f1; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Debug Blank Screen Issue</h1>
+    <p>Let's test what happens when we login and check the routing</p>
+    
+    <button onclick="testLogin()">Test Login and Check Routing</button>
+    <div id="debugResult"></div>
+
+    <script>
+        async function testLogin() {
+            const resultDiv = document.getElementById('debugResult');
+            resultDiv.innerHTML = '<div class="step">Starting login test...</div>';
+
+            try {
+                // Step 1: Login
+                let html = '<div class="step">Step 1: Attempting login...</div>';
+                resultDiv.innerHTML = html;
+
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'zondis411@gmail.com',
+                        password: 'password123'
+                    })
+                });
+
+                if (!response.ok) {
+                    html += '<div class="step error">Login failed</div>';
+                    resultDiv.innerHTML = html;
+                    return;
+                }
+
+                const data = await response.json();
+                html += '<div class="step success">Login successful</div>';
+
+                // Step 2: Check user data
+                html += '<div class="step">Step 2: Checking user data...</div>';
+                const user = data.user;
+                
+                const normalizedUser = {
+                    role: user?.role ?? user?.Role,
+                    departmentName: user?.departmentName ?? user?.DepartmentName,
+                    departmentId: user?.departmentId ?? user?.DepartmentId,
+                    skillsDevelopmentProviderId: user?.skillsDevelopmentProviderId ?? user?.SkillsDevelopmentProviderId,
+                };
+
+                html += `<div class="step">User Data:<pre>${JSON.stringify(normalizedUser, null, 2)}</pre></div>`;
+
+                // Step 3: Apply routing logic
+                html += '<div class="step">Step 3: Applying routing logic...</div>';
+                
+                const departmentName = normalizedUser.departmentName?.toLowerCase() || '';
+                let expectedRoute = '';
+                let routingReason = '';
+
+                if (departmentName.includes('quality')) {
+                    expectedRoute = '/qa-manager-dashboard';
+                    routingReason = 'Quality Department';
+                } else if (departmentName.includes('logistic')) {
+                    expectedRoute = '/logistics-manager-dashboard';
+                    routingReason = 'Logistics Department';
+                } else if (departmentName.includes('admin')) {
+                    expectedRoute = '/admin-manager-dashboard';
+                    routingReason = 'Administration Department';
+                } else {
+                    expectedRoute = '/sdp-dashboard';
+                    routingReason = 'Default SDP';
+                }
+
+                html += `<div class="step success">Expected Route: ${expectedRoute}</div>`;
+                html += `<div class="step">Routing Reason: ${routingReason}</div>`;
+
+                // Step 4: Test if route exists
+                html += '<div class="step">Step 4: Testing if route exists...</div>';
+                
+                try {
+                    // Try to fetch the route to see if it exists
+                    const routeTest = await fetch(`http://localhost:5173${expectedRoute}`, {
+                        method: 'GET',
+                        mode: 'no-cors' // Avoid CORS issues for this test
+                    });
+                    
+                    html += '<div class="step success">Route appears to exist (no 404)</div>';
+                } catch (error) {
+                    html += `<div class="step error">Route test failed: ${error.message}</div>`;
+                }
+
+                // Step 5: Check what happens when we navigate
+                html += '<div class="step">Step 5: Manual navigation test</div>';
+                html += `<div class="step">Try manually navigating to: <a href="http://localhost:5173${expectedRoute}" target="_blank">http://localhost:5173${expectedRoute}</a></div>`;
+                
+                // Step 6: Check browser console
+                html += '<div class="step">Step 6: Check browser console for errors</div>';
+                html += '<div class="step">Open Developer Tools (F12) and check the Console tab for any JavaScript errors</div>';
+
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="step error">ERROR: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

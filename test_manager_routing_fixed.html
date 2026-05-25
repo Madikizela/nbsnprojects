@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manager Routing Test - Fixed</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .result { margin-top: 10px; padding: 10px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>Manager Routing Test - Fixed Version</h1>
+    <p>Testing that all managers route to their respective dashboards (not SDP dashboard)</p>
+
+    <div class="test-section">
+        <h3>Test All Manager Logins</h3>
+        <button onclick="testAllManagers()">Test All Manager Routing</button>
+        <div id="allManagersResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>Individual Manager Tests</h3>
+        <button onclick="testManager('zondis411@gmail.com', 'Role 7 QA Manager')">Test QA Manager (zondis411@gmail.com)</button>
+        <button onclick="testManager('qa.manager@masakhane.com', 'Role 7 QA Manager')">Test QA Manager (qa.manager@masakhane.com)</button>
+        <button onclick="testManager('admin.manager@masakhane.com', 'Role 3 Admin Manager')">Test Admin Manager</button>
+        <button onclick="testManager('finance.manager@masakhane.com', 'Role 4 Finance Manager')">Test Finance Manager</button>
+        <button onclick="testManager('logistics.manager@masakhane.com', 'Role 5 Logistics Manager')">Test Logistics Manager</button>
+        <button onclick="testManager('maphangomaphango931@gmail.com', 'Role 5 Logistics Manager')">Test Logistics Manager (maphangomaphango931@gmail.com)</button>
+        <button onclick="testManager('nkwenkwezi68@gmail.com', 'Role 3 Admin Manager')">Test Admin Manager (nkwenkwezi68@gmail.com)</button>
+        <div id="individualResult"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        async function testManager(email, description) {
+            const resultDiv = document.getElementById('individualResult');
+            resultDiv.innerHTML = `<div class="info">Testing ${description} (${email})...</div>`;
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        password: 'password123'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const user = data.user;
+                    
+                    // Normalize user data
+                    const normalizedUser = {
+                        role: user?.role ?? user?.Role,
+                        skillsDevelopmentProviderId: user?.skillsDevelopmentProviderId ?? user?.SkillsDevelopmentProviderId,
+                        departmentId: user?.departmentId ?? user?.DepartmentId,
+                        clientId: user?.clientId ?? user?.ClientId
+                    };
+
+                    // Apply the same routing logic as Login.tsx
+                    let expectedRoute = '';
+                    let routingReason = '';
+
+                    // QA Manager check first
+                    if (normalizedUser.role === 7 || normalizedUser.role === '7') {
+                        expectedRoute = '/sdp-manager-dashboard';
+                        routingReason = 'QA Manager (Role 7)';
+                    }
+                    // Other SDP Manager roles
+                    else if (
+                        (normalizedUser.role === '3' && normalizedUser.departmentId) || 
+                        (normalizedUser.role === 3 && normalizedUser.departmentId) ||   
+                        normalizedUser.role === '4' || normalizedUser.role === 4 ||     
+                        normalizedUser.role === '5' || normalizedUser.role === 5 ||     
+                        normalizedUser.role === 'SDPIT' ||
+                        normalizedUser.role === 'SDPAssessor' ||
+                        normalizedUser.role === 'SDPFacilitator'
+                    ) {
+                        expectedRoute = '/sdp-manager-dashboard';
+                        routingReason = 'SDP Manager Role';
+                    }
+                    // Main SDP Admin (role 3 without departmentId)
+                    else if (
+                        (normalizedUser.role === '3' || normalizedUser.role === 3) && 
+                        !normalizedUser.departmentId &&
+                        (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0)
+                    ) {
+                        expectedRoute = '/sdp-dashboard';
+                        routingReason = 'Main SDP Admin';
+                    }
+                    // Client
+                    else if (
+                        normalizedUser.role === 'ClientAdmin' ||
+                        normalizedUser.userType === 'ClientAdmin' ||
+                        normalizedUser.accessLevel === 3 ||
+                        (typeof normalizedUser.clientId === 'number' && normalizedUser.clientId !== null && normalizedUser.clientId > 0)
+                    ) {
+                        expectedRoute = '/client-dashboard';
+                        routingReason = 'Client Admin';
+                    }
+                    else {
+                        expectedRoute = '/dashboard';
+                        routingReason = 'Default';
+                    }
+
+                    const isManagerRoute = expectedRoute === '/sdp-manager-dashboard';
+                    const resultClass = isManagerRoute ? 'success' : 'error';
+                    
+                    resultDiv.innerHTML = `
+                        <div class="${resultClass}">
+                            <h4>${description} Login Test</h4>
+                            <p><strong>Email:</strong> ${email}</p>
+                            <p><strong>Role:</strong> ${normalizedUser.role}</p>
+                            <p><strong>SDP ID:</strong> ${normalizedUser.skillsDevelopmentProviderId}</p>
+                            <p><strong>Department ID:</strong> ${normalizedUser.departmentId}</p>
+                            <p><strong>Client ID:</strong> ${normalizedUser.clientId}</p>
+                            <p><strong>Expected Route:</strong> ${expectedRoute}</p>
+                            <p><strong>Routing Reason:</strong> ${routingReason}</p>
+                            <p><strong>Result:</strong> ${isManagerRoute ? '✅ CORRECT - Routes to Manager Dashboard' : '❌ WRONG - Does not route to Manager Dashboard'}</p>
+                        </div>
+                    `;
+                } else {
+                    const errorData = await response.json();
+                    resultDiv.innerHTML = `<div class="error">Login failed: ${errorData.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Network error: ${error.message}</div>`;
+            }
+        }
+
+        async function testAllManagers() {
+            const resultDiv = document.getElementById('allManagersResult');
+            resultDiv.innerHTML = '<div class="info">Testing all managers...</div>';
+
+            const managers = [
+                { email: 'zondis411@gmail.com', description: 'QA Manager (Role 7)' },
+                { email: 'qa.manager@masakhane.com', description: 'QA Manager (Role 7)' },
+                { email: 'admin.manager@masakhane.com', description: 'Admin Manager (Role 3)' },
+                { email: 'finance.manager@masakhane.com', description: 'Finance Manager (Role 4)' },
+                { email: 'logistics.manager@masakhane.com', description: 'Logistics Manager (Role 5)' },
+                { email: 'maphangomaphango931@gmail.com', description: 'Logistics Manager (Role 5)' },
+                { email: 'nkwenkwezi68@gmail.com', description: 'Admin Manager (Role 3)' }
+            ];
+
+            let results = [];
+            let successCount = 0;
+
+            for (const manager of managers) {
+                try {
+                    const response = await fetch(`${API_BASE}/auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: manager.email,
+                            password: 'password123'
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const user = data.user;
+                        
+                        const normalizedUser = {
+                            role: user?.role ?? user?.Role,
+                            skillsDevelopmentProviderId: user?.skillsDevelopmentProviderId ?? user?.SkillsDevelopmentProviderId,
+                            departmentId: user?.departmentId ?? user?.DepartmentId,
+                            clientId: user?.clientId ?? user?.ClientId
+                        };
+
+                        // Apply routing logic
+                        let expectedRoute = '';
+                        if (normalizedUser.role === 7 || normalizedUser.role === '7') {
+                            expectedRoute = '/sdp-manager-dashboard';
+                        } else if (
+                            (normalizedUser.role === '3' && normalizedUser.departmentId) || 
+                            (normalizedUser.role === 3 && normalizedUser.departmentId) ||   
+                            normalizedUser.role === '4' || normalizedUser.role === 4 ||     
+                            normalizedUser.role === '5' || normalizedUser.role === 5
+                        ) {
+                            expectedRoute = '/sdp-manager-dashboard';
+                        } else {
+                            expectedRoute = '/other-dashboard';
+                        }
+
+                        const isCorrect = expectedRoute === '/sdp-manager-dashboard';
+                        if (isCorrect) successCount++;
+
+                        results.push({
+                            email: manager.email,
+                            description: manager.description,
+                            role: normalizedUser.role,
+                            expectedRoute,
+                            isCorrect
+                        });
+                    } else {
+                        results.push({
+                            email: manager.email,
+                            description: manager.description,
+                            error: 'Login failed'
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        email: manager.email,
+                        description: manager.description,
+                        error: error.message
+                    });
+                }
+            }
+
+            // Display results
+            let html = `<div class="${successCount === managers.length ? 'success' : 'error'}">`;
+            html += `<h4>All Managers Test Results: ${successCount}/${managers.length} Correct</h4>`;
+            
+            results.forEach(result => {
+                if (result.error) {
+                    html += `<p>❌ ${result.description} (${result.email}): ${result.error}</p>`;
+                } else {
+                    const icon = result.isCorrect ? '✅' : '❌';
+                    html += `<p>${icon} ${result.description} (${result.email}): Role ${result.role} → ${result.expectedRoute}</p>`;
+                }
+            });
+            
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Login Routing</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Debug Login Routing Issue</h1>
+    
+    <div class="step warning">
+        <h3>Current Issue</h3>
+        <p>User <strong>zondis411@gmail.com</strong> (Role 7 - QA Manager) is still being routed to <strong>SDP Dashboard</strong> instead of <strong>SDP Manager Dashboard</strong>.</p>
+    </div>
+    
+    <div id="step1" class="step">
+        <h3>Step 1: Test Login and Check Response</h3>
+        <button onclick="testLogin()">Test Login</button>
+        <div id="login-result"></div>
+    </div>
+    
+    <div id="step2" class="step">
+        <h3>Step 2: Simulate Frontend Routing Logic</h3>
+        <div id="routing-result"></div>
+    </div>
+    
+    <div id="step3" class="step">
+        <h3>Step 3: Check Current Routes</h3>
+        <div id="routes-result">
+            <p><strong>Expected Routes:</strong></p>
+            <ul>
+                <li><code>/sdp-manager-dashboard</code> - For Role 7 (QA Manager)</li>
+                <li><code>/sdp-dashboard</code> - For Role 3 (SDP Admin)</li>
+                <li><code>/client-dashboard</code> - For Client Admin</li>
+                <li><code>/dashboard</code> - Default</li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        async function testLogin() {
+            try {
+                document.getElementById('login-result').innerHTML = 'Testing login...';
+                
+                const response = await fetch('http://192.168.68.117:5213/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'zondis411@gmail.com',
+                        password: 'hlvp2WdoDK(a'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Login Response:', data);
+                    
+                    // Simulate the frontend normalization logic
+                    const normalizedUser = {
+                        id: data.user?.id ?? data.user?.Id,
+                        name: data.user?.name ?? data.user?.Name ?? `${data.user?.firstName ?? data.user?.FirstName} ${data.user?.lastName ?? data.user?.LastName}`,
+                        firstName: data.user?.firstName ?? data.user?.FirstName,
+                        lastName: data.user?.lastName ?? data.user?.LastName,
+                        email: data.user?.email ?? data.user?.Email,
+                        role: data.user?.role ?? data.user?.Role,
+                        status: data.user?.status ?? data.user?.Status,
+                        userType: data.user?.userType ?? data.user?.UserType,
+                        accessLevel: data.user?.accessLevel ?? data.user?.AccessLevel ?? 0,
+                        clientId: data.user?.clientId ?? data.user?.ClientId ?? null,
+                        clientName: data.user?.clientName ?? data.user?.ClientName ?? null,
+                        skillsDevelopmentProviderId: data.user?.skillsDevelopmentProviderId ?? data.user?.SkillsDevelopmentProviderId ?? null,
+                        skillsDevelopmentProviderName: data.user?.skillsDevelopmentProviderName ?? data.user?.SkillsDevelopmentProviderName ?? null,
+                        departmentId: data.user?.departmentId ?? data.user?.DepartmentId ?? null,
+                        departmentName: data.user?.departmentName ?? data.user?.DepartmentName ?? null,
+                        projectCount: data.user?.projectCount ?? data.user?.ProjectCount ?? 0,
+                        activeProjectCount: data.user?.activeProjectCount ?? data.user?.ActiveProjectCount ?? 0,
+                        departmentCount: data.user?.departmentCount ?? data.user?.DepartmentCount ?? 0,
+                    };
+                    
+                    document.getElementById('login-result').innerHTML = `
+                        <h4>✅ Login Successful</h4>
+                        <h5>Raw Response:</h5>
+                        <pre>${JSON.stringify(data.user, null, 2)}</pre>
+                        <h5>Normalized User:</h5>
+                        <pre>${JSON.stringify(normalizedUser, null, 2)}</pre>
+                    `;
+                    
+                    // Test routing logic
+                    testRoutingLogic(normalizedUser);
+                } else {
+                    const error = await response.text();
+                    document.getElementById('login-result').innerHTML = `
+                        <h4>❌ Login Failed</h4>
+                        <pre>${error}</pre>
+                    `;
+                }
+            } catch (error) {
+                document.getElementById('login-result').innerHTML = `
+                    <h4>❌ Error</h4>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+        
+        function testRoutingLogic(normalizedUser) {
+            // Simulate the exact frontend routing logic
+            const isClient =
+                normalizedUser.role === 'ClientAdmin' ||
+                normalizedUser.userType === 'ClientAdmin' ||
+                normalizedUser.accessLevel === 3 ||
+                (typeof normalizedUser.clientId === 'number' && normalizedUser.clientId !== null && normalizedUser.clientId > 0);
+
+            const isSDP = 
+                normalizedUser.role === '3' || // SDPAdministrator - string
+                normalizedUser.role === 3 ||   // SDPAdministrator - number
+                normalizedUser.userType === 'SDPAdmin' ||
+                (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0);
+
+            const isSDPManager = (
+                (normalizedUser.role === '3' && normalizedUser.departmentId) || // Internal Admin Manager
+                normalizedUser.role === '4' || // SDPFinance
+                normalizedUser.role === '5' || // SDPLogistics
+                normalizedUser.role === 'SDPIT' ||
+                normalizedUser.role === '7' || // SDPModerator (QA Manager) - string
+                normalizedUser.role === 7 ||   // SDPModerator (QA Manager) - number
+                normalizedUser.role === 'SDPAssessor' ||
+                normalizedUser.role === 'SDPFacilitator'
+            );
+            
+            let expectedRoute;
+            if (isSDPManager) {
+                expectedRoute = '/sdp-manager-dashboard';
+            } else if (isSDP) {
+                expectedRoute = '/sdp-dashboard';
+            } else if (isClient) {
+                expectedRoute = '/client-dashboard';
+            } else {
+                expectedRoute = '/dashboard';
+            }
+            
+            const routingDebug = {
+                role: normalizedUser.role,
+                roleType: typeof normalizedUser.role,
+                isSDPManager,
+                isSDP,
+                isClient,
+                skillsDevelopmentProviderId: normalizedUser.skillsDevelopmentProviderId,
+                departmentId: normalizedUser.departmentId,
+                expectedRoute
+            };
+            
+            console.log('Routing Debug:', routingDebug);
+            
+            document.getElementById('routing-result').innerHTML = `
+                <h4>Routing Logic Analysis</h4>
+                <pre>${JSON.stringify(routingDebug, null, 2)}</pre>
+                
+                <h5>Logic Breakdown:</h5>
+                <ul>
+                    <li><strong>Role:</strong> ${normalizedUser.role} (${typeof normalizedUser.role})</li>
+                    <li><strong>SDP ID:</strong> ${normalizedUser.skillsDevelopmentProviderId}</li>
+                    <li><strong>Department ID:</strong> ${normalizedUser.departmentId}</li>
+                    <li><strong>isClient:</strong> ${isClient}</li>
+                    <li><strong>isSDP:</strong> ${isSDP}</li>
+                    <li><strong>isSDPManager:</strong> ${isSDPManager}</li>
+                    <li><strong>Expected Route:</strong> <code>${expectedRoute}</code></li>
+                </ul>
+                
+                ${expectedRoute === '/sdp-manager-dashboard' ? 
+                    '<div style="background: #d4edda; padding: 10px; border-radius: 5px; margin-top: 10px;"><strong>✅ Should route to SDP Manager Dashboard</strong></div>' :
+                    '<div style="background: #f8d7da; padding: 10px; border-radius: 5px; margin-top: 10px;"><strong>❌ Will route to wrong dashboard</strong></div>'
+                }
+            `;
+        }
+    </script>
+</body>
+</html>

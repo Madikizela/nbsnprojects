@@ -18,18 +18,22 @@ namespace backend.Models
         [StringLength(200)]
         public string? Address { get; set; }
 
-        [StringLength(20)]
-        public string? PhoneNumber { get; set; }
+        // AccreditationNumber temporarily commented out due to missing column in database
+        // [StringLength(50)]
+        // public string? AccreditationNumber { get; set; }
 
-        [EmailAddress]
-        [StringLength(255)]
-        public string? Email { get; set; }
+        // ContactEmail property temporarily removed due to missing column in database
+        // [Required]
+        // [EmailAddress]
+        // [StringLength(100)]
+        // public string ContactEmail { get; set; } = string.Empty;
+
+        // ContactPhone property temporarily removed due to missing column in database
+        // [StringLength(20)]
+        // public string? ContactPhone { get; set; }
 
         [StringLength(100)]
         public string? ContactPerson { get; set; }
-
-        [StringLength(50)]
-        public string? RegistrationNumber { get; set; }
 
         [Required]
         public SDPStatus Status { get; set; } = SDPStatus.Active;
@@ -43,7 +47,7 @@ namespace backend.Models
 
         // Navigation Properties
         [ForeignKey("ClientId")]
-        public virtual Client Client { get; set; } = null!;
+        public virtual Client? Client { get; set; } = null;
 
         public virtual ICollection<User> Users { get; set; } = new List<User>();
         public virtual ICollection<Department> Departments { get; set; } = new List<Department>();

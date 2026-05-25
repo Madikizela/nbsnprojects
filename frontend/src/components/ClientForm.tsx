@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { CheckCircleIcon, ExclamationCircleIcon, ExclamationTriangleIcon } from './CustomIcons';
+import type { ClientRegistrationData } from '../services/clientService';
+import { registerClient } from '../services/clientService';
 
 interface ClientFormData {
   clientName: string;
@@ -9,6 +10,8 @@ interface ClientFormData {
   contractNumber: string;
   clientAddress: string;
   emailAddress: string;
+  phoneNumber: string;
+  contactPerson: string;
   websiteLink: string;
   attendanceType: string;
   logo?: File;
@@ -22,6 +25,8 @@ interface ClientFormErrors {
   contractNumber?: string;
   clientAddress?: string;
   emailAddress?: string;
+  phoneNumber?: string;
+  contactPerson?: string;
   websiteLink?: string;
   attendanceType?: string;
   logo?: string;
@@ -29,7 +34,7 @@ interface ClientFormErrors {
 
 interface ClientFormProps {
   onCancel: () => void;
-  onSubmit: (data: ClientFormData) => void;
+  onSubmit?: (data: ClientFormData) => void;
 }
 
 const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
@@ -41,6 +46,8 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
     contractNumber: '',
     clientAddress: '',
     emailAddress: '',
+    phoneNumber: '',
+    contactPerson: '',
     websiteLink: '',
     attendanceType: '',
   });
@@ -48,6 +55,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
   const [errors, setErrors] = useState<ClientFormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
   const validateField = (name: keyof ClientFormData, value: string | File | undefined): string => {
     switch (name) {
@@ -111,6 +119,21 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
           }
         }
         break;
+
+      case 'phoneNumber':
+        if (value && typeof value === 'string' && value.trim()) {
+          const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+          if (!phoneRegex.test(value.replace(/[\s\-\(\)]/g, ''))) {
+            return 'Please enter a valid phone number';
+          }
+        }
+        break;
+
+      case 'contactPerson':
+        if (value && typeof value === 'string' && value.trim().length > 100) {
+          return 'Contact person name cannot exceed 100 characters';
+        }
+        break;
     }
     return '';
   };
@@ -154,518 +177,562 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
   };
 
   const validateForm = (): boolean => {
-    const newErrors: ClientFormErrors = {};
+    console.log('Validating form with data:', formData);
+    console.log('Client name value:', `"${formData.clientName}"`);
+    console.log('Email address value:', `"${formData.emailAddress}"`);
     
-    // Validate required fields
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key === 'clientName' || key === 'emailAddress') {
-        const error = validateField(key as keyof ClientFormData, value);
-        if (error) {
-          newErrors[key as keyof ClientFormErrors] = error;
-        }
-      }
-    });
-
-    // Validate optional fields that have values
-    Object.entries(formData).forEach(([key, value]) => {
-      if (key !== 'clientName' && key !== 'emailAddress' && value) {
-        const error = validateField(key as keyof ClientFormData, value);
-        if (error) {
-          newErrors[key as keyof ClientFormErrors] = error;
-        }
-      }
-    });
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    // Simple validation - just check if required fields have values
+    const hasClientName = formData.clientName && formData.clientName.trim().length > 0;
+    const hasEmail = formData.emailAddress && formData.emailAddress.trim().length > 0;
+    
+    console.log('Has client name:', hasClientName);
+    console.log('Has email:', hasEmail);
+    
+    if (!hasClientName) {
+      console.log('Missing client name');
+      setSubmitMessage({
+        type: 'error',
+        text: 'Please fill in Client Name'
+      });
+      return false;
+    }
+    
+    if (!hasEmail) {
+      console.log('Missing email address');
+      setSubmitMessage({
+        type: 'error',
+        text: 'Please fill in Email Address'
+      });
+      return false;
+    }
+    
+    console.log('Validation passed');
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Form submitted!', formData);
     
     if (!validateForm()) {
+      console.log('Form validation failed', errors);
       return;
     }
 
     setIsSubmitting(true);
+    setSubmitMessage(null);
     
     try {
-      await onSubmit(formData);
-    } catch (error) {
+      // Prepare data for API call
+      const clientData: ClientRegistrationData = {
+        name: formData.clientName,
+        email: formData.emailAddress,
+        address: formData.clientAddress || '',
+        description: formData.businessDescription || '',
+        phoneNumber: formData.phoneNumber || '',
+        contactPerson: formData.contactPerson || '',
+      };
+
+      console.log('Sending client data:', clientData);
+      const response = await registerClient(clientData);
+      console.log('Registration response:', response);
+      
+      setSubmitMessage({
+        type: 'success',
+        text: `Client registered successfully! Admin credentials have been sent to ${clientData.email}`
+      });
+
+      // Call the optional onSubmit prop if provided
+      if (onSubmit) {
+        onSubmit(formData);
+      }
+
+      // Reset form after successful submission
+      setTimeout(() => {
+        setFormData({
+          clientName: '',
+          vatNumber: '',
+          businessDescription: '',
+          businessSector: '',
+          contractNumber: '',
+          clientAddress: '',
+          emailAddress: '',
+          phoneNumber: '',
+          contactPerson: '',
+          websiteLink: '',
+          attendanceType: '',
+        });
+        setLogoPreview(null);
+        setSubmitMessage(null);
+      }, 3000);
+
+    } catch (error: any) {
       console.error('Error submitting form:', error);
+      setSubmitMessage({
+        type: 'error',
+        text: error.message || 'Failed to register client. Please try again.'
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const getFieldClassName = (fieldName: keyof ClientFormErrors, hasValue: boolean) => {
-    const baseClass = "w-full pl-12 pr-5 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white text-gray-800 font-medium placeholder-gray-500 hover:border-gray-400";
+  const getFieldClassName = (fieldName: keyof ClientFormErrors, hasValue?: boolean) => {
+    let baseClass = "form-control form-control-lg";
     
     if (errors[fieldName]) {
-      return `${baseClass} border-red-500 focus:border-red-500 focus:ring-red-200`;
+      return `${baseClass} is-invalid`;
     }
     
     if (hasValue && !errors[fieldName]) {
-      return `${baseClass} border-green-500 focus:border-green-500 focus:ring-green-200`;
+      return `${baseClass} is-valid`;
     }
     
-    return `${baseClass} border-gray-300`;
+    return baseClass;
   };
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-8 py-6 border-b border-gray-200">
-        <h3 className="text-2xl font-bold text-gray-800">Client Information</h3>
-        <p className="text-gray-600 mt-1">Enter all client details and information</p>
+    <div className="card shadow-lg border-0">
+      <div className="card-header bg-primary text-white">
+        <div className="d-flex align-items-center">
+          <div className="me-3 p-2 bg-white bg-opacity-10 rounded">
+            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/>
+            </svg>
+          </div>
+          <div>
+            <h3 className="card-title mb-0">Client Information</h3>
+            <p className="card-text text-white text-opacity-75 mb-0">Enter comprehensive client details and information</p>
+          </div>
+        </div>
       </div>
       
-      <form onSubmit={handleSubmit} className="p-8" noValidate>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      <form onSubmit={handleSubmit} className="card-body" noValidate>
+        <div className="row g-3">
           {/* Client Name */}
-          <div className="space-y-2">
-            <label htmlFor="clientName" className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clipRule="evenodd"/>
-              </svg>
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">
               Client Name *
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v8a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2H4zm0 2h12v8H4V6z" clipRule="evenodd"/>
-                </svg>
-              </div>
+            <div className="position-relative">
               <input
                 type="text"
-                id="clientName"
-                className={getFieldClassName('clientName', !!formData.clientName)}
-                placeholder="Enter client name"
+                name="clientName"
                 value={formData.clientName}
                 onChange={(e) => handleInputChange('clientName', e.target.value)}
+                className={getFieldClassName('clientName', !!formData.clientName)}
+                placeholder="Enter Client name"
                 required
                 aria-describedby={errors.clientName ? "clientName-error" : undefined}
               />
               {formData.clientName && !errors.clientName && (
-                <CheckCircleIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-500" />
+                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
               )}
               {errors.clientName && (
-                <ExclamationCircleIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-red-500" />
+                <i className="bi bi-exclamation-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-danger"></i>
               )}
             </div>
             {errors.clientName && (
-              <div id="clientName-error" className="text-red-600 text-sm mt-2 flex items-center">
-                <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
+              <div id="clientName-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
                 {errors.clientName}
               </div>
             )}
           </div>
 
           {/* VAT Registration No */}
-          <div className="space-y-2">
-            <label htmlFor="vatNumber" className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"/>
-              </svg>
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">
               VAT Registration No.
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4zM18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9zM4 13a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm5-1a1 1 0 100 2h1a1 1 0 100-2H9z"/>
-                </svg>
-              </div>
+            <div className="position-relative">
               <input
                 type="text"
-                id="vatNumber"
-                className={getFieldClassName('vatNumber', !!formData.vatNumber)}
-                placeholder="Enter VAT number"
+                name="vatNumber"
                 value={formData.vatNumber}
                 onChange={(e) => handleInputChange('vatNumber', e.target.value)}
+                className={getFieldClassName('vatNumber', !!formData.vatNumber)}
+                placeholder="Enter VAT number"
                 aria-describedby={errors.vatNumber ? "vatNumber-error" : undefined}
               />
               {formData.vatNumber && !errors.vatNumber && (
-                <CheckCircleIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-500" />
+                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
               )}
               {errors.vatNumber && (
-                <ExclamationCircleIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-red-500" />
+                <i className="bi bi-exclamation-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-danger"></i>
               )}
             </div>
             {errors.vatNumber && (
-              <div id="vatNumber-error" className="text-red-600 text-sm mt-2 flex items-center">
-                <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
+              <div id="vatNumber-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
                 {errors.vatNumber}
               </div>
             )}
           </div>
 
-          {/* Email Address */}
-          <div className="space-y-2">
-            <label htmlFor="emailAddress" className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-              </svg>
-              Email Address *
+          {/* Business Description */}
+          <div className="col-md-12">
+            <label className="form-label fw-semibold">
+              Business Description
+              <span className="ms-2 text-muted small">({formData.businessDescription.length}/500)</span>
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z"/>
-                  <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z"/>
-                </svg>
-              </div>
-              <input
-                type="email"
-                id="emailAddress"
-                className={getFieldClassName('emailAddress', !!formData.emailAddress)}
-                placeholder="Enter email address"
-                value={formData.emailAddress}
-                onChange={(e) => handleInputChange('emailAddress', e.target.value)}
-                required
-                aria-describedby={errors.emailAddress ? "emailAddress-error" : undefined}
-              />
-              {formData.emailAddress && !errors.emailAddress && (
-                <CheckCircleIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-500" />
-              )}
-              {errors.emailAddress && (
-                <ExclamationCircleIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-red-500" />
-              )}
-            </div>
-            {errors.emailAddress && (
-              <div id="emailAddress-error" className="text-red-600 text-sm mt-2 flex items-center">
-                <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
-                {errors.emailAddress}
+            <textarea
+              name="businessDescription"
+              rows={4}
+              className={getFieldClassName('businessDescription', !!formData.businessDescription)}
+              placeholder="Enter Business Description"
+              value={formData.businessDescription}
+              onChange={(e) => handleInputChange('businessDescription', e.target.value)}
+              maxLength={500}
+              aria-describedby={errors.businessDescription ? "businessDescription-error" : undefined}
+            />
+            {errors.businessDescription && (
+              <div id="businessDescription-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+                {errors.businessDescription}
               </div>
             )}
           </div>
 
           {/* Business Sector */}
-          <div className="space-y-2">
-            <label htmlFor="businessSector" className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd"/>
-              </svg>
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">
               Business Sector
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V4a2 2 0 00-2-2H6zm1 2a1 1 0 000 2h6a1 1 0 100-2H7z" clipRule="evenodd"/>
-                </svg>
-              </div>
+            <div className="position-relative">
               <input
                 type="text"
-                id="businessSector"
-                className={getFieldClassName('businessSector', !!formData.businessSector)}
-                placeholder="Enter business sector"
+                name="businessSector"
                 value={formData.businessSector}
                 onChange={(e) => handleInputChange('businessSector', e.target.value)}
+                className={getFieldClassName('businessSector', !!formData.businessSector)}
+                placeholder="Enter Business Sector"
                 aria-describedby={errors.businessSector ? "businessSector-error" : undefined}
               />
               {formData.businessSector && !errors.businessSector && (
-                <CheckCircleIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-500" />
+                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
+              )}
+              {errors.businessSector && (
+                <i className="bi bi-exclamation-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-danger"></i>
               )}
             </div>
             {errors.businessSector && (
-              <div id="businessSector-error" className="text-red-600 text-sm mt-2 flex items-center">
-                <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
+              <div id="businessSector-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
                 {errors.businessSector}
               </div>
             )}
           </div>
 
           {/* Contract Number */}
-          <div className="space-y-2">
-            <label htmlFor="contractNumber" className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd"/>
-              </svg>
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">
               Contract Number
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd"/>
-                </svg>
-              </div>
+            <div className="position-relative">
               <input
                 type="text"
-                id="contractNumber"
-                className={getFieldClassName('contractNumber', !!formData.contractNumber)}
-                placeholder="Enter contract number"
+                name="contractNumber"
                 value={formData.contractNumber}
                 onChange={(e) => handleInputChange('contractNumber', e.target.value)}
+                className={getFieldClassName('contractNumber', !!formData.contractNumber)}
+                placeholder="Enter Contract No."
                 aria-describedby={errors.contractNumber ? "contractNumber-error" : undefined}
               />
               {formData.contractNumber && !errors.contractNumber && (
-                <CheckCircleIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-500" />
+                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
+              )}
+              {errors.contractNumber && (
+                <i className="bi bi-exclamation-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-danger"></i>
               )}
             </div>
             {errors.contractNumber && (
-              <div id="contractNumber-error" className="text-red-600 text-sm mt-2 flex items-center">
-                <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
+              <div id="contractNumber-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
                 {errors.contractNumber}
               </div>
             )}
           </div>
 
-          {/* Website Link */}
-          <div className="space-y-2">
-            <label htmlFor="websiteLink" className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16z" clipRule="evenodd"/>
-              </svg>
-              Website Link
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4.083 9h1.946c.089-1.546.383-2.97.837-4.118A6.004 6.004 0 004.083 9zM10 2a8 8 0 100 16 8 8 0 000-16z" clipRule="evenodd"/>
-                </svg>
-              </div>
-              <input
-                type="url"
-                id="websiteLink"
-                className={getFieldClassName('websiteLink', !!formData.websiteLink)}
-                placeholder="https://example.com"
-                value={formData.websiteLink}
-                onChange={(e) => handleInputChange('websiteLink', e.target.value)}
-                aria-describedby={errors.websiteLink ? "websiteLink-error" : undefined}
-              />
-              {formData.websiteLink && !errors.websiteLink && (
-                <CheckCircleIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-green-500" />
-              )}
-              {errors.websiteLink && (
-                <ExclamationCircleIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-red-500" />
-              )}
-            </div>
-            {errors.websiteLink && (
-              <div id="websiteLink-error" className="text-red-600 text-sm mt-2 flex items-center">
-                <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
-                {errors.websiteLink}
-              </div>
-            )}
-          </div>
-
-          {/* Business Description */}
-          <div className="md:col-span-2 space-y-2">
-            <label htmlFor="businessDescription" className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/>
-              </svg>
-              Business Description
-              <span className="ml-2 text-xs text-gray-500">({formData.businessDescription.length}/500)</span>
-            </label>
-            <div className="relative">
-              <div className="absolute top-4 left-4 pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd"/>
-                </svg>
-              </div>
-              <textarea
-                id="businessDescription"
-                rows={4}
-                className={`w-full pl-12 pr-5 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white text-gray-800 font-medium placeholder-gray-500 hover:border-gray-400 resize-none ${
-                  errors.businessDescription ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 
-                  formData.businessDescription && !errors.businessDescription ? 'border-green-500 focus:border-green-500 focus:ring-green-200' : 
-                  'border-gray-300'
-                }`}
-                placeholder="Describe the client's business..."
-                value={formData.businessDescription}
-                onChange={(e) => handleInputChange('businessDescription', e.target.value)}
-                maxLength={500}
-                aria-describedby={errors.businessDescription ? "businessDescription-error" : undefined}
-              />
-            </div>
-            {errors.businessDescription && (
-              <div id="businessDescription-error" className="text-red-600 text-sm mt-2 flex items-center">
-                <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
-                {errors.businessDescription}
-              </div>
-            )}
-          </div>
-
           {/* Client Address */}
-          <div className="md:col-span-2 space-y-2">
-            <label htmlFor="clientAddress" className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
-              </svg>
+          <div className="col-md-12">
+            <label className="form-label fw-semibold">
               Client Address
-              <span className="ml-2 text-xs text-gray-500">({formData.clientAddress.length}/200)</span>
             </label>
-            <div className="relative">
-              <div className="absolute top-4 left-4 pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
-                </svg>
-              </div>
-              <textarea
-                id="clientAddress"
-                rows={3}
-                className={`w-full pl-12 pr-5 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white text-gray-800 font-medium placeholder-gray-500 hover:border-gray-400 resize-none ${
-                  errors.clientAddress ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 
-                  formData.clientAddress && !errors.clientAddress ? 'border-green-500 focus:border-green-500 focus:ring-green-200' : 
-                  'border-gray-300'
-                }`}
-                placeholder="Enter client address..."
-                value={formData.clientAddress}
-                onChange={(e) => handleInputChange('clientAddress', e.target.value)}
-                maxLength={200}
-                aria-describedby={errors.clientAddress ? "clientAddress-error" : undefined}
-              />
-            </div>
+            <textarea
+              name="clientAddress"
+              rows={3}
+              className={getFieldClassName('clientAddress', !!formData.clientAddress)}
+              placeholder="Enter Client Address"
+              value={formData.clientAddress}
+              onChange={(e) => handleInputChange('clientAddress', e.target.value)}
+              aria-describedby={errors.clientAddress ? "clientAddress-error" : undefined}
+            />
             {errors.clientAddress && (
-              <div id="clientAddress-error" className="text-red-600 text-sm mt-2 flex items-center">
-                <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
+              <div id="clientAddress-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
                 {errors.clientAddress}
               </div>
             )}
           </div>
 
-          {/* Attendance Type */}
-          <div className="space-y-2">
-            <label htmlFor="attendanceType" className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd"/>
-              </svg>
-              Attendance Type
+          {/* Email Address */}
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">
+              Email Address *
             </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1z" clipRule="evenodd"/>
-                </svg>
-              </div>
-              <select 
-                id="attendanceType"
-                className={`w-full pl-12 pr-12 py-4 border-2 rounded-2xl focus:ring-3 focus:ring-blue-200 focus:border-blue-500 transition-all duration-300 bg-white text-gray-800 font-medium hover:border-gray-400 appearance-none ${
-                  errors.attendanceType ? 'border-red-500 focus:border-red-500 focus:ring-red-200' : 
-                  formData.attendanceType && !errors.attendanceType ? 'border-green-500 focus:border-green-500 focus:ring-green-200' : 
-                  'border-gray-300'
-                }`}
-                value={formData.attendanceType}
-                onChange={(e) => handleInputChange('attendanceType', e.target.value)}
-                aria-describedby={errors.attendanceType ? "attendanceType-error" : undefined}
-              >
-                <option value="">Select attendance type</option>
-                <option value="full-time">Full Time</option>
-                <option value="part-time">Part Time</option>
-                <option value="remote">Remote</option>
-                <option value="hybrid">Hybrid</option>
-                <option value="contract">Contract</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 pr-4 flex items-center pointer-events-none">
-                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd"/>
-                </svg>
-              </div>
+            <div className="position-relative">
+              <input
+                type="email"
+                name="emailAddress"
+                value={formData.emailAddress}
+                onChange={(e) => handleInputChange('emailAddress', e.target.value)}
+                className={getFieldClassName('emailAddress', !!formData.emailAddress)}
+                placeholder="Enter Email Address"
+                required
+                aria-describedby={errors.emailAddress ? "emailAddress-error" : undefined}
+              />
+              {formData.emailAddress && !errors.emailAddress && (
+                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
+              )}
+              {errors.emailAddress && (
+                <i className="bi bi-exclamation-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-danger"></i>
+              )}
             </div>
-            {errors.attendanceType && (
-              <div id="attendanceType-error" className="text-red-600 text-sm mt-2 flex items-center">
-                <ExclamationTriangleIcon className="w-4 h-4 mr-1" />
-                {errors.attendanceType}
+            {errors.emailAddress && (
+              <div id="emailAddress-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+                {errors.emailAddress}
+              </div>
+            )}
+          </div>
+
+          {/* Phone Number */}
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">
+              Phone Number
+            </label>
+            <div className="position-relative">
+              <input
+                type="tel"
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
+                className={getFieldClassName('phoneNumber', !!formData.phoneNumber)}
+                placeholder="Enter Phone Number"
+                aria-describedby={errors.phoneNumber ? "phoneNumber-error" : undefined}
+              />
+              {formData.phoneNumber && !errors.phoneNumber && (
+                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
+              )}
+              {errors.phoneNumber && (
+                <i className="bi bi-exclamation-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-danger"></i>
+              )}
+            </div>
+            {errors.phoneNumber && (
+              <div id="phoneNumber-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+                {errors.phoneNumber}
+              </div>
+            )}
+          </div>
+
+          {/* Contact Person */}
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">
+              Contact Person
+            </label>
+            <div className="position-relative">
+              <input
+                type="text"
+                name="contactPerson"
+                value={formData.contactPerson}
+                onChange={(e) => handleInputChange('contactPerson', e.target.value)}
+                className={getFieldClassName('contactPerson', !!formData.contactPerson)}
+                placeholder="Enter Contact Person Name"
+                aria-describedby={errors.contactPerson ? "contactPerson-error" : undefined}
+              />
+              {formData.contactPerson && !errors.contactPerson && (
+                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
+              )}
+              {errors.contactPerson && (
+                <i className="bi bi-exclamation-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-danger"></i>
+              )}
+            </div>
+            {errors.contactPerson && (
+              <div id="contactPerson-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+                {errors.contactPerson}
+              </div>
+            )}
+          </div>
+
+          {/* Client Website Link */}
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">
+              Client Website Link
+            </label>
+            <div className="position-relative">
+              <input
+                type="url"
+                name="websiteLink"
+                value={formData.websiteLink}
+                onChange={(e) => handleInputChange('websiteLink', e.target.value)}
+                className={getFieldClassName('websiteLink', !!formData.websiteLink)}
+                placeholder="Enter Website Link"
+                aria-describedby={errors.websiteLink ? "websiteLink-error" : undefined}
+              />
+              {formData.websiteLink && !errors.websiteLink && (
+                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
+              )}
+              {errors.websiteLink && (
+                <i className="bi bi-exclamation-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-danger"></i>
+              )}
+            </div>
+            {errors.websiteLink && (
+              <div id="websiteLink-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+                {errors.websiteLink}
               </div>
             )}
           </div>
 
           {/* Client Logo */}
-          <div className="space-y-2">
-            <label className="block text-sm font-bold text-gray-800 mb-2 flex items-center">
-              <svg className="w-4 h-4 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd"/>
-              </svg>
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">
               Client Logo
             </label>
-            <div className="relative">
-              <div className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors duration-300 ${
-                errors.logo ? 'border-red-300 bg-red-50' : 'border-gray-300 hover:border-blue-400'
-              }`}>
-                {logoPreview ? (
-                  <div className="space-y-4">
-                    <img src={logoPreview} alt="Logo preview" className="mx-auto h-20 w-20 object-contain rounded-lg" />
-                    <div className="flex justify-center space-x-2">
-                      <button
-                        type="button"
-                        onClick={() => handleFileChange(null)}
-                        className="px-3 py-1 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                      >
-                        Remove
-                      </button>
-                      <label htmlFor="logo-upload" className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors cursor-pointer">
-                        Change
-                      </label>
-                    </div>
+            <div className="border border-dashed rounded p-3 text-center">
+              {logoPreview ? (
+                <div className="mb-2">
+                  <img src={logoPreview} alt="Logo preview" className="img-fluid mx-auto d-block" style={{maxHeight: '80px'}} />
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleFileChange(null)}
+                      className="btn btn-outline-danger btn-sm me-2"
+                    >
+                      Remove
+                    </button>
+                    <label htmlFor="logo-upload" className="btn btn-outline-primary btn-sm cursor-pointer">
+                      Change
+                    </label>
                   </div>
-                ) : (
-                  <>
-                    <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
-                      <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </div>
+              ) : (
+                <div>
+                  <div className="text-muted mb-2">
+                    <svg className="mx-auto" width="32" height="32" fill="currentColor" viewBox="0 0 16 16">
+                      <path d="M6.002 5.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z"/>
+                      <path d="M2.002 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2h-12zm12 1a1 1 0 0 1 1 1v6.5l-3.777-1.947a.5.5 0 0 0-.577.093l-3.71 3.71-2.66-1.772a.5.5 0 0 0-.63.062L1.002 12V3a1 1 0 0 1 1-1h12z"/>
                     </svg>
-                    <div className="mt-4">
-                      <label htmlFor="logo-upload" className="cursor-pointer">
-                        <span className="mt-2 block text-sm font-medium text-gray-900">
-                          Click to upload logo or drag and drop
-                        </span>
-                        <span className="mt-1 block text-xs text-gray-500">
-                          PNG, JPG, GIF up to 10MB
-                        </span>
-                      </label>
-                    </div>
-                  </>
-                )}
-                <input 
-                  id="logo-upload" 
-                  name="logo-upload" 
-                  type="file" 
-                  className="sr-only" 
-                  accept="image/*"
-                  onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
-                />
-              </div>
+                  </div>
+                  <label htmlFor="logo-upload" className="cursor-pointer">
+                    <div className="text-primary mb-1 small">No file chosen</div>
+                    <div className="small text-muted">Click to upload</div>
+                  </label>
+                </div>
+              )}
+              <input 
+                id="logo-upload" 
+                name="logo-upload" 
+                type="file" 
+                className="d-none" 
+                accept="image/*"
+                onChange={(e) => handleFileChange(e.target.files?.[0] || null)}
+              />
             </div>
             {errors.logo && (
-              <div className="text-red-600 text-sm mt-2 flex items-center">
-                <i className="bi bi-exclamation-triangle me-1"></i>
+              <div className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
                 {errors.logo}
+              </div>
+            )}
+          </div>
+
+          {/* Attendance Type */}
+          <div className="col-md-6">
+            <label className="form-label fw-semibold">
+              Attendance Type
+            </label>
+            <div className="position-relative">
+              <select
+                name="attendanceType"
+                className={getFieldClassName('attendanceType', !!formData.attendanceType)}
+                value={formData.attendanceType}
+                onChange={(e) => handleInputChange('attendanceType', e.target.value)}
+                aria-describedby={errors.attendanceType ? "attendanceType-error" : undefined}
+              >
+                <option value="">Select attendance type</option>
+                <option value="remote">Remote</option>
+                <option value="onsite">On-site</option>
+                <option value="hybrid">Hybrid</option>
+              </select>
+              {formData.attendanceType && !errors.attendanceType && (
+                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
+              )}
+              {errors.attendanceType && (
+                <i className="bi bi-exclamation-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-danger"></i>
+              )}
+            </div>
+            {errors.attendanceType && (
+              <div id="attendanceType-error" className="invalid-feedback d-flex align-items-center">
+                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
+                {errors.attendanceType}
               </div>
             )}
           </div>
         </div>
 
+        {/* Submit Message */}
+        {submitMessage && (
+          <div className={`alert ${submitMessage.type === 'success' ? 'alert-success' : 'alert-danger'} d-flex align-items-center mt-4`} role="alert">
+            <svg className="me-2" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+              {submitMessage.type === 'success' ? (
+                <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.061L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/>
+              ) : (
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+              )}
+            </svg>
+            <div>{submitMessage.text}</div>
+          </div>
+        )}
+
         {/* Action Buttons */}
-        <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-200">
+        <div className="d-flex justify-content-end gap-3 mt-4 pt-4 border-top">
           <button
             type="button"
             onClick={onCancel}
-            className="px-8 py-3 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1"
+            className="btn btn-outline-secondary px-4 py-2"
             disabled={isSubmitting}
           >
             Cancel
           </button>
           <button
             type="submit"
-            disabled={isSubmitting || Object.keys(errors).length > 0}
-            className={`px-8 py-3 font-medium rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-1 flex items-center space-x-2 ${
-              isSubmitting || Object.keys(errors).length > 0
-                ? 'bg-gray-400 cursor-not-allowed text-white'
-                : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white'
+            disabled={isSubmitting}
+            onClick={(e) => {
+              console.log('Button clicked!', e);
+              console.log('Form data at click:', formData);
+              console.log('Is submitting:', isSubmitting);
+            }}
+            className={`btn px-4 py-2 d-flex align-items-center ${
+              isSubmitting
+                ? 'btn-secondary'
+                : 'btn-primary'
             }`}
           >
             {isSubmitting ? (
               <>
-                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
+                <div className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
                 Adding Client...
               </>
             ) : (
               <>
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                <svg className="me-2" width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
                 </svg>
-                <span>Add Client</span>
+                Add Client
               </>
             )}
           </button>

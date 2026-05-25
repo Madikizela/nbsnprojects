@@ -1,4 +1,5 @@
 using BCrypt.Net;
+using backend.Services.Interfaces;
 
 namespace backend.Services
 {

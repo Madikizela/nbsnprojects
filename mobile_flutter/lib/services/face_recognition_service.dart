@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
@@ -8,19 +9,31 @@ class FaceRecognitionService {
   late FaceDetector _faceDetector;
   Interpreter? _interpreter;
 
+  Interpreter? get interpreter => _interpreter;
+
   FaceRecognitionService() {
     _faceDetector = FaceDetector(
       options: FaceDetectorOptions(
         performanceMode: FaceDetectorMode.accurate,
         enableLandmarks: true,
+        enableClassification: true, // Required for blink/smile detection
       ),
     );
   }
 
   Future<void> initialize() async {
     try {
-      _interpreter = await Interpreter.fromAsset('assets/models/mobile_facenet.tflite');
+      final options = InterpreterOptions();
+      if (Platform.isAndroid) {
+        options.addDelegate(XNNPackDelegate());
+      }
+      _interpreter = await Interpreter.fromAsset(
+        'assets/models/mobilefacenet.tflite',
+        options: options,
+      );
       print('FaceRecognitionService: TFLite model loaded successfully');
+      print('Input tensors: ${_interpreter!.getInputTensors()}');
+      print('Output tensors: ${_interpreter!.getOutputTensors()}');
     } catch (e) {
       print('FaceRecognitionService: Error loading TFLite model: $e');
     }
@@ -34,32 +47,45 @@ class FaceRecognitionService {
   Float32List _preProcess(img.Image image) {
     // FaceNet models usually expect 112x112 or 160x160
     img.Image resized = img.copyResize(image, width: 112, height: 112);
-    
-    // Convert to Float32List and normalize (0-1 or -1 to 1 depending on model)
+
+    // Convert to Float32List and normalize (-1 to 1)
     var input = Float32List(1 * 112 * 112 * 3);
     var buffer = Float32List.view(input.buffer);
-    
+
     int pixelIndex = 0;
-    for (int y = 0; y < 112; y++) {
-      for (int x = 0; x < 112; x++) {
-        var pixel = resized.getPixel(x, y);
+    for (var y = 0; y < 112; y++) {
+      for (var x = 0; x < 112; x++) {
+        final pixel = resized.getPixel(x, y);
+        // In image 4.x, pixel values are usually 0-255 for standard images
         // Normalize to [-1, 1]
-        buffer[pixelIndex++] = (img.getRed(pixel) - 127.5) / 127.5;
-        buffer[pixelIndex++] = (img.getGreen(pixel) - 127.5) / 127.5;
-        buffer[pixelIndex++] = (img.getBlue(pixel) - 127.5) / 127.5;
+        buffer[pixelIndex++] = (pixel.r - 127.5) / 127.5;
+        buffer[pixelIndex++] = (pixel.g - 127.5) / 127.5;
+        buffer[pixelIndex++] = (pixel.b - 127.5) / 127.5;
       }
     }
     return input;
   }
 
   Future<List<double>?> getEmbedding(img.Image faceImage) async {
-    if (_interpreter == null) return null;
-
-    var input = _preProcess(faceImage);
-    var output = List<double>.filled(192, 0).reshape([1, 192]); // FaceNet output is usually 128, 192, or 512
+    if (_interpreter == null) {
+      print(
+          'FaceRecognitionService: Cannot get embedding - interpreter is null');
+      return null;
+    }
 
     try {
-      _interpreter!.run(input, output);
+      var input = _preProcess(faceImage);
+      // Reshape to [1, 112, 112, 3] which is the standard input for this model
+      var inputReshaped = input.reshape([1, 112, 112, 3]);
+
+      // Most MobileFaceNet models output 192, but some are 128.
+      // We dynamically check the output tensor size.
+      final outputShape = _interpreter!.getOutputTensors().first.shape;
+      final outputSize = outputShape.reduce((a, b) => a * b);
+
+      var output = List<double>.filled(outputSize, 0).reshape([1, outputSize]);
+
+      _interpreter!.run(inputReshaped, output);
       return List<double>.from(output[0]);
     } catch (e) {
       print('FaceRecognitionService: Inference error: $e');

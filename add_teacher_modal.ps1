@@ -1,0 +1,167 @@
+# Script to add teacher modal to SDPManagerDashboard.tsx
+
+$filePath = "frontend/src/components/SDPManagerDashboard.tsx"
+$content = Get-Content $filePath -Raw
+
+# The modal code to insert
+$modalCode = @'
+
+      {/* Teacher Management Modal */}
+      {showTeacherModal && selectedClassForTeacher && (
+        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content" style={{backgroundColor: '#1e293b', color: 'white'}}>
+              <div className="modal-header border-secondary">
+                <h5 className="modal-title">👨‍🏫 Teachers for {selectedClassForTeacher.name}</h5>
+                <button type="button" className="btn-close btn-close-white" onClick={() => setShowTeacherModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                {teachersLoading ? (
+                  <div className="text-center py-3">
+                    <div className="spinner-border text-light" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                    <p className="mt-2">Loading teachers...</p>
+                  </div>
+                ) : classTeachers.length > 0 ? (
+                  <div>
+                    <h6 className="mb-3">Assigned Teachers:</h6>
+                    {classTeachers.map((teacher) => (
+                      <div key={teacher.id} className="card mb-2" style={{backgroundColor: 'rgba(139, 92, 246, 0.1)', border: '1px solid #8b5cf6'}}>
+                        <div className="card-body p-3">
+                          <div className="d-flex justify-content-between align-items-start">
+                            <div>
+                              <h6 className="mb-1">
+                                <i className="bi bi-person-fill me-2"></i>
+                                {teacher.teacherName}
+                              </h6>
+                              <small className="text-white-50">
+                                <i className="bi bi-envelope me-2"></i>
+                                {teacher.teacherEmail}
+                              </small>
+                              <br />
+                              <small className="text-white-50">
+                                <i className="bi bi-calendar me-2"></i>
+                                Assigned: {new Date(teacher.assignedDate).toLocaleDateString()}
+                              </small>
+                            </div>
+                            <button
+                              className="btn btn-sm btn-danger"
+                              onClick={() => handleRemoveTeacher(teacher.id, teacher.teacherName)}
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <hr className="border-secondary my-3" />
+                  </div>
+                ) : (
+                  <div className="alert alert-info">
+                    No teachers assigned yet.
+                  </div>
+                )}
+
+                {!showAddTeacherForm ? (
+                  <button
+                    className="btn btn-primary w-100"
+                    onClick={() => setShowAddTeacherForm(true)}
+                  >
+                    <i className="bi bi-person-plus me-2"></i>
+                    Add Teacher
+                  </button>
+                ) : (
+                  <div className="card" style={{backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)'}}>
+                    <div className="card-body">
+                      <h6 className="mb-3">Create New Teacher</h6>
+                      <div className="mb-3">
+                        <label className="form-label">First Name *</label>
+                        <input
+                          type="text"
+                          className={`form-control ${teacherFormErrors.firstName ? 'is-invalid' : ''}`}
+                          value={newTeacherForm.firstName}
+                          onChange={(e) => {
+                            setNewTeacherForm({...newTeacherForm, firstName: e.target.value});
+                            setTeacherFormErrors({...teacherFormErrors, firstName: ''});
+                          }}
+                          placeholder="Enter first name"
+                        />
+                        {teacherFormErrors.firstName && (
+                          <div className="invalid-feedback">{teacherFormErrors.firstName}</div>
+                        )}
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label">Last Name *</label>
+                        <input
+                          type="text"
+                          className={`form-control ${teacherFormErrors.lastName ? 'is-invalid' : ''}`}
+                          value={newTeacherForm.lastName}
+                          onChange={(e) => {
+                            setNewTeacherForm({...newTeacherForm, lastName: e.target.value});
+                            setTeacherFormErrors({...teacherFormErrors, lastName: ''});
+                          }}
+                          placeholder="Enter last name"
+                        />
+                        {teacherFormErrors.lastName && (
+                          <div className="invalid-feedback">{teacherFormErrors.lastName}</div>
+                        )}
+                      </div>
+                      <div className="mb-3">
+                        <label className="form-label">Email *</label>
+                        <input
+                          type="email"
+                          className={`form-control ${teacherFormErrors.email ? 'is-invalid' : ''}`}
+                          value={newTeacherForm.email}
+                          onChange={(e) => {
+                            setNewTeacherForm({...newTeacherForm, email: e.target.value});
+                            setTeacherFormErrors({...teacherFormErrors, email: ''});
+                          }}
+                          placeholder="teacher@example.com"
+                        />
+                        {teacherFormErrors.email && (
+                          <div className="invalid-feedback">{teacherFormErrors.email}</div>
+                        )}
+                      </div>
+                      <small className="text-white-50 d-block mb-3">
+                        <i className="bi bi-info-circle me-1"></i>
+                        A system-generated password will be sent to the teacher's email.
+                      </small>
+                      <div className="d-flex gap-2">
+                        <button
+                          className="btn btn-secondary flex-fill"
+                          onClick={() => {
+                            setShowAddTeacherForm(false);
+                            setNewTeacherForm({firstName: '', lastName: '', email: ''});
+                            setTeacherFormErrors({firstName: '', lastName: '', email: ''});
+                          }}
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          className="btn btn-primary flex-fill"
+                          onClick={handleCreateTeacher}
+                        >
+                          Create Teacher
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+'@
+
+# Find the position to insert (before the last closing tags)
+$pattern = '      \)\}\s+    \</div\>\s+  \)\;\s+\};\s+export default SDPManagerDashboard;'
+if ($content -match $pattern) {
+    $content = $content -replace $pattern, "      )}$modalCode`n    </div>`n  );`n};`n`nexport default SDPManagerDashboard;"
+    Set-Content -Path $filePath -Value $content -NoNewline
+    Write-Host "✅ Teacher modal added successfully!"
+} else {
+    Write-Host "❌ Could not find insertion point. Manual addition required."
+    Write-Host "Please check TEACHER_MODAL_CODE.txt for instructions."
+}

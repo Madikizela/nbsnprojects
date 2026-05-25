@@ -1,0 +1,8 @@
+{
+  "name": "Test SDP",
+  "description": "Test Skills Development Provider",
+  "address": "123 Test Street",
+  "contactPerson": "John Smith",
+  "clientId": 11,
+  "status": 1
+}

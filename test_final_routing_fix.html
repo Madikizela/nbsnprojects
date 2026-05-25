@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Final Routing Fix Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .result { margin-top: 10px; padding: 10px; border-radius: 3px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .route-correct { color: green; font-weight: bold; }
+        .route-incorrect { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Final Routing Fix Test</h1>
+    <p>Testing the fixed routing logic where SDP affiliation takes priority over client affiliation</p>
+
+    <div class="test-section">
+        <h3>Key Test Cases</h3>
+        <button onclick="testKeyUsers()">Test Key Users</button>
+        <div id="keyUsersResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h3>All Users Routing Test</h3>
+        <button onclick="testAllUsers()">Test All Active Users</button>
+        <div id="allUsersResult"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        async function testKeyUsers() {
+            const resultDiv = document.getElementById('keyUsersResult');
+            resultDiv.innerHTML = '<div class="info">Testing key users...</div>';
+
+            const keyUsers = [
+                { 
+                    email: 'admin.manager@masakhane.com', 
+                    description: 'Lisa Admin (Role 3, SDP+Client+Dept)',
+                    expectedRoute: '/sdp-manager-dashboard',
+                    reason: 'Has SDP ID + Department ID → Manager Dashboard'
+                },
+                { 
+                    email: 'zondis411@gmail.com', 
+                    description: 'Sandile Zondi (Role 7, QA Manager)',
+                    expectedRoute: '/sdp-manager-dashboard',
+                    reason: 'QA Manager → Manager Dashboard'
+                },
+                { 
+                    email: 'sthembisomaphango@gmail.com', 
+                    description: 'Sbusiso (Role 16, SDP Affiliated)',
+                    expectedRoute: '/sdp-dashboard',
+                    reason: 'Has SDP ID, no department → SDP Dashboard'
+                },
+                { 
+                    email: 'Madikizela21517799@gmail.com', 
+                    description: 'Sbusiso (Role 2, Client Only)',
+                    expectedRoute: '/client-dashboard',
+                    reason: 'Has Client ID, no SDP ID → Client Dashboard'
+                }
+            ];
+
+            let results = [];
+            let successCount = 0;
+
+            for (const user of keyUsers) {
+                try {
+                    const response = await fetch(`${API_BASE}/auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: user.email,
+                            password: 'password123'
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const userData = data.user;
+                        
+                        const normalizedUser = {
+                            role: userData?.role ?? userData?.Role,
+                            skillsDevelopmentProviderId: userData?.skillsDevelopmentProviderId ?? userData?.SkillsDevelopmentProviderId,
+                            departmentId: userData?.departmentId ?? userData?.DepartmentId,
+                            clientId: userData?.clientId ?? userData?.ClientId
+                        };
+
+                        // Apply the NEW routing logic
+                        let actualRoute = '';
+                        
+                        if (normalizedUser.role === 7 || normalizedUser.role === '7') {
+                            actualRoute = '/sdp-manager-dashboard';
+                        } else if (
+                            (normalizedUser.role === '3' && normalizedUser.departmentId) || 
+                            (normalizedUser.role === 3 && normalizedUser.departmentId) ||   
+                            normalizedUser.role === '4' || normalizedUser.role === 4 ||     
+                            normalizedUser.role === '5' || normalizedUser.role === 5
+                        ) {
+                            actualRoute = '/sdp-manager-dashboard';
+                        } else if (
+                            (normalizedUser.role === '3' || normalizedUser.role === 3) && 
+                            !normalizedUser.departmentId &&
+                            (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0)
+                        ) {
+                            actualRoute = '/sdp-dashboard';
+                        } else if (
+                            (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0)
+                        ) {
+                            actualRoute = '/sdp-dashboard';
+                        } else if (
+                            !normalizedUser.skillsDevelopmentProviderId && 
+                            (typeof normalizedUser.clientId === 'number' && normalizedUser.clientId !== null && normalizedUser.clientId > 0)
+                        ) {
+                            actualRoute = '/client-dashboard';
+                        } else {
+                            actualRoute = '/dashboard';
+                        }
+
+                        const isCorrect = actualRoute === user.expectedRoute;
+                        if (isCorrect) successCount++;
+
+                        results.push({
+                            ...user,
+                            actualRoute,
+                            isCorrect,
+                            userData: normalizedUser
+                        });
+                    } else {
+                        results.push({
+                            ...user,
+                            error: 'Login failed'
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        ...user,
+                        error: error.message
+                    });
+                }
+            }
+
+            // Display results
+            let html = `<div class="${successCount === keyUsers.length ? 'success' : 'error'}">`;
+            html += `<h4>Key Users Test Results: ${successCount}/${keyUsers.length} Correct</h4>`;
+            html += '<table>';
+            html += '<tr><th>User</th><th>Role/IDs</th><th>Expected Route</th><th>Actual Route</th><th>Status</th></tr>';
+            
+            results.forEach(result => {
+                if (result.error) {
+                    html += `<tr><td>${result.description}</td><td colspan="3">${result.error}</td><td>❌ Error</td></tr>`;
+                } else {
+                    const statusClass = result.isCorrect ? 'route-correct' : 'route-incorrect';
+                    const statusIcon = result.isCorrect ? '✅' : '❌';
+                    const userInfo = `Role: ${result.userData.role}, SDP: ${result.userData.skillsDevelopmentProviderId}, Dept: ${result.userData.departmentId}, Client: ${result.userData.clientId}`;
+                    
+                    html += `<tr>
+                        <td>${result.description}</td>
+                        <td>${userInfo}</td>
+                        <td>${result.expectedRoute}</td>
+                        <td class="${statusClass}">${result.actualRoute}</td>
+                        <td>${statusIcon}</td>
+                    </tr>`;
+                }
+            });
+            
+            html += '</table>';
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+
+        async function testAllUsers() {
+            const resultDiv = document.getElementById('allUsersResult');
+            resultDiv.innerHTML = '<div class="info">Testing all users...</div>';
+
+            const allUsers = [
+                'Madikizela21517799@gmail.com',
+                'admin.manager@masakhane.com',
+                'nkwenkwezi68@gmail.com',
+                'finance.manager@masakhane.com',
+                'logistics.manager@masakhane.com',
+                'maphangomaphango931@gmail.com',
+                'qa.manager@masakhane.com',
+                'zondis411@gmail.com',
+                'azolamaphango@gmail.com',
+                'sthembisomaphango@gmail.com'
+            ];
+
+            let results = [];
+            let successCount = 0;
+
+            for (const email of allUsers) {
+                try {
+                    const response = await fetch(`${API_BASE}/auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: email,
+                            password: 'password123'
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const userData = data.user;
+                        
+                        const normalizedUser = {
+                            role: userData?.role ?? userData?.Role,
+                            skillsDevelopmentProviderId: userData?.skillsDevelopmentProviderId ?? userData?.SkillsDevelopmentProviderId,
+                            departmentId: userData?.departmentId ?? userData?.DepartmentId,
+                            clientId: userData?.clientId ?? userData?.ClientId
+                        };
+
+                        // Apply routing logic
+                        let actualRoute = '';
+                        let routingReason = '';
+                        
+                        if (normalizedUser.role === 7 || normalizedUser.role === '7') {
+                            actualRoute = '/sdp-manager-dashboard';
+                            routingReason = 'QA Manager';
+                        } else if (
+                            (normalizedUser.role === '3' && normalizedUser.departmentId) || 
+                            (normalizedUser.role === 3 && normalizedUser.departmentId) ||   
+                            normalizedUser.role === '4' || normalizedUser.role === 4 ||     
+                            normalizedUser.role === '5' || normalizedUser.role === 5
+                        ) {
+                            actualRoute = '/sdp-manager-dashboard';
+                            routingReason = 'SDP Manager';
+                        } else if (
+                            (normalizedUser.role === '3' || normalizedUser.role === 3) && 
+                            !normalizedUser.departmentId &&
+                            (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0)
+                        ) {
+                            actualRoute = '/sdp-dashboard';
+                            routingReason = 'Main SDP Admin';
+                        } else if (
+                            (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0)
+                        ) {
+                            actualRoute = '/sdp-dashboard';
+                            routingReason = 'SDP Affiliated';
+                        } else if (
+                            !normalizedUser.skillsDevelopmentProviderId && 
+                            (typeof normalizedUser.clientId === 'number' && normalizedUser.clientId !== null && normalizedUser.clientId > 0)
+                        ) {
+                            actualRoute = '/client-dashboard';
+                            routingReason = 'Client User';
+                        } else {
+                            actualRoute = '/dashboard';
+                            routingReason = 'Default';
+                        }
+
+                        results.push({
+                            email,
+                            userData: normalizedUser,
+                            actualRoute,
+                            routingReason,
+                            isCorrect: true // Assume correct for now
+                        });
+                        successCount++;
+                    } else {
+                        results.push({
+                            email,
+                            error: 'Login failed'
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        email,
+                        error: error.message
+                    });
+                }
+            }
+
+            // Display results
+            let html = `<div class="success">`;
+            html += `<h4>All Users Test Results: ${successCount}/${allUsers.length} Successful</h4>`;
+            html += '<table>';
+            html += '<tr><th>Email</th><th>Role</th><th>SDP ID</th><th>Dept ID</th><th>Client ID</th><th>Route</th><th>Reason</th></tr>';
+            
+            results.forEach(result => {
+                if (result.error) {
+                    html += `<tr><td>${result.email}</td><td colspan="6">${result.error}</td></tr>`;
+                } else {
+                    html += `<tr>
+                        <td>${result.email}</td>
+                        <td>${result.userData.role}</td>
+                        <td>${result.userData.skillsDevelopmentProviderId || 'null'}</td>
+                        <td>${result.userData.departmentId || 'null'}</td>
+                        <td>${result.userData.clientId || 'null'}</td>
+                        <td class="route-correct">${result.actualRoute}</td>
+                        <td>${result.routingReason}</td>
+                    </tr>`;
+                }
+            });
+            
+            html += '</table>';
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Frontend Attendance API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Test Frontend Attendance API</h1>
+    <button onclick="testAPI()">Test Attendance API</button>
+    <div id="results"></div>
+
+    <script>
+        async function testAPI() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="result">Testing...</div>';
+            
+            try {
+                const response = await fetch('http://192.168.68.117:5213/api/AttendanceTracking/projects');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    results.innerHTML = `<div class="result success">
+                        <h3>✅ SUCCESS</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>`;
+                } else {
+                    results.innerHTML = `<div class="result error">
+                        <h3>❌ ERROR</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>`;
+                }
+            } catch (error) {
+                results.innerHTML = `<div class="result error">
+                    <h3>❌ NETWORK ERROR</h3>
+                    <pre>${error.message}</pre>
+                </div>`;
+            }
+        }
+    </script>
+</body>
+</html>

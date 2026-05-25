@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug QA Overview Issue</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; }
+        .error { background-color: #f8d7da; }
+        .info { background-color: #d1ecf1; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug QA Overview Issue</h1>
+    
+    <div class="section info">
+        <h3>Step 1: Test Backend API</h3>
+        <button onclick="testBackendAPI()">Test Backend API</button>
+        <div id="backendResult"></div>
+    </div>
+
+    <div class="section info">
+        <h3>Step 2: Test Frontend Connection</h3>
+        <button onclick="testFrontendConnection()">Test Frontend Connection</button>
+        <div id="frontendResult"></div>
+    </div>
+
+    <div class="section info">
+        <h3>Step 3: Check User Role Simulation</h3>
+        <button onclick="simulateQAUser()">Simulate QA Manager</button>
+        <div id="roleResult"></div>
+    </div>
+
+    <div class="section info">
+        <h3>Step 4: Direct Frontend Test</h3>
+        <p>Open your browser to: <a href="http://localhost:5173" target="_blank">http://localhost:5173</a></p>
+        <p>Login with: <strong>qa.manager@masakhane.com</strong> or <strong>zondis411@gmail.com</strong></p>
+        <p>Check browser console (F12) for errors</p>
+    </div>
+
+    <script>
+        async function testBackendAPI() {
+            const resultDiv = document.getElementById('backendResult');
+            resultDiv.innerHTML = '<p>Testing backend API...</p>';
+            
+            try {
+                const response = await fetch('http://192.168.68.117:5213/api/QAOverview/metrics');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Backend API Working!</h4>
+                            <p><strong>Total Qualifications:</strong> ${data.totalQualifications}</p>
+                            <p><strong>Total Unit Standards:</strong> ${data.totalUnitStandards}</p>
+                            <p><strong>Total Questions:</strong> ${data.totalQuestions}</p>
+                            <p><strong>Total Assessments:</strong> ${data.totalAssessments}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Backend API Error</h4>
+                            <p>Status: ${response.status} ${response.statusText}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Backend Connection Error</h4>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        async function testFrontendConnection() {
+            const resultDiv = document.getElementById('frontendResult');
+            resultDiv.innerHTML = '<p>Testing frontend connection...</p>';
+            
+            try {
+                // Test if frontend is accessible
+                const response = await fetch('http://localhost:5173');
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h4>✅ Frontend Server Running!</h4>
+                            <p>Frontend is accessible at http://localhost:5173</p>
+                            <p>Status: ${response.status} ${response.statusText}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h4>❌ Frontend Server Error</h4>
+                            <p>Status: ${response.status} ${response.statusText}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h4>❌ Frontend Connection Error</h4>
+                        <p>${error.message}</p>
+                        <p>Make sure frontend is running on http://localhost:5173</p>
+                    </div>
+                `;
+            }
+        }
+
+        function simulateQAUser() {
+            const resultDiv = document.getElementById('roleResult');
+            
+            // Simulate the role check logic from the frontend
+            const mockUser = {
+                role: 'SDPModerator',
+                name: 'QA Manager Test',
+                email: 'qa.manager@masakhane.com'
+            };
+            
+            const shouldShowQAOverview = mockUser.role === 'SDPModerator';
+            
+            resultDiv.innerHTML = `
+                <div class="${shouldShowQAOverview ? 'success' : 'error'}">
+                    <h4>${shouldShowQAOverview ? '✅' : '❌'} Role Check Result</h4>
+                    <p><strong>User Role:</strong> ${mockUser.role}</p>
+                    <p><strong>Should Show QA Overview:</strong> ${shouldShowQAOverview ? 'YES' : 'NO'}</p>
+                    <p><strong>Expected:</strong> Only SDPModerator role should see QA Overview</p>
+                    ${shouldShowQAOverview ? 
+                        '<p><strong>✅ This user should see the QA Overview section</strong></p>' : 
+                        '<p><strong>❌ This user will NOT see the QA Overview section</strong></p>'
+                    }
+                </div>
+            `;
+        }
+
+        // Auto-run tests on page load
+        window.onload = function() {
+            console.log('🔍 Debug page loaded. Run tests to diagnose QA Overview issue.');
+        };
+    </script>
+</body>
+</html>

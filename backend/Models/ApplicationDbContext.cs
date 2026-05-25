@@ -17,6 +17,7 @@ namespace backend.Models
         
         // User Management System Entities
         public DbSet<User> Users { get; set; }
+        public DbSet<SystemAdmin> SystemAdmins { get; set; }
         public DbSet<Client> Clients { get; set; }
         public DbSet<SkillsDevelopmentProvider> SkillsDevelopmentProviders { get; set; }
         public DbSet<Department> Departments { get; set; }
@@ -27,9 +28,78 @@ namespace backend.Models
         public DbSet<DocumentPermission> DocumentPermissions { get; set; }
         public DbSet<DocumentAccessLog> DocumentAccessLogs { get; set; }
         
+        // Project Management System Entities
+        public DbSet<Project> Projects { get; set; }
+        public DbSet<ProjectAssignment> ProjectAssignments { get; set; }
+        public DbSet<LearningPathway> LearningPathways { get; set; }
+        public DbSet<ProjectLearningPathway> ProjectLearningPathways { get; set; }
+        public DbSet<QualificationType> QualificationTypes { get; set; }
+        public DbSet<ProjectQualification> ProjectQualifications { get; set; }
+        
+        // Task Management System Entities
+        public DbSet<ProjectTask> Tasks { get; set; }
+        public DbSet<TaskReminder> TaskReminders { get; set; }
+        
+        // Phase Management System Entities
+        public DbSet<ProjectPhase> ProjectPhases { get; set; }
+        public DbSet<ProjectPhaseQualification> ProjectPhaseQualifications { get; set; }
+        public DbSet<ProjectPhaseLearningPathway> ProjectPhaseLearningPathways { get; set; }
+        public DbSet<PhaseActivity> PhaseActivities { get; set; }
+        public DbSet<PhaseSubActivity> PhaseSubActivities { get; set; }
+        
+        // Qualification System Entities
+        public DbSet<OccupationalQualification> OccupationalQualifications { get; set; }
+        public DbSet<LegacyQualification> LegacyQualifications { get; set; }
+        public DbSet<OccupationalUnitStandard> OccupationalUnitStandards { get; set; }
+        public DbSet<LegacyUnitStandard> LegacyUnitStandards { get; set; }
+        public DbSet<ProjectQualificationUnitStandard> ProjectQualificationUnitStandards { get; set; }
+        
+        // Assessment System Entities
+        public DbSet<FormativeAssessment> FormativeAssessments { get; set; }
+        public DbSet<SummativeAssessment> SummativeAssessments { get; set; }
+        public DbSet<LogbookEntry> LogbookEntries { get; set; }
+        public DbSet<FormativeAssessmentQuestion> FormativeAssessmentQuestions { get; set; }
+        public DbSet<SummativeAssessmentQuestion> SummativeAssessmentQuestions { get; set; }
+        public DbSet<AssessmentStrategyPlan> AssessmentStrategyPlans { get; set; }
+        
+        // Learner Assessment Answer System Entities
+        public DbSet<LearnerAssessmentAnswer> LearnerAssessmentAnswers { get; set; }
+        public DbSet<LearnerAssessmentProgress> LearnerAssessmentProgress { get; set; }
+        
+        // Site Management System Entities
+        public DbSet<ProjectSite> ProjectSites { get; set; }
+        public DbSet<SiteClass> SiteClasses { get; set; }
+        public DbSet<Learner> Learners { get; set; }
+        public DbSet<ClassEnrollment> ClassEnrollments { get; set; }
+        public DbSet<LearnerDocument> LearnerDocuments { get; set; }
+        
+        // Attendance System Entities
+        public DbSet<ClassTeacher> ClassTeachers { get; set; }
+        public DbSet<LearnerAttendance> LearnerAttendances { get; set; }
+        public DbSet<AttendanceLog> AttendanceLogs { get; set; }
+        public DbSet<SickNote> SickNotes { get; set; }
+        
+        // Legacy Assessment System Entities
+        public DbSet<AssessmentType> AssessmentTypes { get; set; }
+        public DbSet<UnitStandardAssessment> UnitStandardAssessments { get; set; }
+        public DbSet<AssessmentQuestion> AssessmentQuestions { get; set; }
+        
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            
+            // Configure PostgreSQL naming conventions
+            foreach (var entity in modelBuilder.Model.GetEntityTypes())
+            {
+                // Configure table names to match PostgreSQL case sensitivity
+                entity.SetTableName(entity.GetTableName());
+                
+                foreach (var property in entity.GetProperties())
+                {
+                    // Ensure column names match the exact case used in PostgreSQL
+                    property.SetColumnName(property.GetColumnName());
+                }
+            }
             
             // Configure LMS relationships
             modelBuilder.Entity<Course>()
@@ -51,11 +121,12 @@ namespace backend.Models
                 .HasForeignKey(u => u.ClientId)
                 .OnDelete(DeleteBehavior.SetNull);
 
-            modelBuilder.Entity<Client>()
-                .HasMany(c => c.SkillsDevelopmentProviders)
-                .WithOne(s => s.Client)
-                .HasForeignKey(s => s.ClientId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // SkillsDevelopmentProviders relationship temporarily removed due to database schema mismatch
+            // modelBuilder.Entity<Client>()
+            //     .HasMany(c => c.SkillsDevelopmentProviders)
+            //     .WithOne(s => s.Client)
+            //     .HasForeignKey(s => s.ClientId)
+            //     .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<SkillsDevelopmentProvider>()
                 .HasMany(s => s.Users)
@@ -138,17 +209,18 @@ namespace backend.Models
                 .OnDelete(DeleteBehavior.SetNull);
 
             // Configure Document Access Log relationships
-            modelBuilder.Entity<DocumentAccessLog>()
-                .HasOne(dal => dal.Document)
-                .WithMany()
-                .HasForeignKey(dal => dal.DocumentId)
-                .OnDelete(DeleteBehavior.Cascade);
+            modelBuilder.Entity<DocumentAccessLog>(entity =>
+            {
+                entity.HasOne(dal => dal.Document)
+                    .WithMany(d => d.AccessLogs)
+                    .HasForeignKey(dal => dal.DocumentId)
+                    .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<DocumentAccessLog>()
-                .HasOne(dal => dal.User)
-                .WithMany()
-                .HasForeignKey(dal => dal.UserId)
-                .OnDelete(DeleteBehavior.SetNull);
+                entity.HasOne(dal => dal.User)
+                    .WithMany()
+                    .HasForeignKey(dal => dal.UserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
 
             // Configure indexes for better performance
             
@@ -192,12 +264,15 @@ namespace backend.Models
             modelBuilder.Entity<SkillsDevelopmentProvider>()
                 .HasIndex(s => s.Name);
 
-            modelBuilder.Entity<SkillsDevelopmentProvider>()
-                .HasIndex(s => s.RegistrationNumber)
-                .IsUnique();
+            // Temporarily disabled due to database schema mismatch
+            // modelBuilder.Entity<SkillsDevelopmentProvider>()
+            //     .HasIndex(s => s.AccreditationNumber)
+            //     .IsUnique();
                 
-            modelBuilder.Entity<SkillsDevelopmentProvider>()
-                .HasIndex(s => s.Email);
+            modelBuilder.Entity<SkillsDevelopmentProvider>();
+                // ContactEmail index temporarily removed due to missing column in database
+                // .HasIndex(s => s.ContactEmail)
+                // .IsUnique();
                 
             modelBuilder.Entity<SkillsDevelopmentProvider>()
                 .HasIndex(s => s.Status);
@@ -329,6 +404,98 @@ namespace backend.Models
                 
             modelBuilder.Entity<DocumentAccessLog>()
                 .HasIndex(dal => dal.AccessedAt);
+                
+            // SystemAdmin table configuration
+            modelBuilder.Entity<SystemAdmin>()
+                .HasIndex(sa => sa.Email)
+                .IsUnique();
+                
+            // Configure Project Management relationships
+            modelBuilder.Entity<Project>()
+                .HasOne(p => p.Client)
+                .WithMany()
+                .HasForeignKey(p => p.ClientId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<Project>()
+                .HasOne(p => p.SkillsDevelopmentProvider)
+                .WithMany()
+                .HasForeignKey(p => p.SkillsDevelopmentProviderId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<ProjectLearningPathway>()
+                .HasOne(plp => plp.Project)
+                .WithMany(p => p.ProjectLearningPathways)
+                .HasForeignKey(plp => plp.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<ProjectLearningPathway>()
+                .HasOne(plp => plp.LearningPathway)
+                .WithMany(lp => lp.ProjectLearningPathways)
+                .HasForeignKey(plp => plp.PathwayId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<ProjectQualification>()
+                .HasOne(pq => pq.ProjectLearningPathway)
+                .WithMany(plp => plp.ProjectQualifications)
+                .HasForeignKey(pq => pq.ProjectLearningPathwayId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<ProjectQualification>()
+                .HasOne(pq => pq.QualificationType)
+                .WithMany(qt => qt.ProjectQualifications)
+                .HasForeignKey(pq => pq.QualificationTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+                
+            modelBuilder.Entity<ProjectQualification>()
+                .HasOne(pq => pq.OccupationalQualification)
+                .WithMany(oq => oq.ProjectQualifications)
+                .HasForeignKey(pq => pq.OccupationalQualificationId)
+                .OnDelete(DeleteBehavior.SetNull);
+                
+            modelBuilder.Entity<ProjectQualification>()
+                .HasOne(pq => pq.LegacyQualification)
+                .WithMany(lq => lq.ProjectQualifications)
+                .HasForeignKey(pq => pq.LegacyQualificationId)
+                .OnDelete(DeleteBehavior.SetNull);
+                
+            // Configure Qualification relationships
+            modelBuilder.Entity<OccupationalUnitStandard>()
+                .HasOne(ous => ous.Qualification)
+                .WithMany(oq => oq.UnitStandards)
+                .HasForeignKey(ous => ous.QualificationId)
+                .HasPrincipalKey(oq => oq.QualificationId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<LegacyUnitStandard>()
+                .HasOne(lus => lus.Qualification)
+                .WithMany(lq => lq.UnitStandards)
+                .HasForeignKey(lus => lus.QualificationId)
+                .HasPrincipalKey(lq => lq.QualificationId)
+                .OnDelete(DeleteBehavior.Cascade);
+                
+            modelBuilder.Entity<SystemAdmin>()
+                .HasIndex(sa => sa.Username)
+                .IsUnique();
+                
+            modelBuilder.Entity<SystemAdmin>()
+                .HasIndex(sa => sa.Status);
+                
+            modelBuilder.Entity<SystemAdmin>()
+                .HasIndex(sa => sa.AccessLevel);
+
+            // Configure LogbookEntry explicitly to ensure EF Core recognizes the new columns
+            modelBuilder.Entity<LogbookEntry>()
+                .Property(l => l.StartDate)
+                .IsRequired();
+                
+            modelBuilder.Entity<LogbookEntry>()
+                .Property(l => l.EndDate)
+                .IsRequired();
+                
+            modelBuilder.Entity<LogbookEntry>()
+                .Property(l => l.EntryDate)
+                .IsRequired(false);
         }
     }
 }

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Emergency Debug Login</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🚨 Emergency Debug: Login Still Broken</h1>
+    
+    <div class="step error">
+        <h3>❌ Current Issue</h3>
+        <p><strong>zondis411@gmail.com</strong> is still being routed to <strong>SDP Dashboard</strong> instead of <strong>SDP Manager Dashboard</strong></p>
+    </div>
+    
+    <div class="step warning">
+        <h3>⚠️ Possible Causes</h3>
+        <ul>
+            <li>Frontend not restarted after code changes</li>
+            <li>Browser cache not cleared</li>
+            <li>Code changes not saved properly</li>
+            <li>Different routing logic being used</li>
+        </ul>
+    </div>
+    
+    <div class="step">
+        <h3>🔍 Debug Test</h3>
+        <button onclick="testLoginAndRouting()">Test Login & Check Routing</button>
+        <div id="result"></div>
+    </div>
+    
+    <script>
+        async function testLoginAndRouting() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                // Test login
+                const response = await fetch('http://192.168.68.117:5213/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'zondis411@gmail.com',
+                        password: 'hlvp2WdoDK(a'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Simulate exact frontend logic
+                    const normalizedUser = {
+                        role: data.user?.role ?? data.user?.Role,
+                        skillsDevelopmentProviderId: data.user?.skillsDevelopmentProviderId ?? data.user?.SkillsDevelopmentProviderId ?? null,
+                        departmentId: data.user?.departmentId ?? data.user?.DepartmentId ?? null,
+                    };
+                    
+                    const isSDPManager = (
+                        normalizedUser.role === '7' || 
+                        normalizedUser.role === 7
+                    );
+                    
+                    const isSDP = (
+                        normalizedUser.role === '3' || 
+                        normalizedUser.role === 3 ||
+                        (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0)
+                    );
+                    
+                    let expectedRoute;
+                    if (isSDPManager) {
+                        expectedRoute = '/sdp-manager-dashboard';
+                    } else if (isSDP) {
+                        expectedRoute = '/sdp-dashboard';
+                    } else {
+                        expectedRoute = '/dashboard';
+                    }
+                    
+                    resultDiv.innerHTML = `
+                        <h4>Login Response Analysis</h4>
+                        <pre>Raw Role: ${JSON.stringify(data.user?.role ?? data.user?.Role)}
+Role Type: ${typeof (data.user?.role ?? data.user?.Role)}
+SDP ID: ${normalizedUser.skillsDevelopmentProviderId}
+Department ID: ${normalizedUser.departmentId}
+
+isSDPManager: ${isSDPManager}
+isSDP: ${isSDP}
+Expected Route: ${expectedRoute}</pre>
+                        
+                        ${expectedRoute === '/sdp-manager-dashboard' ? 
+                            '<div style="background: #d4edda; padding: 10px; margin-top: 10px;">✅ SHOULD route to SDP Manager Dashboard</div>' :
+                            '<div style="background: #f8d7da; padding: 10px; margin-top: 10px;">❌ Will route to wrong dashboard</div>'
+                        }
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div style="background: #f8d7da; padding: 10px;">Login failed: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div style="background: #f8d7da; padding: 10px;">Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

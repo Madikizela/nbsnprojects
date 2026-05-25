@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: rlms-db-prod
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-rlms}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.production
+    container_name: rlms-backend-prod
+    restart: always
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=${DB_NAME:-rlms};Username=${DB_USER:-postgres};Password=${DB_PASS}
+      - JwtSettings__SecretKey=${JWT_SECRET}
+      - Encryption__DataKey=${ENCRYPTION_DATA_KEY}
+      - Email__SmtpHost=${SMTP_HOST}
+      - Email__SmtpPort=${SMTP_PORT}
+      - Email__SmtpUsername=${SMTP_USER}
+      - Email__SmtpPassword=${SMTP_PASS}
+      - Email__FromEmail=${FROM_EMAIL}
+      - Email__FromName=${FROM_NAME}
+    depends_on:
+      - postgres
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.production
+      args:
+        - VITE_API_URL=/api
+    container_name: rlms-frontend-prod
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  postgres_prod_data:
+
+networks:
+  app-network:
+    driver: bridge

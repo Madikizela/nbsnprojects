@@ -1,0 +1,65 @@
+REPLACE LINES 6115-6172 in frontend/src/components/SDPManagerDashboard.tsx
+
+WITH THIS EXACT CODE:
+
+                  ) : (
+                    <div>
+                      {/* Documents Tab */}
+                      {user?.role !== 'SDPLogistics' && (
+                        <div className="mb-4">
+                          <h6 className="text-primary mb-3">📄 Upload Document</h6>
+                          <form onSubmit={handleUploadDocument}>
+                            <div className="row g-3">
+                              <div className="col-md-6">
+                                <label className="form-label">Document Type *</label>
+                                <select 
+                                  className="form-select bg-secondary text-light border-0" 
+                                  value={selectedDocumentType}
+                                  onChange={(e) => setSelectedDocumentType(e.target.value)}
+                                  required
+                                >
+                                  <option value="">Select Type</option>
+                                  {documentTypes
+                                    .filter(type => !learnerDocuments.some(doc => doc.documentType === type))
+                                    .map(type => (
+                                      <option key={type} value={type}>{type}</option>
+                                    ))}
+                                </select>
+                                {documentTypes.filter(type => !learnerDocuments.some(doc => doc.documentType === type)).length === 0 && (
+                                  <small className="text-warning d-block mt-1">
+                                    ⚠️ All document types have been uploaded
+                                  </small>
+                                )}
+                              </div>
+                              <div className="col-md-6">
+                                <label className="form-label">Select File * (PDF, JPG, PNG - Max 10MB)</label>
+                                <input 
+                                  type="file" 
+                                  className="form-control bg-secondary text-light border-0"
+                                  accept=".pdf,.jpg,.jpeg,.png"
+                                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                                  required
+                                />
+                              </div>
+                              <div className="col-12">
+                                <button 
+                                  type="submit" 
+                                  className="btn btn-primary" 
+                                  disabled={uploadingDocument || documentTypes.filter(type => !learnerDocuments.some(doc => doc.documentType === type)).length === 0}
+                                >
+                                  {uploadingDocument ? (
+                                    <>
+                                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                                      Uploading...
+                                    </>
+                                  ) : (
+                                    '📤 Upload Document'
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                      )}
+
+                      {/* Document Status Summary */}

@@ -11,12 +11,12 @@ namespace backend.Models
         
         [Required]
         [StringLength(100)]
-        public string Title { get; set; }
+        public string Title { get; set; } = default!;
         
         [StringLength(500)]
-        public string Description { get; set; }
+        public string Description { get; set; } = default!;
         
-        public string Content { get; set; }
+        public string Content { get; set; } = default!;
         
         public int Order { get; set; }
         
@@ -29,6 +29,6 @@ namespace backend.Models
         
         // Navigation property
         [ForeignKey("ModuleId")]
-        public Module Module { get; set; }
+        public Module Module { get; set; } = default!;
     }
 }

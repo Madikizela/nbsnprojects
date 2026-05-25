@@ -1,0 +1,114 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.Sqlite;
+using BCrypt.Net;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
+
+namespace backend.Controllers
+{
+    [ApiController]
+    [Route("api/[controller]")]
+    public class DirectLoginController : ControllerBase
+    {
+        private readonly IConfiguration _configuration;
+
+        public DirectLoginController(IConfiguration configuration)
+        {
+            _configuration = configuration;
+        }
+
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            try
+            {
+                var email = request?.Email?.Trim();
+                var password = request?.Password;
+
+                if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+                {
+                    return BadRequest(new { message = "Email and password are required" });
+                }
+
+                var normalizedEmail = email.ToLower();
+
+                // Direct SQLite connection
+                using var connection = new SqliteConnection("Data Source=skills_development.db");
+                await connection.OpenAsync();
+
+                // Check SystemAdmins table
+                var command = connection.CreateCommand();
+                command.CommandText = "SELECT Id, FirstName, LastName, Username, Email, PasswordHash, Status, AccessLevel FROM SystemAdmins WHERE LOWER(Email) = @email";
+                command.Parameters.AddWithValue("@email", normalizedEmail);
+
+                using var reader = await command.ExecuteReaderAsync();
+                
+                if (await reader.ReadAsync())
+                {
+                    var storedHash = reader.GetString("PasswordHash");
+                    var status = reader.GetInt32("Status");
+                    
+                    if (status != 1)
+                    {
+                        return Unauthorized(new { message = "Account is not active" });
+                    }
+
+                    if (BCrypt.Net.BCrypt.Verify(password, storedHash))
+                    {
+                        // Generate JWT token
+                        var tokenHandler = new JwtSecurityTokenHandler();
+                        var key = Encoding.ASCII.GetBytes(_configuration["Jwt:Key"] ?? "your-secret-key-here-make-it-long-enough");
+                        var tokenDescriptor = new SecurityTokenDescriptor
+                        {
+                            Subject = new ClaimsIdentity(new[]
+                            {
+                                new Claim(ClaimTypes.NameIdentifier, reader.GetInt32("Id").ToString()),
+                                new Claim(ClaimTypes.Email, reader.GetString("Email")),
+                                new Claim(ClaimTypes.Name, $"{reader.GetString("FirstName")} {reader.GetString("LastName")}"),
+                                new Claim("UserType", "SystemAdmin"),
+                                new Claim("AccessLevel", reader.GetInt32("AccessLevel").ToString())
+                            }),
+                            Expires = DateTime.UtcNow.AddHours(24),
+                            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+                        };
+
+                        var token = tokenHandler.CreateToken(tokenDescriptor);
+                        var tokenString = tokenHandler.WriteToken(token);
+
+                        return Ok(new
+                        {
+                            token = tokenString,
+                            user = new
+                            {
+                                id = reader.GetInt32("Id"),
+                                firstName = reader.GetString("FirstName"),
+                                lastName = reader.GetString("LastName"),
+                                email = reader.GetString("Email"),
+                                userType = "SystemAdmin",
+                                accessLevel = reader.GetInt32("AccessLevel")
+                            }
+                        });
+                    }
+                }
+
+                return Unauthorized(new { message = "Invalid email or password" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { 
+                    message = "An error occurred during login", 
+                    error = ex.Message,
+                    stackTrace = ex.StackTrace
+                });
+            }
+        }
+    }
+
+    public class LoginRequest
+    {
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+}

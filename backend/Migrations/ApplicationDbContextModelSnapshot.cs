@@ -2,8 +2,8 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using backend.Models;
 
 #nullable disable
@@ -18,51 +18,298 @@ namespace backend.Migrations
 #pragma warning disable 612, 618
             modelBuilder
                 .HasAnnotation("ProductVersion", "9.0.9")
-                .HasAnnotation("Relational:MaxIdentifierLength", 63);
+                .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
-            NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+            MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
+
+            modelBuilder.Entity("backend.Models.AssessmentQuestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal?>("AllocatedMarks")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("AllocatedMarks");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("FormativeAssessmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("FormativeAssessmentId");
+
+                    b.Property<int?>("OrderIndex")
+                        .HasColumnType("int")
+                        .HasColumnName("OrderIndex");
+
+                    b.Property<int>("QuestionNumber")
+                        .HasColumnType("int")
+                        .HasColumnName("QuestionNumber");
+
+                    b.Property<string>("QuestionText")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("QuestionText");
+
+                    b.Property<int?>("UnitStandardAssessmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("UnitStandardAssessmentId");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UnitStandardAssessmentId");
+
+                    b.ToTable("AssessmentQuestions");
+                });
+
+            modelBuilder.Entity("backend.Models.AssessmentType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AssessmentTypes");
+                });
+
+            modelBuilder.Entity("backend.Models.AttendanceLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Action");
+
+                    b.Property<int>("ActionBy")
+                        .HasColumnType("int")
+                        .HasColumnName("ActionBy");
+
+                    b.Property<DateTime>("ActionTime")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ActionTime");
+
+                    b.Property<int>("AttendanceId")
+                        .HasColumnType("int")
+                        .HasColumnName("AttendanceId");
+
+                    b.Property<string>("DeviceInfo")
+                        .HasColumnType("longtext")
+                        .HasColumnName("DeviceInfo");
+
+                    b.Property<bool?>("FingerprintMatched")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("FingerprintMatched");
+
+                    b.Property<decimal?>("MatchScore")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("MatchScore");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Notes");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActionBy");
+
+                    b.HasIndex("AttendanceId");
+
+                    b.ToTable("AttendanceLogs");
+                });
+
+            modelBuilder.Entity("backend.Models.ClassEnrollment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("CompletionDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CompletionDate");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("CreatedByUserId");
+
+                    b.Property<DateTime>("EnrollmentDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("EnrollmentDate");
+
+                    b.Property<int>("LearnerId")
+                        .HasColumnType("int")
+                        .HasColumnName("LearnerId");
+
+                    b.Property<int>("SiteClassId")
+                        .HasColumnType("int")
+                        .HasColumnName("SiteClassId");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.Property<DateTime?>("WithdrawalDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("WithdrawalDate");
+
+                    b.Property<string>("WithdrawalReason")
+                        .HasColumnType("longtext")
+                        .HasColumnName("WithdrawalReason");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("LearnerId");
+
+                    b.HasIndex("SiteClassId");
+
+                    b.ToTable("ClassEnrollments");
+                });
+
+            modelBuilder.Entity("backend.Models.ClassTeacher", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AssignedDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("AssignedDate");
+
+                    b.Property<int>("ClassId")
+                        .HasColumnType("int")
+                        .HasColumnName("ClassId");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("IsActive");
+
+                    b.Property<int>("TeacherId")
+                        .HasColumnType("int")
+                        .HasColumnName("TeacherId");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClassId");
+
+                    b.HasIndex("TeacherId");
+
+                    b.ToTable("ClassTeachers");
+                });
 
             modelBuilder.Entity("backend.Models.Client", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Address")
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Address");
 
                     b.Property<string>("ContactPerson")
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("ContactPerson");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Description");
 
                     b.Property<string>("Email")
                         .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("Email");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Name");
 
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("PhoneNumber");
 
                     b.Property<int>("Status")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Status");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
 
                     b.HasKey("Id");
 
@@ -81,25 +328,30 @@ namespace backend.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Description");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Title");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
 
                     b.HasKey("Id");
 
@@ -114,33 +366,59 @@ namespace backend.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
 
                     b.Property<string>("Description")
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Description");
+
+                    b.Property<string>("ManagerEmail")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("ManagerEmail");
+
+                    b.Property<string>("ManagerFirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("ManagerFirstName");
+
+                    b.Property<string>("ManagerSurname")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("ManagerSurname");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Name");
 
                     b.Property<int>("SkillsDevelopmentProviderId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("SkillsDevelopmentProviderId");
 
                     b.Property<int>("Status")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Status");
 
                     b.Property<int>("Type")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Type");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
 
                     b.HasKey("Id");
 
@@ -161,109 +439,139 @@ namespace backend.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("AccessLevel")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("AccessLevel");
 
                     b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ApprovedAt");
 
                     b.Property<int?>("ApprovedByUserId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("ApprovedByUserId");
 
                     b.Property<int?>("ClientId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("ClientId");
 
                     b.Property<string>("ContentType")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("ContentType");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
 
                     b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("DeletedAt");
 
                     b.Property<int?>("DeletedByUserId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("DeletedByUserId");
 
                     b.Property<int?>("DepartmentId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("DepartmentId");
 
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("Description");
 
                     b.Property<string>("EncryptionAlgorithm")
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("EncryptionAlgorithm");
 
                     b.Property<string>("EncryptionKey")
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("EncryptionKey");
 
                     b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ExpiresAt");
 
                     b.Property<string>("FileHash")
                         .IsRequired()
                         .HasMaxLength(128)
-                        .HasColumnType("character varying(128)");
+                        .HasColumnType("varchar(128)")
+                        .HasColumnName("FileHash");
 
                     b.Property<string>("FilePath")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("FilePath");
 
                     b.Property<long>("FileSizeBytes")
-                        .HasColumnType("bigint");
+                        .HasColumnType("bigint")
+                        .HasColumnName("FileSizeBytes");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("IsDeleted");
 
                     b.Property<bool>("IsEncrypted")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("IsEncrypted");
 
                     b.Property<DateTime?>("LastAccessedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("LastAccessedAt");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("Name");
 
                     b.Property<string>("OriginalFileName")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("OriginalFileName");
 
                     b.Property<int?>("ParentDocumentId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("ParentDocumentId");
 
                     b.Property<bool>("RequiresApproval")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("RequiresApproval");
 
                     b.Property<int?>("SkillsDevelopmentProviderId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("SkillsDevelopmentProviderId");
 
                     b.Property<int>("Status")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Status");
 
                     b.Property<int>("Type")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Type");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
 
                     b.Property<int>("UploadedByUserId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("UploadedByUserId");
 
                     b.Property<int>("Version")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Version");
 
                     b.HasKey("Id");
 
@@ -300,36 +608,41 @@ namespace backend.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<DateTime>("AccessedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("AccessedAt");
 
                     b.Property<int>("Action")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Action");
 
                     b.Property<int>("DocumentId")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("DocumentId1")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("DocumentId");
 
                     b.Property<string>("IpAddress")
                         .HasMaxLength(45)
-                        .HasColumnType("character varying(45)");
+                        .HasColumnType("varchar(45)")
+                        .HasColumnName("IpAddress");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("Notes");
 
                     b.Property<string>("UserAgent")
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("UserAgent");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<int?>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("UserId");
 
                     b.HasKey("Id");
 
@@ -339,46 +652,842 @@ namespace backend.Migrations
 
                     b.HasIndex("DocumentId");
 
-                    b.HasIndex("DocumentId1");
-
                     b.HasIndex("UserId");
 
                     b.ToTable("DocumentAccessLogs");
+                });
+
+            modelBuilder.Entity("backend.Models.FormativeAssessment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AssessmentDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("AssessmentDate");
+
+                    b.Property<string>("AssessmentMethod")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("AssessmentMethod");
+
+                    b.Property<string>("AssessorName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("AssessorName");
+
+                    b.Property<string>("Comments")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Comments");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<decimal?>("MaxScore")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("MaxScore");
+
+                    b.Property<int>("ProjectQualificationUnitStandardId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectQualificationUnitStandardId");
+
+                    b.Property<decimal?>("Score")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("Score");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectQualificationUnitStandardId");
+
+                    b.ToTable("FormativeAssessments");
+                });
+
+            modelBuilder.Entity("backend.Models.FormativeAssessmentQuestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AllocatedMarks")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("AllocatedMarks");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int>("FormativeAssessmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("FormativeAssessmentId");
+
+                    b.Property<int>("QuestionNumber")
+                        .HasColumnType("int")
+                        .HasColumnName("QuestionNumber");
+
+                    b.Property<string>("QuestionText")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("QuestionText");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FormativeAssessmentId");
+
+                    b.ToTable("FormativeAssessmentQuestions");
+                });
+
+            modelBuilder.Entity("backend.Models.Learner", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AccountNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("AccountNumber");
+
+                    b.Property<string>("AccountType")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("AccountType");
+
+                    b.Property<string>("AddressLine1")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("AddressLine1");
+
+                    b.Property<string>("AddressLine2")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("AddressLine2");
+
+                    b.Property<string>("AddressLine3")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("AddressLine3");
+
+                    b.Property<int?>("Age")
+                        .HasColumnType("int")
+                        .HasColumnName("Age");
+
+                    b.Property<string>("BankName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("BankName");
+
+                    b.Property<string>("BranchCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("BranchCode");
+
+                    b.Property<string>("ContactNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("ContactNumber");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("CreatedByUserId");
+
+                    b.Property<DateTime?>("DateOfBirth")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("DateOfBirth");
+
+                    b.Property<string>("Disability")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Disability");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Email");
+
+                    b.Property<string>("FaceEmbedding")
+                        .HasColumnType("longtext")
+                        .HasColumnName("FaceEmbedding");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("FirstName");
+
+                    b.Property<string>("Gender")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Gender");
+
+                    b.Property<string>("HighSchoolName")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("HighSchoolName");
+
+                    b.Property<string>("HighestGradePassed")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("HighestGradePassed");
+
+                    b.Property<string>("HomeLanguage")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("HomeLanguage");
+
+                    b.Property<string>("IdNumber")
+                        .IsRequired()
+                        .HasMaxLength(13)
+                        .HasColumnType("varchar(13)")
+                        .HasColumnName("IdNumber");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("LastName");
+
+                    b.Property<string>("LeftThumbTemplate")
+                        .HasColumnType("longtext")
+                        .HasColumnName("LeftThumbTemplate");
+
+                    b.Property<string>("NextOfKinContactNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("NextOfKinContactNumber");
+
+                    b.Property<string>("NextOfKinName")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("NextOfKinName");
+
+                    b.Property<string>("NextOfKinRelation")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("NextOfKinRelation");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("PostalCode");
+
+                    b.Property<string>("ProfilePhotoPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("ProfilePhotoPath");
+
+                    b.Property<string>("Race")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Race");
+
+                    b.Property<string>("RightThumbTemplate")
+                        .HasColumnType("longtext")
+                        .HasColumnName("RightThumbTemplate");
+
+                    b.Property<string>("SchoolLocation")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("SchoolLocation");
+
+                    b.Property<string>("SignaturePath")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("SignaturePath");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("Title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.Property<int?>("YearOfCompletion")
+                        .HasColumnType("int")
+                        .HasColumnName("YearOfCompletion");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.ToTable("Learners");
+                });
+
+            modelBuilder.Entity("backend.Models.LearnerAssessmentAnswer", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssessmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("AssessmentId");
+
+                    b.Property<string>("AssessmentType")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("AssessmentType");
+
+                    b.Property<string>("AssessorComments")
+                        .HasColumnType("longtext")
+                        .HasColumnName("AssessorComments");
+
+                    b.Property<int?>("AssessorId")
+                        .HasColumnType("int")
+                        .HasColumnName("AssessorId");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<long?>("FileSize")
+                        .HasColumnType("bigint")
+                        .HasColumnName("FileSize");
+
+                    b.Property<bool>("IsRemedial")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("IsRemedial");
+
+                    b.Property<int>("LearnerId")
+                        .HasColumnType("int")
+                        .HasColumnName("LearnerId");
+
+                    b.Property<decimal?>("Mark")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("Mark");
+
+                    b.Property<int>("MarkStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("MarkStatus");
+
+                    b.Property<DateTime?>("MarkedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("MarkedAt");
+
+                    b.Property<string>("MimeType")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("MimeType");
+
+                    b.Property<DateTime?>("ModeratedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ModeratedAt");
+
+                    b.Property<decimal?>("ModeratedMark")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("ModeratedMark");
+
+                    b.Property<int>("ModerationStatus")
+                        .HasColumnType("int")
+                        .HasColumnName("ModerationStatus");
+
+                    b.Property<string>("ModeratorComments")
+                        .HasColumnType("longtext")
+                        .HasColumnName("ModeratorComments");
+
+                    b.Property<int?>("ModeratorId")
+                        .HasColumnType("int")
+                        .HasColumnName("ModeratorId");
+
+                    b.Property<int>("QuestionId")
+                        .HasColumnType("int")
+                        .HasColumnName("QuestionId");
+
+                    b.Property<int>("QuestionNumber")
+                        .HasColumnType("int")
+                        .HasColumnName("QuestionNumber");
+
+                    b.Property<DateTime>("ScannedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ScannedAt");
+
+                    b.Property<string>("ScannedDocumentName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("ScannedDocumentName");
+
+                    b.Property<string>("ScannedDocumentPath")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("ScannedDocumentPath");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssessorId");
+
+                    b.HasIndex("LearnerId");
+
+                    b.HasIndex("ModeratorId");
+
+                    b.ToTable("LearnerAssessmentAnswers");
+                });
+
+            modelBuilder.Entity("backend.Models.LearnerAssessmentProgress", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("FormativeAssessmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("FormativeAssessmentId");
+
+                    b.Property<bool>("FormativeCompleted")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("FormativeCompleted");
+
+                    b.Property<DateTime?>("FormativeCompletedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("FormativeCompletedAt");
+
+                    b.Property<int>("LearnerId")
+                        .HasColumnType("int")
+                        .HasColumnName("LearnerId");
+
+                    b.Property<int>("ProjectQualificationUnitStandardId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectQualificationUnitStandardId");
+
+                    b.Property<bool>("RemedialCompleted")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("RemedialCompleted");
+
+                    b.Property<DateTime?>("RemedialCompletedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("RemedialCompletedAt");
+
+                    b.Property<bool>("RemedialRequired")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("RemedialRequired");
+
+                    b.Property<int?>("SummativeAssessmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("SummativeAssessmentId");
+
+                    b.Property<bool>("SummativeCompleted")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("SummativeCompleted");
+
+                    b.Property<DateTime?>("SummativeCompletedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("SummativeCompletedAt");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LearnerId");
+
+                    b.HasIndex("ProjectQualificationUnitStandardId");
+
+                    b.ToTable("LearnerAssessmentProgress");
+                });
+
+            modelBuilder.Entity("backend.Models.LearnerAttendance", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AttendanceDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("AttendanceDate");
+
+                    b.Property<int>("ClassId")
+                        .HasColumnType("int")
+                        .HasColumnName("ClassId");
+
+                    b.Property<decimal?>("ClockInLatitude")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("ClockInLatitude");
+
+                    b.Property<decimal?>("ClockInLongitude")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("ClockInLongitude");
+
+                    b.Property<string>("ClockInMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("ClockInMethod");
+
+                    b.Property<int?>("ClockInTeacherId")
+                        .HasColumnType("int")
+                        .HasColumnName("ClockInTeacherId");
+
+                    b.Property<DateTime?>("ClockInTime")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ClockInTime");
+
+                    b.Property<bool>("ClockInVerified")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("ClockInVerified");
+
+                    b.Property<decimal?>("ClockOutLatitude")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("ClockOutLatitude");
+
+                    b.Property<decimal?>("ClockOutLongitude")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("ClockOutLongitude");
+
+                    b.Property<string>("ClockOutMethod")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("ClockOutMethod");
+
+                    b.Property<int?>("ClockOutTeacherId")
+                        .HasColumnType("int")
+                        .HasColumnName("ClockOutTeacherId");
+
+                    b.Property<DateTime?>("ClockOutTime")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ClockOutTime");
+
+                    b.Property<bool>("ClockOutVerified")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("ClockOutVerified");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int>("LearnerId")
+                        .HasColumnType("int")
+                        .HasColumnName("LearnerId");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Notes");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClassId");
+
+                    b.HasIndex("ClockInTeacherId");
+
+                    b.HasIndex("ClockOutTeacherId");
+
+                    b.HasIndex("LearnerId");
+
+                    b.ToTable("LearnerAttendances");
+                });
+
+            modelBuilder.Entity("backend.Models.LearnerDocument", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ApprovalStatus")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("ApprovalStatus");
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ApprovedAt");
+
+                    b.Property<int?>("ApprovedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("ApprovedByUserId");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<string>("DeclineReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("DeclineReason");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("DocumentType");
+
+                    b.Property<string>("EncryptedFilePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("EncryptedFilePath");
+
+                    b.Property<string>("EncryptionIV")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("EncryptionIV");
+
+                    b.Property<string>("FileHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("FileHash");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("FileName");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("bigint")
+                        .HasColumnName("FileSize");
+
+                    b.Property<int>("LearnerId")
+                        .HasColumnType("int")
+                        .HasColumnName("LearnerId");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("MimeType");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UploadedAt");
+
+                    b.Property<int?>("UploadedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("UploadedByUserId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("LearnerId");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.ToTable("LearnerDocuments");
+                });
+
+            modelBuilder.Entity("backend.Models.LearningPathway", b =>
+                {
+                    b.Property<int>("PathwayId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("PathwayId");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("PathwayId"));
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("Name");
+
+                    b.Property<int>("Synced")
+                        .HasColumnType("int")
+                        .HasColumnName("Synced");
+
+                    b.HasKey("PathwayId");
+
+                    b.ToTable("LearningPathways");
+                });
+
+            modelBuilder.Entity("backend.Models.LegacyQualification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("Credits")
+                        .HasColumnType("int")
+                        .HasColumnName("credits");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext")
+                        .HasColumnName("description");
+
+                    b.Property<string>("HasCat")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)")
+                        .HasColumnName("has_cat");
+
+                    b.Property<string>("Level")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("level");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("QualificationId")
+                        .HasColumnType("int")
+                        .HasColumnName("qualification_id");
+
+                    b.Property<string>("QualificationType")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("qualification_type");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("legacy_qualifications");
+                });
+
+            modelBuilder.Entity("backend.Models.LegacyUnitStandard", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("Credits")
+                        .HasColumnType("int")
+                        .HasColumnName("credits");
+
+                    b.Property<string>("Level")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("level");
+
+                    b.Property<int?>("QualificationId")
+                        .HasColumnType("int")
+                        .HasColumnName("qualification_id");
+
+                    b.Property<int?>("Synced")
+                        .HasColumnType("int")
+                        .HasColumnName("synced");
+
+                    b.Property<int?>("UnitStandardId")
+                        .HasColumnType("int")
+                        .HasColumnName("unitstandard_id");
+
+                    b.Property<string>("UnitStandardName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("unit_standard_name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QualificationId");
+
+                    b.ToTable("legacy_unit_standards");
                 });
 
             modelBuilder.Entity("backend.Models.Lesson", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Content")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("longtext")
+                        .HasColumnName("Content");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Description");
 
                     b.Property<int>("ModuleId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("ModuleId");
 
                     b.Property<int>("Order")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Order");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Title");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
 
                     b.HasKey("Id");
 
@@ -391,35 +1500,117 @@ namespace backend.Migrations
                     b.ToTable("Lessons");
                 });
 
+            modelBuilder.Entity("backend.Models.LogbookEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ActivityDescription")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("ActivityDescription");
+
+                    b.Property<bool>("Approved")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("Approved");
+
+                    b.Property<DateTime?>("ApprovedDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ApprovedDate");
+
+                    b.Property<string>("Comments")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Comments");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("EndDate");
+
+                    b.Property<DateTime?>("EntryDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("EntryDate");
+
+                    b.Property<string>("EvidenceUrl")
+                        .HasColumnType("longtext")
+                        .HasColumnName("EvidenceUrl");
+
+                    b.Property<decimal?>("HoursSpent")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("HoursSpent");
+
+                    b.Property<int>("ProjectQualificationUnitStandardId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectQualificationUnitStandardId");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("StartDate");
+
+                    b.Property<string>("SupervisorName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("SupervisorName");
+
+                    b.Property<string>("SupervisorSignature")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("SupervisorSignature");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectQualificationUnitStandardId");
+
+                    b.ToTable("LogbookEntries");
+                });
+
             modelBuilder.Entity("backend.Models.Module", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<int>("CourseId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("CourseId");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
 
                     b.Property<string>("Description")
                         .IsRequired()
                         .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Description");
 
                     b.Property<int>("Order")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Order");
 
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Title");
 
                     b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
 
                     b.HasKey("Id");
 
@@ -432,54 +1623,1052 @@ namespace backend.Migrations
                     b.ToTable("Modules");
                 });
 
-            modelBuilder.Entity("backend.Models.SkillsDevelopmentProvider", b =>
+            modelBuilder.Entity("backend.Models.OccupationalQualification", b =>
+                {
+                    b.Property<int>("QualificationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("qualification_id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("QualificationId"));
+
+                    b.Property<int>("Credits")
+                        .HasColumnType("int")
+                        .HasColumnName("credits");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("HasCat")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("varchar(3)")
+                        .HasColumnName("has_cat");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("level");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("QualificationType")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("qualification_type");
+
+                    b.Property<string>("QualityPartner")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("quality_partner");
+
+                    b.Property<string>("Trade")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("trade");
+
+                    b.HasKey("QualificationId");
+
+                    b.ToTable("occupational_qualifications");
+                });
+
+            modelBuilder.Entity("backend.Models.OccupationalUnitStandard", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("Address")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                    b.Property<int?>("Credits")
+                        .HasColumnType("int")
+                        .HasColumnName("credits");
 
-                    b.Property<int>("ClientId")
-                        .HasColumnType("integer");
+                    b.Property<string>("Level")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("level");
 
-                    b.Property<string>("ContactPerson")
+                    b.Property<string>("ModuleCode")
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("module_code");
+
+                    b.Property<string>("ModuleType")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("module_type");
+
+                    b.Property<int?>("QualificationId")
+                        .HasColumnType("int")
+                        .HasColumnName("qualification_id");
+
+                    b.Property<string>("UnitStandardName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("unit_standard_name");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("QualificationId");
+
+                    b.ToTable("occupational_unit_standards");
+                });
+
+            modelBuilder.Entity("backend.Models.PhaseActivity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ActivityCode")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("ActivityCode");
+
+                    b.Property<int?>("AssignedToUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("AssignedToUserId");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("Description");
 
-                    b.Property<string>("Email")
-                        .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("EndDate");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Name");
 
-                    b.Property<string>("PhoneNumber")
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int")
+                        .HasColumnName("OrderIndex");
 
-                    b.Property<string>("RegistrationNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
+                    b.Property<int>("ProjectPhaseId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectPhaseId");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("StartDate");
 
                     b.Property<int>("Status")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Status");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedToUserId");
+
+                    b.HasIndex("ProjectPhaseId");
+
+                    b.ToTable("PhaseActivities");
+                });
+
+            modelBuilder.Entity("backend.Models.PhaseSubActivity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ActivityCode")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("ActivityCode");
+
+                    b.Property<int?>("AssignedToUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("AssignedToUserId");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("Description");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("EndDate");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Name");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Notes");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("int")
+                        .HasColumnName("OrderIndex");
+
+                    b.Property<int>("PhaseActivityId")
+                        .HasColumnType("int")
+                        .HasColumnName("PhaseActivityId");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("StartDate");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedToUserId");
+
+                    b.HasIndex("PhaseActivityId");
+
+                    b.ToTable("PhaseSubActivities");
+                });
+
+            modelBuilder.Entity("backend.Models.Project", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("BudgetAmount")
+                        .HasColumnType("decimal(18,2)")
+                        .HasColumnName("BudgetAmount");
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int")
+                        .HasColumnName("ClientId");
+
+                    b.Property<string>("ContractNumber")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("ContractNumber");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("EndDate");
+
+                    b.Property<string>("FinancialYear")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("varchar(10)")
+                        .HasColumnName("FinancialYear");
+
+                    b.Property<bool>("HasConsumables")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("HasConsumables");
+
+                    b.Property<bool>("HasLearningMaterial")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("HasLearningMaterial");
+
+                    b.Property<bool>("HasPPE")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("HasPPE");
+
+                    b.Property<bool>("HasToolkit")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("HasToolkit");
+
+                    b.Property<string>("LeadEmployerPartner")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("LeadEmployerPartner");
+
+                    b.Property<int>("NumberOfBeneficiaries")
+                        .HasColumnType("int")
+                        .HasColumnName("NumberOfBeneficiaries");
+
+                    b.Property<string>("ProjectFunder")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("ProjectFunder");
+
+                    b.Property<string>("ProjectName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("ProjectName");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Province");
+
+                    b.Property<int>("SkillsDevelopmentProviderId")
+                        .HasColumnType("int")
+                        .HasColumnName("SkillsDevelopmentProviderId");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("StartDate");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.HasIndex("SkillsDevelopmentProviderId");
+
+                    b.ToTable("Projects");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectAssignment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("AssignedAt");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectId");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int")
+                        .HasColumnName("Role");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int")
+                        .HasColumnName("UserId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("ProjectAssignments");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectLearningPathway", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("PathwayId")
+                        .HasColumnType("int")
+                        .HasColumnName("PathwayId");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PathwayId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("ProjectLearningPathways");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectPhase", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActualBeneficiaries")
+                        .HasColumnType("int")
+                        .HasColumnName("ActualBeneficiaries");
+
+                    b.Property<decimal>("ActualSpent")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("ActualSpent");
+
+                    b.Property<decimal>("BudgetAllocation")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("BudgetAllocation");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("CreatedByUserId");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("Description");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("EndDate");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Name");
+
+                    b.Property<int>("PlannedBeneficiaries")
+                        .HasColumnType("int")
+                        .HasColumnName("PlannedBeneficiaries");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectId");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("StartDate");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("ProjectPhases");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectPhaseLearningPathway", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActualLearners")
+                        .HasColumnType("int")
+                        .HasColumnName("ActualLearners");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int>("PlannedLearners")
+                        .HasColumnType("int")
+                        .HasColumnName("PlannedLearners");
+
+                    b.Property<int>("ProjectLearningPathwayId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectLearningPathwayId");
+
+                    b.Property<int>("ProjectPhaseId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectPhaseId");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectLearningPathwayId");
+
+                    b.HasIndex("ProjectPhaseId");
+
+                    b.ToTable("ProjectPhaseLearningPathways");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectPhaseQualification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ActualLearners")
+                        .HasColumnType("int")
+                        .HasColumnName("ActualLearners");
+
+                    b.Property<int>("CompletedLearners")
+                        .HasColumnType("int")
+                        .HasColumnName("CompletedLearners");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int>("PlannedLearners")
+                        .HasColumnType("int")
+                        .HasColumnName("PlannedLearners");
+
+                    b.Property<int>("ProjectPhaseId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectPhaseId");
+
+                    b.Property<int>("ProjectQualificationId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectQualificationId");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectPhaseId");
+
+                    b.HasIndex("ProjectQualificationId");
+
+                    b.ToTable("ProjectPhaseQualifications");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectQualification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("EmploymentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("EmploymentType");
+
+                    b.Property<int?>("LegacyQualificationId")
+                        .HasColumnType("int")
+                        .HasColumnName("LegacyQualificationId");
+
+                    b.Property<int>("NumberOfBeneficiaries")
+                        .HasColumnType("int")
+                        .HasColumnName("NumberOfBeneficiaries");
+
+                    b.Property<int?>("OccupationalQualificationId")
+                        .HasColumnType("int")
+                        .HasColumnName("OccupationalQualificationId");
+
+                    b.Property<int>("ProjectLearningPathwayId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectLearningPathwayId");
+
+                    b.Property<int>("QualificationTypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("QualificationTypeId");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LegacyQualificationId");
+
+                    b.HasIndex("OccupationalQualificationId");
+
+                    b.HasIndex("ProjectLearningPathwayId");
+
+                    b.HasIndex("QualificationTypeId");
+
+                    b.ToTable("ProjectQualifications");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectQualificationUnitStandard", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int>("ProjectQualificationId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectQualificationId");
+
+                    b.Property<int>("UnitStandardId")
+                        .HasColumnType("int")
+                        .HasColumnName("UnitStandardId");
+
+                    b.Property<string>("UnitStandardType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("UnitStandardType");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectQualificationId");
+
+                    b.ToTable("ProjectQualificationUnitStandards");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectSite", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Address");
+
+                    b.Property<int?>("Capacity")
+                        .HasColumnType("int")
+                        .HasColumnName("Capacity");
+
+                    b.Property<string>("Category")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Category");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("City");
+
+                    b.Property<string>("ContactCellNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("ContactCellNumber");
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("ContactEmail");
+
+                    b.Property<string>("ContactFirstName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("ContactFirstName");
+
+                    b.Property<string>("ContactLastName")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("ContactLastName");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("ContactPhone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("CreatedByUserId");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Description");
+
+                    b.Property<decimal?>("Latitude")
+                        .HasColumnType("decimal(10,8)")
+                        .HasColumnName("Latitude");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasColumnType("decimal(11,8)")
+                        .HasColumnName("Longitude");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("PostalCode");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectId");
+
+                    b.Property<string>("Province")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Province");
+
+                    b.Property<string>("SiteCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("SiteCode");
+
+                    b.Property<string>("SiteName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("SiteName");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("ProjectSites");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectTask", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssignedToUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("AssignedToUserId");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CompletedAt");
+
+                    b.Property<string>("CompletionNotes")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("CompletionNotes");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int>("CreatedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("CreatedByUserId");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("DepartmentId");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("varchar(1000)")
+                        .HasColumnName("Description");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("DueDate");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int")
+                        .HasColumnName("Priority");
+
+                    b.Property<int?>("ProjectId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectId");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("Status");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedToUserId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("DepartmentId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("Tasks");
+                });
+
+            modelBuilder.Entity("backend.Models.QualificationType", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Name");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("QualificationTypes");
+                });
+
+            modelBuilder.Entity("backend.Models.SickNote", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ApprovedAt");
+
+                    b.Property<int?>("ApprovedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("ApprovedByUserId");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<string>("EncryptedFilePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("EncryptedFilePath");
+
+                    b.Property<string>("EncryptionIV")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("EncryptionIV");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("EndDate");
+
+                    b.Property<DateTime>("IssuedDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("IssuedDate");
+
+                    b.Property<int>("LearnerId")
+                        .HasColumnType("int")
+                        .HasColumnName("LearnerId");
+
+                    b.Property<string>("MedicalFacility")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("MedicalFacility");
+
+                    b.Property<string>("PractitionerName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("PractitionerName");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("RejectionReason");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("StartDate");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("LearnerId");
+
+                    b.ToTable("SickNotes");
+                });
+
+            modelBuilder.Entity("backend.Models.SiteClass", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClassName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("ClassName");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("CreatedByUserId");
+
+                    b.Property<int>("MaxLearners")
+                        .HasColumnType("int")
+                        .HasColumnName("MaxLearners");
+
+                    b.Property<int>("ProjectSiteId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectSiteId");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("ProjectSiteId");
+
+                    b.ToTable("SiteClasses");
+                });
+
+            modelBuilder.Entity("backend.Models.SkillsDevelopmentProvider", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Address");
+
+                    b.Property<int>("ClientId")
+                        .HasColumnType("int")
+                        .HasColumnName("ClientId");
+
+                    b.Property<string>("ContactPerson")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("ContactPerson");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Description");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("varchar(200)")
+                        .HasColumnName("Name");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
 
                     b.HasKey("Id");
 
@@ -487,70 +2676,416 @@ namespace backend.Migrations
 
                     b.HasIndex("CreatedAt");
 
-                    b.HasIndex("Email");
-
                     b.HasIndex("Name");
-
-                    b.HasIndex("RegistrationNumber")
-                        .IsUnique();
 
                     b.HasIndex("Status");
 
                     b.ToTable("SkillsDevelopmentProviders");
                 });
 
-            modelBuilder.Entity("backend.Models.User", b =>
+            modelBuilder.Entity("backend.Models.SummativeAssessment", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<int?>("ClientId")
-                        .HasColumnType("integer");
+                    b.Property<DateTime>("AssessmentDate")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("AssessmentDate");
+
+                    b.Property<string>("AssessorName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("AssessorName");
+
+                    b.Property<string>("Comments")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Comments");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
 
-                    b.Property<int?>("DepartmentId")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("FinalScore")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("FinalScore");
+
+                    b.Property<decimal?>("MaxScore")
+                        .HasColumnType("decimal(65,30)")
+                        .HasColumnName("MaxScore");
+
+                    b.Property<string>("ModeratorComments")
+                        .HasColumnType("longtext")
+                        .HasColumnName("ModeratorComments");
+
+                    b.Property<string>("ModeratorName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("ModeratorName");
+
+                    b.Property<int>("ProjectQualificationUnitStandardId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectQualificationUnitStandardId");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectQualificationUnitStandardId");
+
+                    b.ToTable("SummativeAssessments");
+                });
+
+            modelBuilder.Entity("backend.Models.SummativeAssessmentQuestion", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<decimal>("AllocatedMarks")
+                        .HasColumnType("decimal(5,2)")
+                        .HasColumnName("AllocatedMarks");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int>("QuestionNumber")
+                        .HasColumnType("int")
+                        .HasColumnName("QuestionNumber");
+
+                    b.Property<string>("QuestionText")
+                        .IsRequired()
+                        .HasColumnType("longtext")
+                        .HasColumnName("QuestionText");
+
+                    b.Property<int>("SummativeAssessmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("SummativeAssessmentId");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SummativeAssessmentId");
+
+                    b.ToTable("SummativeAssessmentQuestions");
+                });
+
+            modelBuilder.Entity("backend.Models.SystemAdmin", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AccessLevel")
+                        .HasColumnType("int")
+                        .HasColumnName("AccessLevel");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
 
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("Email");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("FirstName");
+
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("LastLoginAt");
 
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("LastName");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("LockedUntil");
+
+                    b.Property<int>("LoginAttempts")
+                        .HasColumnType("int")
+                        .HasColumnName("LoginAttempts");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("character varying(255)");
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("PasswordHash");
 
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(20)
-                        .HasColumnType("character varying(20)");
-
-                    b.Property<int>("Role")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("SkillsDevelopmentProviderId")
-                        .HasColumnType("integer");
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("PhoneNumber");
 
                     b.Property<int>("Status")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Status");
 
                     b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Username");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccessLevel");
+
+                    b.HasIndex("Email")
+                        .IsUnique();
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Username")
+                        .IsUnique();
+
+                    b.ToTable("SystemAdmins");
+                });
+
+            modelBuilder.Entity("backend.Models.TaskReminder", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<bool>("IsSent")
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("IsSent");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)")
+                        .HasColumnName("Message");
+
+                    b.Property<DateTime>("ReminderDateTime")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ReminderDateTime");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("SentAt");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("int")
+                        .HasColumnName("TaskId");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int")
+                        .HasColumnName("Type");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskReminders");
+                });
+
+            modelBuilder.Entity("backend.Models.UnitStandardAssessment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AssessmentTypeId")
+                        .HasColumnType("int")
+                        .HasColumnName("AssessmentTypeId");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("CreatedByUserId")
+                        .HasColumnType("int")
+                        .HasColumnName("CreatedByUserId");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Description");
+
+                    b.Property<int>("PassingMarks")
+                        .HasColumnType("int")
+                        .HasColumnName("PassingMarks");
+
+                    b.Property<int>("ProjectQualificationUnitStandardId")
+                        .HasColumnType("int")
+                        .HasColumnName("ProjectQualificationUnitStandardId");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("Title");
+
+                    b.Property<int>("TotalMarks")
+                        .HasColumnType("int")
+                        .HasColumnName("TotalMarks");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssessmentTypeId");
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("ProjectQualificationUnitStandardId");
+
+                    b.ToTable("UnitStandardAssessments");
+                });
+
+            modelBuilder.Entity("backend.Models.User", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AddressLine1")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("AddressLine1");
+
+                    b.Property<string>("AddressLine2")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("AddressLine2");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("City");
+
+                    b.Property<int?>("ClientId")
+                        .HasColumnType("int")
+                        .HasColumnName("ClientId");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("CreatedAt");
+
+                    b.Property<int?>("DepartmentId")
+                        .HasColumnType("int")
+                        .HasColumnName("DepartmentId");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("Email");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("FirstName");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("LastName");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("PasswordHash");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("PhoneNumber");
+
+                    b.Property<string>("PostalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasColumnName("PostalCode");
+
+                    b.Property<string>("PracticeNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("PracticeNumber");
+
+                    b.Property<string>("ProfileImage")
+                        .HasColumnType("longtext")
+                        .HasColumnName("ProfileImage");
+
+                    b.Property<string>("Province")
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)")
+                        .HasColumnName("Province");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int")
+                        .HasColumnName("Role");
+
+                    b.Property<string>("Signature")
+                        .HasColumnType("longtext")
+                        .HasColumnName("Signature");
+
+                    b.Property<int?>("SkillsDevelopmentProviderId")
+                        .HasColumnType("int")
+                        .HasColumnName("SkillsDevelopmentProviderId");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int")
+                        .HasColumnName("Status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("UpdatedAt");
+
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)")
+                        .HasColumnName("Username");
 
                     b.HasKey("Id");
 
@@ -576,41 +3111,52 @@ namespace backend.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Action")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("Action");
 
                     b.Property<string>("AdditionalData")
-                        .HasColumnType("text");
+                        .HasColumnType("longtext")
+                        .HasColumnName("AdditionalData");
 
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasColumnType("longtext")
+                        .HasColumnName("Description");
 
                     b.Property<int?>("DocumentId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("DocumentId");
 
                     b.Property<string>("IpAddress")
-                        .HasColumnType("text");
+                        .HasColumnType("longtext")
+                        .HasColumnName("IpAddress");
 
                     b.Property<bool>("IsSecurityEvent")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("IsSecurityEvent");
 
                     b.Property<string>("SecurityEventType")
-                        .HasColumnType("text");
+                        .HasColumnType("varchar(255)")
+                        .HasColumnName("SecurityEventType");
 
                     b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("Timestamp");
 
                     b.Property<string>("UserAgent")
-                        .HasColumnType("text");
+                        .HasColumnType("longtext")
+                        .HasColumnName("UserAgent");
 
                     b.Property<int?>("UserId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("UserId");
 
                     b.HasKey("Id");
 
@@ -633,54 +3179,70 @@ namespace backend.Migrations
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("Id");
 
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<bool>("CanApprove")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("CanApprove");
 
                     b.Property<bool>("CanDelete")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("CanDelete");
 
                     b.Property<bool>("CanDownload")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("CanDownload");
 
                     b.Property<bool>("CanEdit")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("CanEdit");
 
                     b.Property<bool>("CanManageAccess")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("CanManageAccess");
 
                     b.Property<bool>("CanShare")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("CanShare");
 
                     b.Property<bool>("CanView")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("CanView");
 
                     b.Property<int>("DocumentId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("DocumentId");
 
                     b.Property<DateTime?>("ExpiresAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("ExpiresAt");
 
                     b.Property<DateTime>("GrantedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("GrantedAt");
 
                     b.Property<int>("GrantedByUserId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("GrantedByUserId");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
+                        .HasColumnType("tinyint(1)")
+                        .HasColumnName("IsActive");
 
                     b.Property<DateTime?>("RevokedAt")
-                        .HasColumnType("timestamp with time zone");
+                        .HasColumnType("datetime(6)")
+                        .HasColumnName("RevokedAt");
 
                     b.Property<int?>("RevokedByUserId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("RevokedByUserId");
 
                     b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                        .HasColumnType("int")
+                        .HasColumnName("UserId");
 
                     b.HasKey("Id");
 
@@ -699,6 +3261,78 @@ namespace backend.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("DocumentPermissions");
+                });
+
+            modelBuilder.Entity("backend.Models.AssessmentQuestion", b =>
+                {
+                    b.HasOne("backend.Models.UnitStandardAssessment", "UnitStandardAssessment")
+                        .WithMany("Questions")
+                        .HasForeignKey("UnitStandardAssessmentId");
+
+                    b.Navigation("UnitStandardAssessment");
+                });
+
+            modelBuilder.Entity("backend.Models.AttendanceLog", b =>
+                {
+                    b.HasOne("backend.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("ActionBy")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.LearnerAttendance", "Attendance")
+                        .WithMany()
+                        .HasForeignKey("AttendanceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Attendance");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Models.ClassEnrollment", b =>
+                {
+                    b.HasOne("backend.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId");
+
+                    b.HasOne("backend.Models.Learner", "Learner")
+                        .WithMany("ClassEnrollments")
+                        .HasForeignKey("LearnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.SiteClass", "SiteClass")
+                        .WithMany("ClassEnrollments")
+                        .HasForeignKey("SiteClassId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Learner");
+
+                    b.Navigation("SiteClass");
+                });
+
+            modelBuilder.Entity("backend.Models.ClassTeacher", b =>
+                {
+                    b.HasOne("backend.Models.SiteClass", "SiteClass")
+                        .WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.User", "Teacher")
+                        .WithMany()
+                        .HasForeignKey("TeacherId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SiteClass");
+
+                    b.Navigation("Teacher");
                 });
 
             modelBuilder.Entity("backend.Models.Department", b =>
@@ -765,24 +3399,157 @@ namespace backend.Migrations
             modelBuilder.Entity("backend.Models.DocumentAccessLog", b =>
                 {
                     b.HasOne("backend.Models.Document", "Document")
-                        .WithMany()
+                        .WithMany("AccessLogs")
                         .HasForeignKey("DocumentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("backend.Models.Document", null)
-                        .WithMany("AccessLogs")
-                        .HasForeignKey("DocumentId1");
-
                     b.HasOne("backend.Models.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Document");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Models.FormativeAssessment", b =>
+                {
+                    b.HasOne("backend.Models.ProjectQualificationUnitStandard", "ProjectQualificationUnitStandard")
+                        .WithMany()
+                        .HasForeignKey("ProjectQualificationUnitStandardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProjectQualificationUnitStandard");
+                });
+
+            modelBuilder.Entity("backend.Models.FormativeAssessmentQuestion", b =>
+                {
+                    b.HasOne("backend.Models.FormativeAssessment", "FormativeAssessment")
+                        .WithMany()
+                        .HasForeignKey("FormativeAssessmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FormativeAssessment");
+                });
+
+            modelBuilder.Entity("backend.Models.Learner", b =>
+                {
+                    b.HasOne("backend.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId");
+
+                    b.Navigation("CreatedByUser");
+                });
+
+            modelBuilder.Entity("backend.Models.LearnerAssessmentAnswer", b =>
+                {
+                    b.HasOne("backend.Models.User", "Assessor")
+                        .WithMany()
+                        .HasForeignKey("AssessorId");
+
+                    b.HasOne("backend.Models.Learner", "Learner")
+                        .WithMany()
+                        .HasForeignKey("LearnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.User", "Moderator")
+                        .WithMany()
+                        .HasForeignKey("ModeratorId");
+
+                    b.Navigation("Assessor");
+
+                    b.Navigation("Learner");
+
+                    b.Navigation("Moderator");
+                });
+
+            modelBuilder.Entity("backend.Models.LearnerAssessmentProgress", b =>
+                {
+                    b.HasOne("backend.Models.Learner", "Learner")
+                        .WithMany()
+                        .HasForeignKey("LearnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.ProjectQualificationUnitStandard", "ProjectQualificationUnitStandard")
+                        .WithMany()
+                        .HasForeignKey("ProjectQualificationUnitStandardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Learner");
+
+                    b.Navigation("ProjectQualificationUnitStandard");
+                });
+
+            modelBuilder.Entity("backend.Models.LearnerAttendance", b =>
+                {
+                    b.HasOne("backend.Models.SiteClass", "SiteClass")
+                        .WithMany()
+                        .HasForeignKey("ClassId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.User", "ClockInTeacher")
+                        .WithMany()
+                        .HasForeignKey("ClockInTeacherId");
+
+                    b.HasOne("backend.Models.User", "ClockOutTeacher")
+                        .WithMany()
+                        .HasForeignKey("ClockOutTeacherId");
+
+                    b.HasOne("backend.Models.Learner", "Learner")
+                        .WithMany()
+                        .HasForeignKey("LearnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ClockInTeacher");
+
+                    b.Navigation("ClockOutTeacher");
+
+                    b.Navigation("Learner");
+
+                    b.Navigation("SiteClass");
+                });
+
+            modelBuilder.Entity("backend.Models.LearnerDocument", b =>
+                {
+                    b.HasOne("backend.Models.User", "ApprovedByUser")
+                        .WithMany()
+                        .HasForeignKey("ApprovedByUserId");
+
+                    b.HasOne("backend.Models.Learner", "Learner")
+                        .WithMany("LearnerDocuments")
+                        .HasForeignKey("LearnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.User", "UploadedByUser")
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId");
+
+                    b.Navigation("ApprovedByUser");
+
+                    b.Navigation("Learner");
+
+                    b.Navigation("UploadedByUser");
+                });
+
+            modelBuilder.Entity("backend.Models.LegacyUnitStandard", b =>
+                {
+                    b.HasOne("backend.Models.LegacyQualification", "Qualification")
+                        .WithMany("UnitStandards")
+                        .HasForeignKey("QualificationId")
+                        .HasPrincipalKey("QualificationId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Qualification");
                 });
 
             modelBuilder.Entity("backend.Models.Lesson", b =>
@@ -796,6 +3563,17 @@ namespace backend.Migrations
                     b.Navigation("Module");
                 });
 
+            modelBuilder.Entity("backend.Models.LogbookEntry", b =>
+                {
+                    b.HasOne("backend.Models.ProjectQualificationUnitStandard", "ProjectQualificationUnitStandard")
+                        .WithMany()
+                        .HasForeignKey("ProjectQualificationUnitStandardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProjectQualificationUnitStandard");
+                });
+
             modelBuilder.Entity("backend.Models.Module", b =>
                 {
                     b.HasOne("backend.Models.Course", "Course")
@@ -807,15 +3585,357 @@ namespace backend.Migrations
                     b.Navigation("Course");
                 });
 
+            modelBuilder.Entity("backend.Models.OccupationalUnitStandard", b =>
+                {
+                    b.HasOne("backend.Models.OccupationalQualification", "Qualification")
+                        .WithMany("UnitStandards")
+                        .HasForeignKey("QualificationId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Qualification");
+                });
+
+            modelBuilder.Entity("backend.Models.PhaseActivity", b =>
+                {
+                    b.HasOne("backend.Models.User", "AssignedToUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedToUserId");
+
+                    b.HasOne("backend.Models.ProjectPhase", "ProjectPhase")
+                        .WithMany()
+                        .HasForeignKey("ProjectPhaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AssignedToUser");
+
+                    b.Navigation("ProjectPhase");
+                });
+
+            modelBuilder.Entity("backend.Models.PhaseSubActivity", b =>
+                {
+                    b.HasOne("backend.Models.User", "AssignedToUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedToUserId");
+
+                    b.HasOne("backend.Models.PhaseActivity", "PhaseActivity")
+                        .WithMany("SubActivities")
+                        .HasForeignKey("PhaseActivityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AssignedToUser");
+
+                    b.Navigation("PhaseActivity");
+                });
+
+            modelBuilder.Entity("backend.Models.Project", b =>
+                {
+                    b.HasOne("backend.Models.Client", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.SkillsDevelopmentProvider", "SkillsDevelopmentProvider")
+                        .WithMany()
+                        .HasForeignKey("SkillsDevelopmentProviderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+
+                    b.Navigation("SkillsDevelopmentProvider");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectAssignment", b =>
+                {
+                    b.HasOne("backend.Models.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectLearningPathway", b =>
+                {
+                    b.HasOne("backend.Models.LearningPathway", "LearningPathway")
+                        .WithMany("ProjectLearningPathways")
+                        .HasForeignKey("PathwayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.Project", "Project")
+                        .WithMany("ProjectLearningPathways")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LearningPathway");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectPhase", b =>
+                {
+                    b.HasOne("backend.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectPhaseLearningPathway", b =>
+                {
+                    b.HasOne("backend.Models.ProjectLearningPathway", "ProjectLearningPathway")
+                        .WithMany()
+                        .HasForeignKey("ProjectLearningPathwayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.ProjectPhase", "ProjectPhase")
+                        .WithMany("PhaseLearningPathways")
+                        .HasForeignKey("ProjectPhaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProjectLearningPathway");
+
+                    b.Navigation("ProjectPhase");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectPhaseQualification", b =>
+                {
+                    b.HasOne("backend.Models.ProjectPhase", "ProjectPhase")
+                        .WithMany("PhaseQualifications")
+                        .HasForeignKey("ProjectPhaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.ProjectQualification", "ProjectQualification")
+                        .WithMany()
+                        .HasForeignKey("ProjectQualificationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProjectPhase");
+
+                    b.Navigation("ProjectQualification");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectQualification", b =>
+                {
+                    b.HasOne("backend.Models.LegacyQualification", "LegacyQualification")
+                        .WithMany("ProjectQualifications")
+                        .HasForeignKey("LegacyQualificationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("backend.Models.OccupationalQualification", "OccupationalQualification")
+                        .WithMany("ProjectQualifications")
+                        .HasForeignKey("OccupationalQualificationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("backend.Models.ProjectLearningPathway", "ProjectLearningPathway")
+                        .WithMany("ProjectQualifications")
+                        .HasForeignKey("ProjectLearningPathwayId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.QualificationType", "QualificationType")
+                        .WithMany("ProjectQualifications")
+                        .HasForeignKey("QualificationTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("LegacyQualification");
+
+                    b.Navigation("OccupationalQualification");
+
+                    b.Navigation("ProjectLearningPathway");
+
+                    b.Navigation("QualificationType");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectQualificationUnitStandard", b =>
+                {
+                    b.HasOne("backend.Models.ProjectQualification", "ProjectQualification")
+                        .WithMany()
+                        .HasForeignKey("ProjectQualificationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProjectQualification");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectSite", b =>
+                {
+                    b.HasOne("backend.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId");
+
+                    b.HasOne("backend.Models.Project", "Project")
+                        .WithMany("ProjectSites")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectTask", b =>
+                {
+                    b.HasOne("backend.Models.User", "AssignedToUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedToUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.Department", "Department")
+                        .WithMany()
+                        .HasForeignKey("DepartmentId");
+
+                    b.HasOne("backend.Models.Project", "Project")
+                        .WithMany()
+                        .HasForeignKey("ProjectId");
+
+                    b.Navigation("AssignedToUser");
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("Department");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("backend.Models.SickNote", b =>
+                {
+                    b.HasOne("backend.Models.User", "ApprovedByUser")
+                        .WithMany()
+                        .HasForeignKey("ApprovedByUserId");
+
+                    b.HasOne("backend.Models.Learner", "Learner")
+                        .WithMany()
+                        .HasForeignKey("LearnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ApprovedByUser");
+
+                    b.Navigation("Learner");
+                });
+
+            modelBuilder.Entity("backend.Models.SiteClass", b =>
+                {
+                    b.HasOne("backend.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId");
+
+                    b.HasOne("backend.Models.ProjectSite", "ProjectSite")
+                        .WithMany("SiteClasses")
+                        .HasForeignKey("ProjectSiteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("ProjectSite");
+                });
+
             modelBuilder.Entity("backend.Models.SkillsDevelopmentProvider", b =>
                 {
                     b.HasOne("backend.Models.Client", "Client")
-                        .WithMany("SkillsDevelopmentProviders")
+                        .WithMany()
                         .HasForeignKey("ClientId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Client");
+                });
+
+            modelBuilder.Entity("backend.Models.SummativeAssessment", b =>
+                {
+                    b.HasOne("backend.Models.ProjectQualificationUnitStandard", "ProjectQualificationUnitStandard")
+                        .WithMany()
+                        .HasForeignKey("ProjectQualificationUnitStandardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProjectQualificationUnitStandard");
+                });
+
+            modelBuilder.Entity("backend.Models.SummativeAssessmentQuestion", b =>
+                {
+                    b.HasOne("backend.Models.SummativeAssessment", "SummativeAssessment")
+                        .WithMany()
+                        .HasForeignKey("SummativeAssessmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SummativeAssessment");
+                });
+
+            modelBuilder.Entity("backend.Models.TaskReminder", b =>
+                {
+                    b.HasOne("backend.Models.ProjectTask", "Task")
+                        .WithMany("Reminders")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("backend.Models.UnitStandardAssessment", b =>
+                {
+                    b.HasOne("backend.Models.AssessmentType", "AssessmentType")
+                        .WithMany("UnitStandardAssessments")
+                        .HasForeignKey("AssessmentTypeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.User", "CreatedByUser")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId");
+
+                    b.HasOne("backend.Models.ProjectQualificationUnitStandard", "ProjectQualificationUnitStandard")
+                        .WithMany()
+                        .HasForeignKey("ProjectQualificationUnitStandardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AssessmentType");
+
+                    b.Navigation("CreatedByUser");
+
+                    b.Navigation("ProjectQualificationUnitStandard");
                 });
 
             modelBuilder.Entity("backend.Models.User", b =>
@@ -893,10 +4013,13 @@ namespace backend.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("backend.Models.AssessmentType", b =>
+                {
+                    b.Navigation("UnitStandardAssessments");
+                });
+
             modelBuilder.Entity("backend.Models.Client", b =>
                 {
-                    b.Navigation("SkillsDevelopmentProviders");
-
                     b.Navigation("Users");
                 });
 
@@ -917,9 +4040,79 @@ namespace backend.Migrations
                     b.Navigation("ChildDocuments");
                 });
 
+            modelBuilder.Entity("backend.Models.Learner", b =>
+                {
+                    b.Navigation("ClassEnrollments");
+
+                    b.Navigation("LearnerDocuments");
+                });
+
+            modelBuilder.Entity("backend.Models.LearningPathway", b =>
+                {
+                    b.Navigation("ProjectLearningPathways");
+                });
+
+            modelBuilder.Entity("backend.Models.LegacyQualification", b =>
+                {
+                    b.Navigation("ProjectQualifications");
+
+                    b.Navigation("UnitStandards");
+                });
+
             modelBuilder.Entity("backend.Models.Module", b =>
                 {
                     b.Navigation("Lessons");
+                });
+
+            modelBuilder.Entity("backend.Models.OccupationalQualification", b =>
+                {
+                    b.Navigation("ProjectQualifications");
+
+                    b.Navigation("UnitStandards");
+                });
+
+            modelBuilder.Entity("backend.Models.PhaseActivity", b =>
+                {
+                    b.Navigation("SubActivities");
+                });
+
+            modelBuilder.Entity("backend.Models.Project", b =>
+                {
+                    b.Navigation("ProjectLearningPathways");
+
+                    b.Navigation("ProjectSites");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectLearningPathway", b =>
+                {
+                    b.Navigation("ProjectQualifications");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectPhase", b =>
+                {
+                    b.Navigation("PhaseLearningPathways");
+
+                    b.Navigation("PhaseQualifications");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectSite", b =>
+                {
+                    b.Navigation("SiteClasses");
+                });
+
+            modelBuilder.Entity("backend.Models.ProjectTask", b =>
+                {
+                    b.Navigation("Reminders");
+                });
+
+            modelBuilder.Entity("backend.Models.QualificationType", b =>
+                {
+                    b.Navigation("ProjectQualifications");
+                });
+
+            modelBuilder.Entity("backend.Models.SiteClass", b =>
+                {
+                    b.Navigation("ClassEnrollments");
                 });
 
             modelBuilder.Entity("backend.Models.SkillsDevelopmentProvider", b =>
@@ -927,6 +4120,11 @@ namespace backend.Migrations
                     b.Navigation("Departments");
 
                     b.Navigation("Users");
+                });
+
+            modelBuilder.Entity("backend.Models.UnitStandardAssessment", b =>
+                {
+                    b.Navigation("Questions");
                 });
 #pragma warning restore 612, 618
         }

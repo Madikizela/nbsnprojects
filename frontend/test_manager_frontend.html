@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Manager Frontend</title>
+</head>
+<body>
+    <h1>Test Manager Frontend</h1>
+    <button onclick="testLogin()">Test Manager Login</button>
+    <button onclick="testProjects()">Test Projects API</button>
+    <div id="output"></div>
+
+    <script>
+        let token = null;
+        
+        async function testLogin() {
+            try {
+                const response = await fetch('http://localhost:5001/api/Auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        email: 'finance.manager@masakhane.com',
+                        password: 'password123'
+                    })
+                });
+                
+                const data = await response.json();
+                token = data.token;
+                
+                document.getElementById('output').innerHTML = `
+                    <h3>Login Response:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+                console.log('Login successful:', data);
+            } catch (error) {
+                console.error('Login failed:', error);
+                document.getElementById('output').innerHTML = `<p>Login failed: ${error.message}</p>`;
+            }
+        }
+        
+        async function testProjects() {
+            if (!token) {
+                alert('Please login first');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/sdp/projects', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                
+                document.getElementById('output').innerHTML += `
+                    <h3>Projects Response:</h3>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+                console.log('Projects response:', data);
+            } catch (error) {
+                console.error('Projects API failed:', error);
+                document.getElementById('output').innerHTML += `<p>Projects API failed: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

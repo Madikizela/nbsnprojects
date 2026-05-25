@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Manager Routing Logic</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; }
+        .error { background: #f8d7da; }
+        .info { background: #d1ecf1; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test Manager Routing Logic</h1>
+    
+    <div class="info">
+        <h3>🔍 Test Different Role Values</h3>
+        <p>This will simulate the routing logic for different manager roles:</p>
+    </div>
+    
+    <button onclick="testRole(3, 26, 'Lisa Admin')">Test Role 3 (Admin Manager)</button>
+    <button onclick="testRole(4, 24, 'Sarah Finance')">Test Role 4 (Finance Manager)</button>
+    <button onclick="testRole(5, 25, 'Tom Logistics')">Test Role 5 (Logistics Manager)</button>
+    <button onclick="testRole(7, 27, 'Sandile QA')">Test Role 7 (QA Manager)</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        function testRole(role, departmentId, userName) {
+            console.log(`Testing ${userName} with Role ${role}`);
+            
+            // Simulate the exact frontend routing logic
+            const normalizedUser = {
+                role: role,
+                departmentId: departmentId,
+                skillsDevelopmentProviderId: 19
+            };
+            
+            let routingResult = '';
+            let expectedRoute = '';
+            
+            // EXPLICIT CHECK FOR QA MANAGER (ROLE 7) FIRST
+            if (normalizedUser.role === 7 || normalizedUser.role === '7') {
+                routingResult = '🎯 DETECTED QA MANAGER (Role 7) - Routing to SDP Manager Dashboard';
+                expectedRoute = '/sdp-manager-dashboard';
+            } else {
+                // Then check other SDP Manager roles
+                const isSDPManager = (
+                    (normalizedUser.role === '3' && normalizedUser.departmentId) || // Internal Admin Manager - string
+                    (normalizedUser.role === 3 && normalizedUser.departmentId) ||   // Internal Admin Manager - number
+                    normalizedUser.role === '4' || normalizedUser.role === 4 ||     // SDPFinance
+                    normalizedUser.role === '5' || normalizedUser.role === 5 ||     // SDPLogistics
+                    normalizedUser.role === 'SDPIT' ||
+                    normalizedUser.role === 'SDPAssessor' ||
+                    normalizedUser.role === 'SDPFacilitator'
+                );
+                
+                const isSDP = (
+                    normalizedUser.role === '3' || normalizedUser.role === 3 ||
+                    (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0)
+                );
+                
+                if (isSDPManager) {
+                    routingResult = '🎯 Routing to SDP Manager Dashboard (Other Manager Role)';
+                    expectedRoute = '/sdp-manager-dashboard';
+                } else if (isSDP) {
+                    routingResult = '🏢 Routing to SDP Dashboard';
+                    expectedRoute = '/sdp-dashboard';
+                } else {
+                    routingResult = '🏠 Routing to Default Dashboard';
+                    expectedRoute = '/dashboard';
+                }
+            }
+            
+            const isCorrect = expectedRoute === '/sdp-manager-dashboard';
+            
+            const resultDiv = document.getElementById('results');
+            resultDiv.innerHTML += `
+                <div class="result ${isCorrect ? 'success' : 'error'}">
+                    <h4>${userName} (Role ${role})</h4>
+                    <p><strong>Department ID:</strong> ${departmentId}</p>
+                    <p><strong>Routing Result:</strong> ${routingResult}</p>
+                    <p><strong>Expected Route:</strong> ${expectedRoute}</p>
+                    <p><strong>Status:</strong> ${isCorrect ? '✅ CORRECT - Will go to SDP Manager Dashboard' : '❌ WRONG - Will go to wrong dashboard'}</p>
+                </div>
+            `;
+        }
+        
+        // Test all roles automatically
+        window.onload = function() {
+            testRole(3, 26, 'Lisa Admin');
+            testRole(4, 24, 'Sarah Finance');
+            testRole(5, 25, 'Tom Logistics');
+            testRole(7, 27, 'Sandile QA');
+        };
+    </script>
+</body>
+</html>

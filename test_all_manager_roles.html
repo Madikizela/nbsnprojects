@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test All Manager Roles</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .manager { background: #d1ecf1; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .success { background: #d4edda; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .critical { background: #f8d7da; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Test All SDP Manager Roles</h1>
+    
+    <div class="success">
+        <h3>✅ Fixed Manager Role Logic</h3>
+        <p>Updated the <code>isSDPManager</code> logic to handle both string and numeric role values:</p>
+        <pre>const isSDPManager = (
+  (normalizedUser.role === '3' && normalizedUser.departmentId) || // Admin Manager - string
+  (normalizedUser.role === 3 && normalizedUser.departmentId) ||   // Admin Manager - number
+  normalizedUser.role === '4' || normalizedUser.role === 4 ||     // Finance
+  normalizedUser.role === '5' || normalizedUser.role === 5 ||     // Logistics
+  normalizedUser.role === '7' || normalizedUser.role === 7        // QA (handled explicitly above)
+);</pre>
+    </div>
+    
+    <div class="critical">
+        <h3>🧪 Test These Manager Accounts</h3>
+        <p>All of these should now route to <strong>SDP Manager Dashboard</strong>:</p>
+        
+        <table>
+            <tr>
+                <th>Role</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Expected Dashboard</th>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>Lisa Admin</td>
+                <td>admin.manager@masakhane.com</td>
+                <td>SDP Manager Dashboard</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>Zandile Kubeka</td>
+                <td>nkwenkwezi68@gmail.com</td>
+                <td>SDP Manager Dashboard</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>Sarah Finance</td>
+                <td>finance.manager@masakhane.com</td>
+                <td>SDP Manager Dashboard</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>Sandile Zondi</td>
+                <td>maphangomaphango931@gmail.com</td>
+                <td>SDP Manager Dashboard</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>Tom Logistics</td>
+                <td>logistics.manager@masakhane.com</td>
+                <td>SDP Manager Dashboard</td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td>Mike Quality</td>
+                <td>qa.manager@masakhane.com</td>
+                <td>SDP Manager Dashboard (QA)</td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td>Sandile Zondi</td>
+                <td>zondis411@gmail.com</td>
+                <td>SDP Manager Dashboard (QA)</td>
+            </tr>
+        </table>
+    </div>
+    
+    <div class="manager">
+        <h3>🔍 Expected Console Logs</h3>
+        <p><strong>For Role 7 (QA Managers):</strong></p>
+        <pre>🎯 DETECTED QA MANAGER (Role 7) - Routing to SDP Manager Dashboard</pre>
+        
+        <p><strong>For Other Managers (Roles 3, 4, 5):</strong></p>
+        <pre>=== LOGIN ROUTING DEBUG ===
+Raw user role: 4 (or 3, 5)
+Role type: number
+isSDPManager: true
+🎯 Routing to SDP Manager Dashboard (Other Manager Role)</pre>
+    </div>
+    
+    <div class="success">
+        <h3>✅ Expected Results</h3>
+        <ul>
+            <li><strong>URL:</strong> http://localhost:5173/sdp-manager-dashboard</li>
+            <li><strong>Role 3 (Admin):</strong> "Manager Dashboard" title</li>
+            <li><strong>Role 4 (Finance):</strong> "Finance Manager Dashboard" title</li>
+            <li><strong>Role 5 (Logistics):</strong> "Logistics Manager Dashboard" title</li>
+            <li><strong>Role 7 (QA):</strong> "Quality Assurance Manager Dashboard" title + QA Overview</li>
+        </ul>
+    </div>
+    
+    <p style="text-align: center; margin-top: 30px;">
+        <a href="http://localhost:5173" target="_blank" style="font-size: 18px; padding: 15px 30px; background: #007bff; color: white; text-decoration: none; border-radius: 8px;">
+            🧪 Test All Manager Logins
+        </a>
+    </p>
+</body>
+</html>

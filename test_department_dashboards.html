@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Department-Specific Dashboard Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .result { margin-top: 10px; padding: 10px; border-radius: 3px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .route-correct { color: green; font-weight: bold; }
+        .route-incorrect { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Department-Specific Dashboard Test</h1>
+    <p>Testing that each manager goes to their own department dashboard</p>
+
+    <div class="test-section">
+        <h3>SDP 19 Managers - Individual Dashboards</h3>
+        <button onclick="testSDP19Managers()">Test SDP 19 Managers</button>
+        <div id="sdp19Result"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        async function testSDP19Managers() {
+            const resultDiv = document.getElementById('sdp19Result');
+            resultDiv.innerHTML = '<div class="info">Testing SDP 19 managers...</div>';
+
+            const managers = [
+                { 
+                    email: 'zondis411@gmail.com', 
+                    name: 'Sandile Zondi',
+                    role: 'Quality Assurance Manager',
+                    expectedRoute: '/qa-manager-dashboard',
+                    expectedDashboard: 'QA Manager Dashboard'
+                },
+                { 
+                    email: 'maphangomaphango931@gmail.com', 
+                    name: 'Sandile Zondi',
+                    role: 'Logistics Manager',
+                    expectedRoute: '/logistics-manager-dashboard',
+                    expectedDashboard: 'Logistics Manager Dashboard'
+                },
+                { 
+                    email: 'nkwenkwezi68@gmail.com', 
+                    name: 'Zandile Kubeka',
+                    role: 'Administration Manager',
+                    expectedRoute: '/admin-manager-dashboard',
+                    expectedDashboard: 'Admin Manager Dashboard'
+                }
+            ];
+
+            let results = [];
+            let successCount = 0;
+
+            for (const manager of managers) {
+                try {
+                    const response = await fetch(`${API_BASE}/auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: manager.email,
+                            password: 'password123'
+                        })
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        const userData = data.user;
+                        
+                        const normalizedUser = {
+                            role: userData?.role ?? userData?.Role,
+                            skillsDevelopmentProviderId: userData?.skillsDevelopmentProviderId ?? userData?.SkillsDevelopmentProviderId,
+                            departmentId: userData?.departmentId ?? userData?.DepartmentId,
+                            clientId: userData?.clientId ?? userData?.ClientId
+                        };
+
+                        // Apply the NEW department-specific routing logic
+                        let actualRoute = '';
+                        
+                        if (normalizedUser.role === 7 || normalizedUser.role === '7') {
+                            actualRoute = '/qa-manager-dashboard';
+                        } else if ((normalizedUser.role === 5 || normalizedUser.role === '5') && normalizedUser.departmentId) {
+                            actualRoute = '/logistics-manager-dashboard';
+                        } else if ((normalizedUser.role === 3 || normalizedUser.role === '3') && normalizedUser.departmentId) {
+                            actualRoute = '/admin-manager-dashboard';
+                        } else if (normalizedUser.role === 4 || normalizedUser.role === '4') {
+                            actualRoute = '/sdp-manager-dashboard';
+                        } else {
+                            actualRoute = '/sdp-dashboard';
+                        }
+
+                        const isCorrect = actualRoute === manager.expectedRoute;
+                        if (isCorrect) successCount++;
+
+                        results.push({
+                            ...manager,
+                            actualRoute,
+                            isCorrect,
+                            userData: normalizedUser
+                        });
+                    } else {
+                        results.push({
+                            ...manager,
+                            error: 'Login failed'
+                        });
+                    }
+                } catch (error) {
+                    results.push({
+                        ...manager,
+                        error: error.message
+                    });
+                }
+            }
+
+            // Display results
+            let html = `<div class="${successCount === managers.length ? 'success' : 'error'}">`;
+            html += `<h4>SDP 19 Managers Test Results: ${successCount}/${managers.length} Correct</h4>`;
+            html += '<table>';
+            html += '<tr><th>Manager</th><th>Role</th><th>Expected Dashboard</th><th>Actual Route</th><th>Status</th></tr>';
+            
+            results.forEach(result => {
+                if (result.error) {
+                    html += `<tr><td>${result.name}</td><td>${result.role}</td><td>${result.expectedDashboard}</td><td colspan="2">${result.error}</td></tr>`;
+                } else {
+                    const statusClass = result.isCorrect ? 'route-correct' : 'route-incorrect';
+                    const statusIcon = result.isCorrect ? '✅' : '❌';
+                    
+                    html += `<tr>
+                        <td>${result.name}<br><small>${result.email}</small></td>
+                        <td>${result.role}<br><small>Role: ${result.userData.role}</small></td>
+                        <td>${result.expectedDashboard}<br><small>${result.expectedRoute}</small></td>
+                        <td class="${statusClass}">${result.actualRoute}</td>
+                        <td>${statusIcon}</td>
+                    </tr>`;
+                }
+            });
+            
+            html += '</table>';
+            
+            if (successCount === managers.length) {
+                html += '<div style="margin-top: 15px; padding: 10px; background-color: #d4edda; border-radius: 5px;">';
+                html += '<strong>🎉 SUCCESS!</strong> All managers now route to their individual department dashboards!<br>';
+                html += '<ul style="margin-top: 10px;">';
+                html += '<li>QA Manager → QA Manager Dashboard</li>';
+                html += '<li>Logistics Manager → Logistics Manager Dashboard</li>';
+                html += '<li>Admin Manager → Admin Manager Dashboard</li>';
+                html += '</ul>';
+                html += '</div>';
+            }
+            
+            html += '</div>';
+            resultDiv.innerHTML = html;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Futronic USB Fingerprint Scanner -->
+    <usb-device vendor-id="1491" product-id="32" />
+    <!-- Match all Futronic devices -->
+    <usb-device vendor-id="1491" />
+</resources>

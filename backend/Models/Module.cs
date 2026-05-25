@@ -12,10 +12,10 @@ namespace backend.Models
         
         [Required]
         [StringLength(100)]
-        public string Title { get; set; }
+        public string Title { get; set; } = default!;
         
         [StringLength(500)]
-        public string Description { get; set; }
+        public string Description { get; set; } = default!;
         
         public int Order { get; set; }
         
@@ -28,9 +28,9 @@ namespace backend.Models
         
         // Navigation property
         [ForeignKey("CourseId")]
-        public Course Course { get; set; }
+        public Course Course { get; set; } = default!;
         
         // Navigation properties
-        public ICollection<Lesson> Lessons { get; set; }
+        public ICollection<Lesson> Lessons { get; set; } = new List<Lesson>();
     }
 }

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test QA Login Flow</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .loading { background-color: #fff3cd; border-color: #ffeaa7; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>QA Manager Login Flow Test</h1>
+    
+    <div id="step1" class="step loading">
+        <h3>Step 1: Test Login API</h3>
+        <div id="login-result">Testing login...</div>
+    </div>
+    
+    <div id="step2" class="step">
+        <h3>Step 2: Test QA Overview API</h3>
+        <div id="qa-result">Waiting for login...</div>
+    </div>
+    
+    <div id="step3" class="step">
+        <h3>Step 3: Test Unit Standard Breakdown API</h3>
+        <div id="breakdown-result">Waiting for QA metrics...</div>
+    </div>
+    
+    <button onclick="testFullFlow()">Restart Test</button>
+    
+    <script>
+        let authToken = null;
+        
+        async function testLogin() {
+            try {
+                console.log('Testing login with QA Manager credentials...');
+                
+                const response = await fetch('http://192.168.68.117:5213/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'zondis411@gmail.com',
+                        password: 'hlvp2WdoDK(a'
+                    })
+                });
+                
+                console.log('Login response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Login success:', data);
+                    authToken = data.token;
+                    
+                    document.getElementById('step1').className = 'step success';
+                    document.getElementById('login-result').innerHTML = `
+                        <h4>✅ Login Successful!</h4>
+                        <p><strong>User:</strong> ${data.user.firstName} ${data.user.lastName}</p>
+                        <p><strong>Role:</strong> ${data.user.role}</p>
+                        <p><strong>Email:</strong> ${data.user.email}</p>
+                        <p><strong>SDP ID:</strong> ${data.user.skillsDevelopmentProviderId}</p>
+                        <p><strong>Department ID:</strong> ${data.user.departmentId}</p>
+                        <p><strong>Token:</strong> ${authToken ? 'Received' : 'Missing'}</p>
+                        
+                        <h5>Routing Analysis:</h5>
+                        <pre>
+Role: ${data.user.role} (${typeof data.user.role})
+isSDPManager: ${data.user.role === '7' || data.user.role === 7}
+isSDP: ${data.user.role === '3' || data.user.role === 3 || data.user.skillsDevelopmentProviderId > 0}
+Expected Route: ${(data.user.role === '7' || data.user.role === 7) ? '/sdp-manager-dashboard' : '/sdp-dashboard'}
+                        </pre>
+                    `;
+                    
+                    // Proceed to next step
+                    testQAMetrics();
+                } else {
+                    const error = await response.text();
+                    console.error('Login failed:', error);
+                    document.getElementById('step1').className = 'step error';
+                    document.getElementById('login-result').innerHTML = `
+                        <h4>❌ Login Failed</h4>
+                        <p>Status: ${response.status}</p>
+                        <pre>${error}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                document.getElementById('step1').className = 'step error';
+                document.getElementById('login-result').innerHTML = `
+                    <h4>❌ Network Error</h4>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+        
+        async function testQAMetrics() {
+            if (!authToken) {
+                document.getElementById('qa-result').innerHTML = '❌ No auth token available';
+                return;
+            }
+            
+            try {
+                console.log('Testing QA metrics API...');
+                document.getElementById('step2').className = 'step loading';
+                document.getElementById('qa-result').innerHTML = 'Loading QA metrics...';
+                
+                const response = await fetch('http://192.168.68.117:5213/api/QAOverview/metrics', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                console.log('QA metrics response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('QA metrics success:', data);
+                    
+                    document.getElementById('step2').className = 'step success';
+                    document.getElementById('qa-result').innerHTML = `
+                        <h4>✅ QA Metrics Loaded!</h4>
+                        <p><strong>Total Qualifications:</strong> ${data.totalQualifications}</p>
+                        <p><strong>Total Unit Standards:</strong> ${data.totalUnitStandards}</p>
+                        <p><strong>Formative Questions:</strong> ${data.formativeQuestions}</p>
+                        <p><strong>Summative Questions:</strong> ${data.summativeQuestions}</p>
+                        <p><strong>Total Questions:</strong> ${data.totalQuestions}</p>
+                        <details>
+                            <summary>Full Response</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                    
+                    // Proceed to next step
+                    testUnitStandardBreakdown();
+                } else {
+                    const error = await response.text();
+                    console.error('QA metrics failed:', error);
+                    document.getElementById('step2').className = 'step error';
+                    document.getElementById('qa-result').innerHTML = `
+                        <h4>❌ QA Metrics Failed</h4>
+                        <p>Status: ${response.status}</p>
+                        <pre>${error}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('QA metrics error:', error);
+                document.getElementById('step2').className = 'step error';
+                document.getElementById('qa-result').innerHTML = `
+                    <h4>❌ Network Error</h4>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+        
+        async function testUnitStandardBreakdown() {
+            if (!authToken) {
+                document.getElementById('breakdown-result').innerHTML = '❌ No auth token available';
+                return;
+            }
+            
+            try {
+                console.log('Testing unit standard breakdown API...');
+                document.getElementById('step3').className = 'step loading';
+                document.getElementById('breakdown-result').innerHTML = 'Loading unit standard breakdown...';
+                
+                const response = await fetch('http://192.168.68.117:5213/api/QAOverview/unit-standard-breakdown', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                console.log('Unit standard breakdown response status:', response.status);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('Unit standard breakdown success:', data);
+                    
+                    document.getElementById('step3').className = 'step success';
+                    
+                    let breakdownHtml = '<h4>✅ Unit Standard Breakdown Loaded!</h4>';
+                    if (data.length > 0) {
+                        breakdownHtml += `<p><strong>Found ${data.length} unit standards</strong></p>`;
+                        breakdownHtml += '<table border="1" style="border-collapse: collapse; width: 100%;">';
+                        breakdownHtml += '<tr><th>Unit Standard</th><th>Level</th><th>Credits</th><th>Formative Q</th><th>Summative Q</th><th>Total Q</th></tr>';
+                        
+                        data.forEach(us => {
+                            breakdownHtml += `
+                                <tr>
+                                    <td>${us.unitStandardName}</td>
+                                    <td>${us.level}</td>
+                                    <td>${us.credits}</td>
+                                    <td>${us.formativeQuestions}</td>
+                                    <td>${us.summativeQuestions}</td>
+                                    <td>${us.formativeQuestions + us.summativeQuestions}</td>
+                                </tr>
+                            `;
+                        });
+                        breakdownHtml += '</table>';
+                        
+                        // Check for the specific unit standard mentioned by user
+                        const unitStandard1 = data.find(us => us.unitStandardName.toLowerCase().includes('unit standard 1') || us.unitStandardName.includes('1'));
+                        if (unitStandard1) {
+                            breakdownHtml += `
+                                <div style="margin-top: 15px; padding: 10px; background: #e8f5e8; border-radius: 5px;">
+                                    <h5>✅ Found Unit Standard with Questions!</h5>
+                                    <p><strong>${unitStandard1.unitStandardName}</strong></p>
+                                    <p>Formative Questions: ${unitStandard1.formativeQuestions}</p>
+                                    <p>Summative Questions: ${unitStandard1.summativeQuestions}</p>
+                                    <p>Logbook Questions: 0 (not yet implemented)</p>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        breakdownHtml += '<p>No unit standards found in breakdown.</p>';
+                    }
+                    
+                    breakdownHtml += `
+                        <details>
+                            <summary>Full Response</summary>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </details>
+                    `;
+                    
+                    document.getElementById('breakdown-result').innerHTML = breakdownHtml;
+                } else {
+                    const error = await response.text();
+                    console.error('Unit standard breakdown failed:', error);
+                    document.getElementById('step3').className = 'step error';
+                    document.getElementById('breakdown-result').innerHTML = `
+                        <h4>❌ Unit Standard Breakdown Failed</h4>
+                        <p>Status: ${response.status}</p>
+                        <pre>${error}</pre>
+                    `;
+                }
+            } catch (error) {
+                console.error('Unit standard breakdown error:', error);
+                document.getElementById('step3').className = 'step error';
+                document.getElementById('breakdown-result').innerHTML = `
+                    <h4>❌ Network Error</h4>
+                    <pre>${error.message}</pre>
+                `;
+            }
+        }
+        
+        function testFullFlow() {
+            // Reset all steps
+            document.getElementById('step1').className = 'step loading';
+            document.getElementById('step2').className = 'step';
+            document.getElementById('step3').className = 'step';
+            
+            document.getElementById('login-result').innerHTML = 'Testing login...';
+            document.getElementById('qa-result').innerHTML = 'Waiting for login...';
+            document.getElementById('breakdown-result').innerHTML = 'Waiting for QA metrics...';
+            
+            authToken = null;
+            testLogin();
+        }
+        
+        // Start the test on page load
+        testFullFlow();
+    </script>
+</body>
+</html>

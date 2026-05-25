@@ -58,14 +58,25 @@ namespace backend.Controllers
 
         // GET: api/Users/ByClient/{clientId}
         [HttpGet("ByClient/{clientId}")]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsersByClient(int clientId)
+        public async Task<ActionResult<IEnumerable<object>>> GetUsersByClient(int clientId)
         {
-            return await _context.Users
+            var users = await _context.Users
                 .Where(u => u.ClientId == clientId)
                 .Include(u => u.Client)
                 .Include(u => u.SkillsDevelopmentProvider)
                 .Include(u => u.Department)
+                .Select(u => new {
+                    u.Id,
+                    u.FirstName,
+                    u.LastName,
+                    u.Email,
+                    Role = u.Role.ToString(),
+                    Status = u.Status.ToString(),
+                    DepartmentName = u.Department != null ? u.Department.Name : null
+                })
                 .ToListAsync();
+
+            return Ok(users);
         }
 
         // GET: api/Users/BySDP/{sdpId}
@@ -101,7 +112,7 @@ namespace backend.Controllers
                 return BadRequest();
             }
 
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
             _context.Entry(user).State = EntityState.Modified;
 
             try
@@ -127,8 +138,8 @@ namespace backend.Controllers
         [HttpPost]
         public async Task<ActionResult<User>> PostUser(User user)
         {
-            user.CreatedAt = DateTime.UtcNow;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+            user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
             
             _context.Users.Add(user);
             await _context.SaveChangesAsync();

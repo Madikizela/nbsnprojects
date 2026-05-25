@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Task Management API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Test Task Management API</h1>
+    
+    <button onclick="testTasksAPI()">Test Tasks API</button>
+    <button onclick="testTaskSummary()">Test Task Summary</button>
+    <button onclick="testAvailableUsers()">Test Available Users</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://192.168.68.117:5213/api';
+        
+        function addResult(title, content, isError = false) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${isError ? 'error' : 'success'}`;
+            div.innerHTML = `<h3>${title}</h3><pre>${content}</pre>`;
+            results.appendChild(div);
+        }
+        
+        async function testTasksAPI() {
+            try {
+                const response = await fetch(`${API_BASE}/Tasks`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('Tasks API - SUCCESS', JSON.stringify(data, null, 2));
+                } else {
+                    addResult('Tasks API - ERROR', JSON.stringify(data, null, 2), true);
+                }
+            } catch (error) {
+                addResult('Tasks API - NETWORK ERROR', error.message, true);
+            }
+        }
+        
+        async function testTaskSummary() {
+            try {
+                const response = await fetch(`${API_BASE}/Tasks/Summary`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('Task Summary API - SUCCESS', JSON.stringify(data, null, 2));
+                } else {
+                    addResult('Task Summary API - ERROR', JSON.stringify(data, null, 2), true);
+                }
+            } catch (error) {
+                addResult('Task Summary API - NETWORK ERROR', error.message, true);
+            }
+        }
+        
+        async function testAvailableUsers() {
+            try {
+                const response = await fetch(`${API_BASE}/Tasks/Users`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('Available Users API - SUCCESS', JSON.stringify(data, null, 2));
+                } else {
+                    addResult('Available Users API - ERROR', JSON.stringify(data, null, 2), true);
+                }
+            } catch (error) {
+                addResult('Available Users API - NETWORK ERROR', error.message, true);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Approvals UI Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+        .warning { color: #ffc107; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Document Approvals System Test</h1>
+    <p>Testing the Document Approvals interface after test project removal and database optimization.</p>
+
+    <div class="test-section">
+        <h2>📊 API Endpoints Test</h2>
+        <button onclick="testStats()">Test Statistics API</button>
+        <button onclick="testProjects()">Test Projects API</button>
+        <button onclick="testAll()">Run All Tests</button>
+        <div id="apiResults"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Expected Results</h2>
+        <div class="status success">
+            ✅ <strong>Test Project Removed:</strong> No "Test Project with Unit Standards" should appear
+        </div>
+        <div class="status success">
+            ✅ <strong>Clean Data:</strong> Only production projects (JCP, Masakhane) should be visible
+        </div>
+        <div class="status success">
+            ✅ <strong>Performance:</strong> API responses should be fast (&lt;200ms)
+        </div>
+        <div class="status success">
+            ✅ <strong>Statistics:</strong> Document compliance breakdown should work correctly
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔗 Quick Links</h2>
+        <p><strong>Frontend:</strong> <a href="http://localhost:5173" target="_blank">http://localhost:5173</a></p>
+        <p><strong>Backend API:</strong> <a href="http://localhost:5213/api/DocumentApprovals/stats" target="_blank">http://localhost:5213/api/DocumentApprovals/stats</a></p>
+        <p><strong>Login as SDP Manager:</strong> Use your SDP credentials to access Document Approvals section</p>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5213';
+
+        async function testStats() {
+            const resultsDiv = document.getElementById('apiResults');
+            resultsDiv.innerHTML = '<div class="info">Testing Statistics API...</div>';
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE}/api/DocumentApprovals/stats`);
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultsDiv.innerHTML = `
+                        <div class="success">✅ Statistics API Working (${responseTime}ms)</div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">❌ Statistics API Failed: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testProjects() {
+            const resultsDiv = document.getElementById('apiResults');
+            resultsDiv.innerHTML = '<div class="info">Testing Projects API...</div>';
+            
+            try {
+                const startTime = Date.now();
+                const response = await fetch(`${API_BASE}/api/DocumentApprovals/projects`);
+                const endTime = Date.now();
+                const responseTime = endTime - startTime;
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const hasTestProject = data.some(p => p.projectName.toLowerCase().includes('test'));
+                    
+                    resultsDiv.innerHTML = `
+                        <div class="${hasTestProject ? 'error' : 'success'}">
+                            ${hasTestProject ? '❌' : '✅'} Projects API (${responseTime}ms)
+                            ${hasTestProject ? ' - WARNING: Test project still exists!' : ' - Clean production data'}
+                        </div>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `<div class="error">❌ Projects API Failed: ${response.status}</div>`;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        async function testAll() {
+            await testStats();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testProjects();
+        }
+
+        // Auto-run tests on page load
+        window.onload = () => {
+            setTimeout(testAll, 1000);
+        };
+    </script>
+</body>
+</html>

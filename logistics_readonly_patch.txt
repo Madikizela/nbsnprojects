@@ -1,0 +1,43 @@
+INSTRUCTIONS FOR MAKING LEARNER VIEW READ-ONLY FOR LOGISTICS MANAGERS
+
+In frontend/src/components/SDPManagerDashboard.tsx, make the following changes:
+
+1. ADD A CONSTANT at the top of the learner modal section (around line 5745):
+   const isLogisticsReadOnly = user?.role === 'SDPLogistics';
+
+2. UPDATE ALL FORM INPUTS to add disabled attribute:
+   - Add: disabled={isLogisticsReadOnly}
+   - To all <input>, <select>, and <textarea> elements in the learner info form
+
+3. HIDE UPDATE BUTTON (around line 6098-6112):
+   Replace the button section with:
+   ```tsx
+   {user?.role !== 'SDPLogistics' && (
+     <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+       {isSubmitting ? (
+         <>
+           <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+           Updating...
+         </>
+       ) : (
+         '💾 Update Learner'
+       )}
+     </button>
+   )}
+   ```
+
+4. HIDE DOCUMENT UPLOAD SECTION (around line 6118-6170):
+   Wrap the entire upload form in a conditional:
+   ```tsx
+   {user?.role !== 'SDPLogistics' && (
+     <div className="mb-4">
+       <h6 className="text-primary mb-3">📄 Upload Document</h6>
+       <form onSubmit={handleUploadDocument}>
+         ... existing form content ...
+       </form>
+     </div>
+   )}
+   ```
+
+5. UPDATE CANCEL BUTTON TEXT (around line 6099):
+   Change to: {user?.role === 'SDPLogistics' ? 'Close' : 'Cancel'}

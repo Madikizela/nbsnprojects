@@ -56,7 +56,7 @@ namespace backend.Controllers
         [HttpPost]
         public async Task<ActionResult<Module>> CreateModule(Module module)
         {
-            module.CreatedAt = DateTime.UtcNow;
+            module.CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
             _context.Modules.Add(module);
             await _context.SaveChangesAsync();
 
@@ -72,7 +72,7 @@ namespace backend.Controllers
                 return BadRequest();
             }
 
-            module.UpdatedAt = DateTime.UtcNow;
+            module.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
             _context.Entry(module).State = EntityState.Modified;
 
             try

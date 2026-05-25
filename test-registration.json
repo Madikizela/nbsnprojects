@@ -1,0 +1,16 @@
+{
+  "sdpName": "Test SDP",
+  "registrationNumber": "REG123",
+  "businessDescription": "Test business description",
+  "accreditationNumber": "ACC123",
+  "beneficiaries": 100,
+  "province": "Gauteng",
+  "district": "City of Johannesburg",
+  "municipality": "Johannesburg",
+  "physicalAddress": "123 Test Street, Test City",
+  "emailAddress": "test@example.com",
+  "phoneNumber": "0123456789",
+  "contactPerson": "John Doe",
+  "website": "https://test.com",
+  "clientId": 1
+}

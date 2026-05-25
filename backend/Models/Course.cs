@@ -11,16 +11,16 @@ namespace backend.Models
         
         [Required]
         [StringLength(100)]
-        public string Title { get; set; }
+        public string Title { get; set; } = default!;
         
         [StringLength(500)]
-        public string Description { get; set; }
+        public string Description { get; set; } = default!;
         
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         
         public DateTime? UpdatedAt { get; set; }
         
         // Navigation properties
-        public ICollection<Module> Modules { get; set; }
+        public ICollection<Module> Modules { get; set; } = new List<Module>();
     }
 }

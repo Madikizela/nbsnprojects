@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Attendance Tracking API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { background: #f5f5f5; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; color: #c62828; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Test Attendance Tracking API</h1>
+    
+    <button onclick="testProjectsAPI()">Test Projects API</button>
+    <button onclick="testProjectStats()">Test Project Stats</button>
+    
+    <div id="results"></div>
+
+    <script>
+        const API_BASE = 'http://192.168.68.117:5213/api';
+        
+        function addResult(title, content, isError = false) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${isError ? 'error' : 'success'}`;
+            div.innerHTML = `<h3>${title}</h3><pre>${content}</pre>`;
+            results.appendChild(div);
+        }
+        
+        async function testProjectsAPI() {
+            try {
+                const response = await fetch(`${API_BASE}/AttendanceTracking/projects`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('Projects API - SUCCESS', JSON.stringify(data, null, 2));
+                } else {
+                    addResult('Projects API - ERROR', JSON.stringify(data, null, 2), true);
+                }
+            } catch (error) {
+                addResult('Projects API - NETWORK ERROR', error.message, true);
+            }
+        }
+        
+        async function testProjectStats() {
+            try {
+                // First get projects to get a project ID
+                const projectsResponse = await fetch(`${API_BASE}/AttendanceTracking/projects`);
+                const projects = await projectsResponse.json();
+                
+                if (projects.length > 0) {
+                    const projectId = projects[0].projectId;
+                    const statsResponse = await fetch(`${API_BASE}/AttendanceTracking/project/${projectId}/stats?period=today`);
+                    const stats = await statsResponse.json();
+                    
+                    if (statsResponse.ok) {
+                        addResult(`Project ${projectId} Stats - SUCCESS`, JSON.stringify(stats, null, 2));
+                    } else {
+                        addResult(`Project ${projectId} Stats - ERROR`, JSON.stringify(stats, null, 2), true);
+                    }
+                } else {
+                    addResult('Project Stats - NO PROJECTS', 'No projects found to test stats', true);
+                }
+            } catch (error) {
+                addResult('Project Stats - NETWORK ERROR', error.message, true);
+            }
+        }
+    </script>
+</body>
+</html>

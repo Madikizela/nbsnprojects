@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Direct Browser Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px; }
+        .error { background: #f8d7da; }
+        .success { background: #d4edda; }
+        .warning { background: #fff3cd; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Direct Browser Test</h1>
+    
+    <div class="result warning">
+        <h3>⚠️ CRITICAL: Check Browser Console</h3>
+        <p>Open Developer Tools (F12) → Console tab BEFORE clicking the button below.</p>
+        <p>This will show us EXACTLY what's happening with the login and routing.</p>
+    </div>
+    
+    <button onclick="testDirectLogin()">🧪 Test Login & Routing Logic</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        async function testDirectLogin() {
+            const resultsDiv = document.getElementById('results');
+            console.log('🔍 Starting direct login test...');
+            
+            try {
+                // Step 1: Test login API
+                console.log('Step 1: Testing login API...');
+                const loginResponse = await fetch('http://192.168.68.117:5213/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: 'zondis411@gmail.com',
+                        password: 'hlvp2WdoDK(a'
+                    })
+                });
+                
+                if (!loginResponse.ok) {
+                    throw new Error(`Login failed: ${loginResponse.status}`);
+                }
+                
+                const loginData = await loginResponse.json();
+                console.log('✅ Login successful:', loginData);
+                
+                // Step 2: Normalize user data (exact same logic as frontend)
+                console.log('Step 2: Normalizing user data...');
+                const normalizedUser = {
+                    id: loginData.user?.id ?? loginData.user?.Id,
+                    name: loginData.user?.name ?? loginData.user?.Name ?? `${loginData.user?.firstName ?? loginData.user?.FirstName} ${loginData.user?.lastName ?? loginData.user?.LastName}`,
+                    firstName: loginData.user?.firstName ?? loginData.user?.FirstName,
+                    lastName: loginData.user?.lastName ?? loginData.user?.LastName,
+                    email: loginData.user?.email ?? loginData.user?.Email,
+                    role: loginData.user?.role ?? loginData.user?.Role,
+                    status: loginData.user?.status ?? loginData.user?.Status,
+                    userType: loginData.user?.userType ?? loginData.user?.UserType,
+                    accessLevel: loginData.user?.accessLevel ?? loginData.user?.AccessLevel ?? 0,
+                    clientId: loginData.user?.clientId ?? loginData.user?.ClientId ?? null,
+                    clientName: loginData.user?.clientName ?? loginData.user?.ClientName ?? null,
+                    skillsDevelopmentProviderId: loginData.user?.skillsDevelopmentProviderId ?? loginData.user?.SkillsDevelopmentProviderId ?? null,
+                    skillsDevelopmentProviderName: loginData.user?.skillsDevelopmentProviderName ?? loginData.user?.SkillsDevelopmentProviderName ?? null,
+                    departmentId: loginData.user?.departmentId ?? loginData.user?.DepartmentId ?? null,
+                    departmentName: loginData.user?.departmentName ?? loginData.user?.DepartmentName ?? null,
+                    projectCount: loginData.user?.projectCount ?? loginData.user?.ProjectCount ?? 0,
+                    activeProjectCount: loginData.user?.activeProjectCount ?? loginData.user?.ActiveProjectCount ?? 0,
+                    departmentCount: loginData.user?.departmentCount ?? loginData.user?.DepartmentCount ?? 0,
+                };
+                
+                console.log('✅ Normalized user:', normalizedUser);
+                
+                // Step 3: Test routing logic (exact same as frontend)
+                console.log('Step 3: Testing routing logic...');
+                
+                const isClient =
+                    normalizedUser.role === 'ClientAdmin' ||
+                    normalizedUser.userType === 'ClientAdmin' ||
+                    normalizedUser.accessLevel === 3 ||
+                    (typeof normalizedUser.clientId === 'number' && normalizedUser.clientId !== null && normalizedUser.clientId > 0);
+
+                const isSDP = 
+                    normalizedUser.role === '3' || // SDPAdministrator - string
+                    normalizedUser.role === 3 ||   // SDPAdministrator - number
+                    normalizedUser.userType === 'SDPAdmin' ||
+                    (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0);
+
+                const isSDPManager = (
+                    (normalizedUser.role === '3' && normalizedUser.departmentId) || // Internal Admin Manager
+                    normalizedUser.role === '4' || // SDPFinance
+                    normalizedUser.role === '5' || // SDPLogistics
+                    normalizedUser.role === 'SDPIT' ||
+                    normalizedUser.role === '7' || // SDPModerator (QA Manager) - string
+                    normalizedUser.role === 7 ||   // SDPModerator (QA Manager) - number
+                    normalizedUser.role === 'SDPAssessor' ||
+                    normalizedUser.role === 'SDPFacilitator'
+                );
+                
+                const routingDebug = {
+                    role: normalizedUser.role,
+                    roleType: typeof normalizedUser.role,
+                    isClient,
+                    isSDP,
+                    isSDPManager,
+                    skillsDevelopmentProviderId: normalizedUser.skillsDevelopmentProviderId,
+                    departmentId: normalizedUser.departmentId
+                };
+                
+                console.log('🎯 Routing Debug:', routingDebug);
+                
+                let expectedRoute;
+                let routingMessage;
+                if (isSDPManager) {
+                    expectedRoute = '/sdp-manager-dashboard';
+                    routingMessage = 'Routing to SDP Manager Dashboard';
+                } else if (isSDP) {
+                    expectedRoute = '/sdp-dashboard';
+                    routingMessage = 'Routing to SDP Dashboard';
+                } else if (isClient) {
+                    expectedRoute = '/client-dashboard';
+                    routingMessage = 'Routing to Client Dashboard';
+                } else {
+                    expectedRoute = '/dashboard';
+                    routingMessage = 'Routing to Default Dashboard';
+                }
+                
+                console.log(`🚀 ${routingMessage}`);
+                console.log(`📍 Expected URL: ${expectedRoute}`);
+                
+                // Display results
+                resultsDiv.innerHTML = `
+                    <div class="result ${expectedRoute === '/sdp-manager-dashboard' ? 'success' : 'error'}">
+                        <h3>🎯 Routing Analysis Results</h3>
+                        <p><strong>User:</strong> ${normalizedUser.firstName} ${normalizedUser.lastName}</p>
+                        <p><strong>Email:</strong> ${normalizedUser.email}</p>
+                        <p><strong>Role:</strong> ${normalizedUser.role} (${typeof normalizedUser.role})</p>
+                        <p><strong>SDP ID:</strong> ${normalizedUser.skillsDevelopmentProviderId}</p>
+                        <p><strong>Department ID:</strong> ${normalizedUser.departmentId}</p>
+                        <p><strong>isSDPManager:</strong> ${isSDPManager}</p>
+                        <p><strong>isSDP:</strong> ${isSDP}</p>
+                        <p><strong>Expected Route:</strong> ${expectedRoute}</p>
+                        <p><strong>Routing Message:</strong> ${routingMessage}</p>
+                        
+                        ${expectedRoute === '/sdp-manager-dashboard' ? 
+                            '<div style="background: #d4edda; padding: 10px; margin-top: 10px; border-radius: 5px;"><strong>✅ CORRECT: Should route to SDP Manager Dashboard</strong></div>' :
+                            '<div style="background: #f8d7da; padding: 10px; margin-top: 10px; border-radius: 5px;"><strong>❌ WRONG: Will route to wrong dashboard</strong></div>'
+                        }
+                    </div>
+                    
+                    <div class="result warning">
+                        <h3>🔍 Next Steps</h3>
+                        <p>If the logic above shows "CORRECT" but the frontend still routes wrong, then:</p>
+                        <ul>
+                            <li>The frontend code changes are not being applied</li>
+                            <li>There might be a different version of the Login component being used</li>
+                            <li>Browser cache is still interfering</li>
+                        </ul>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('❌ Test failed:', error);
+                resultsDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Test Failed</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

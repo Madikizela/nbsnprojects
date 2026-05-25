@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Cache and Test SDP Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .btn {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        }
+        .status {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: monospace;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Clear Cache and Test SDP Login</h1>
+        <p>This tool will help you clear browser cache and test the SDP login flow properly.</p>
+        
+        <div class="status" id="status">
+            <div class="info">Ready to clear cache and test login...</div>
+        </div>
+
+        <h3>Step 1: Clear Browser Data</h3>
+        <button class="btn btn-danger" onclick="clearAllData()">🗑️ Clear All Browser Data</button>
+        <button class="btn btn-danger" onclick="clearLocalStorage()">📦 Clear LocalStorage Only</button>
+
+        <h3>Step 2: Check Current Data</h3>
+        <button class="btn btn-primary" onclick="checkCurrentData()">🔍 Check Current User Data</button>
+
+        <h3>Step 3: Test Login</h3>
+        <button class="btn btn-primary" onclick="testSDPLogin()">🧪 Test SDP Login</button>
+        <button class="btn" onclick="goToLogin()">🚀 Go to Login Page</button>
+
+        <h3>SDP Test Credentials:</h3>
+        <div class="status">
+            <strong>Email:</strong> testsdp@example.com<br>
+            <strong>Password:</strong> testpassword123
+        </div>
+    </div>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const status = document.getElementById('status');
+            const className = type === 'success' ? 'success' : type === 'error' ? 'error' : 'info';
+            status.innerHTML = `<div class="${className}">${message}</div>`;
+        }
+
+        function clearAllData() {
+            try {
+                // Clear localStorage
+                localStorage.clear();
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                
+                // Clear cookies (if any)
+                document.cookie.split(";").forEach(function(c) { 
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/"); 
+                });
+                
+                updateStatus('✅ All browser data cleared successfully!', 'success');
+                
+                setTimeout(() => {
+                    updateStatus('🔄 Reloading page to ensure clean state...', 'info');
+                    setTimeout(() => location.reload(), 1000);
+                }, 1500);
+            } catch (error) {
+                updateStatus('❌ Error clearing data: ' + error.message, 'error');
+            }
+        }
+
+        function clearLocalStorage() {
+            try {
+                localStorage.clear();
+                updateStatus('✅ LocalStorage cleared successfully!', 'success');
+            } catch (error) {
+                updateStatus('❌ Error clearing localStorage: ' + error.message, 'error');
+            }
+        }
+
+        function checkCurrentData() {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            
+            let message = '<strong>Current Browser Data:</strong><br>';
+            message += `Token: ${token ? '✅ Present' : '❌ Not found'}<br>`;
+            
+            if (user) {
+                try {
+                    const userData = JSON.parse(user);
+                    message += `User Data: ✅ Present<br>`;
+                    message += `- Name: ${userData.firstName} ${userData.lastName}<br>`;
+                    message += `- Email: ${userData.email}<br>`;
+                    message += `- User Type: ${userData.userType}<br>`;
+                    message += `- SDP ID: ${userData.skillsDevelopmentProviderId}<br>`;
+                    message += `- Client ID: ${userData.clientId}<br>`;
+                } catch (e) {
+                    message += `User Data: ❌ Invalid JSON<br>`;
+                }
+            } else {
+                message += `User Data: ❌ Not found<br>`;
+            }
+            
+            updateStatus(message, 'info');
+        }
+
+        async function testSDPLogin() {
+            updateStatus('🧪 Testing SDP login...', 'info');
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'testsdp@example.com',
+                        password: 'testpassword123'
+                    }),
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    let message = '<strong>✅ Login Successful!</strong><br>';
+                    message += `User Type: ${data.user.userType}<br>`;
+                    message += `SDP ID: ${data.user.skillsDevelopmentProviderId}<br>`;
+                    
+                    // Determine routing
+                    const isSDP = data.user.userType === 'SDPAdmin' || 
+                                 (typeof data.user.skillsDevelopmentProviderId === 'number' && 
+                                  data.user.skillsDevelopmentProviderId !== null && 
+                                  data.user.skillsDevelopmentProviderId > 0);
+                    
+                    message += `Should redirect to: ${isSDP ? '/sdp-dashboard' : '/dashboard'}<br>`;
+                    
+                    updateStatus(message, 'success');
+                } else {
+                    const errorData = await response.json();
+                    updateStatus('❌ Login failed: ' + errorData.message, 'error');
+                }
+            } catch (error) {
+                updateStatus('❌ Network error: ' + error.message, 'error');
+            }
+        }
+
+        function goToLogin() {
+            window.location.href = '/login';
+        }
+
+        // Check initial state
+        window.onload = function() {
+            checkCurrentData();
+        };
+    </script>
+</body>
+</html>

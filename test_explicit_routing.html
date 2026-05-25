@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Explicit Routing</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .critical { background: #f8d7da; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .success { background: #d4edda; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        .info { background: #d1ecf1; padding: 15px; border-radius: 5px; margin: 10px 0; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🎯 Test Explicit QA Manager Routing</h1>
+    
+    <div class="critical">
+        <h3>🚨 NEW APPROACH: Explicit Role 7 Check</h3>
+        <p>I've updated the Login.tsx with an EXPLICIT check for Role 7 that happens FIRST, before any other routing logic.</p>
+    </div>
+    
+    <div class="info">
+        <h3>📋 New Routing Logic</h3>
+        <pre>// EXPLICIT CHECK FOR QA MANAGER (ROLE 7) FIRST
+if (normalizedUser.role === 7 || normalizedUser.role === '7') {
+  console.log('🎯 DETECTED QA MANAGER (Role 7) - Routing to SDP Manager Dashboard');
+  navigate('/sdp-manager-dashboard');
+  return;
+}</pre>
+    </div>
+    
+    <div class="success">
+        <h3>✅ Test Steps</h3>
+        <ol>
+            <li><strong>RESTART FRONTEND SERVER</strong> (this is critical!)</li>
+            <li>Open <a href="http://localhost:5173" target="_blank">Frontend</a></li>
+            <li>Open Developer Tools (F12) → Console</li>
+            <li>Login with: <strong>zondis411@gmail.com</strong> / <strong>hlvp2WdoDK(a</strong></li>
+            <li>Look for: <strong>"🎯 DETECTED QA MANAGER (Role 7)"</strong> in console</li>
+        </ol>
+    </div>
+    
+    <div class="info">
+        <h3>🔍 Expected Console Output</h3>
+        <pre>=== LOGIN ROUTING DEBUG ===
+Raw user role: 7
+Role type: number
+SDP ID: 19
+Department ID: 27
+🎯 DETECTED QA MANAGER (Role 7) - Routing to SDP Manager Dashboard</pre>
+    </div>
+    
+    <div class="critical">
+        <h3>⚠️ If Still Not Working</h3>
+        <p>If you still don't see the new console logs, then:</p>
+        <ul>
+            <li>The frontend server is not picking up changes</li>
+            <li>Try deleting node_modules and reinstalling</li>
+            <li>Check for TypeScript compilation errors</li>
+            <li>Verify the Login.tsx file was saved</li>
+        </ul>
+    </div>
+    
+    <p style="text-align: center; margin-top: 30px;">
+        <a href="http://localhost:5173" target="_blank" style="font-size: 20px; padding: 15px 30px; background: #dc3545; color: white; text-decoration: none; border-radius: 8px;">
+            🚨 Test New Explicit Routing
+        </a>
+    </p>
+</body>
+</html>

@@ -179,8 +179,7 @@ namespace backend.Models
         [Required]
         public int DocumentId { get; set; }
 
-        [Required]
-        public int UserId { get; set; }
+        public int? UserId { get; set; }
 
         [Required]
         public DocumentAccessAction Action { get; set; }

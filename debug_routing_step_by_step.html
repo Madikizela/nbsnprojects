@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Step-by-Step Routing Debug</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 10px 0; padding: 10px; border-left: 4px solid #007bff; background: #f8f9fa; }
+        .step.success { border-color: #28a745; background: #d4edda; }
+        .step.error { border-color: #dc3545; background: #f8d7da; }
+        .step.warning { border-color: #ffc107; background: #fff3cd; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
+        pre { background: #f1f1f1; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Step-by-Step Routing Debug</h1>
+    <button onclick="debugQAManager()">Debug QA Manager Routing</button>
+    <div id="debugResult"></div>
+
+    <script>
+        async function debugQAManager() {
+            const resultDiv = document.getElementById('debugResult');
+            resultDiv.innerHTML = '<div class="step">Starting debug...</div>';
+
+            try {
+                // Step 1: Login API call
+                let html = '<div class="step">Step 1: Making login API call...</div>';
+                resultDiv.innerHTML = html;
+
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'zondis411@gmail.com',
+                        password: 'password123'
+                    })
+                });
+
+                if (!response.ok) {
+                    html += '<div class="step error">Step 1 FAILED: Login API call failed</div>';
+                    resultDiv.innerHTML = html;
+                    return;
+                }
+
+                html += '<div class="step success">Step 1 SUCCESS: Login API call successful</div>';
+
+                // Step 2: Parse response
+                html += '<div class="step">Step 2: Parsing API response...</div>';
+                resultDiv.innerHTML = html;
+
+                const data = await response.json();
+                const user = data.user;
+
+                html += '<div class="step success">Step 2 SUCCESS: API response parsed</div>';
+                html += `<div class="step">Raw API Response:<pre>${JSON.stringify(user, null, 2)}</pre></div>`;
+
+                // Step 3: Normalize user data
+                html += '<div class="step">Step 3: Normalizing user data...</div>';
+                resultDiv.innerHTML = html;
+
+                const normalizedUser = {
+                    role: user?.role ?? user?.Role,
+                    skillsDevelopmentProviderId: user?.skillsDevelopmentProviderId ?? user?.SkillsDevelopmentProviderId,
+                    departmentId: user?.departmentId ?? user?.DepartmentId,
+                    clientId: user?.clientId ?? user?.ClientId
+                };
+
+                html += '<div class="step success">Step 3 SUCCESS: User data normalized</div>';
+                html += `<div class="step">Normalized User:<pre>${JSON.stringify(normalizedUser, null, 2)}</pre></div>`;
+
+                // Step 4: Apply routing logic
+                html += '<div class="step">Step 4: Applying routing logic...</div>';
+                resultDiv.innerHTML = html;
+
+                // Check each condition step by step
+                html += `<div class="step">Checking Role 7 condition: normalizedUser.role === 7 || normalizedUser.role === '7'</div>`;
+                html += `<div class="step">normalizedUser.role = ${normalizedUser.role} (type: ${typeof normalizedUser.role})</div>`;
+                html += `<div class="step">normalizedUser.role === 7: ${normalizedUser.role === 7}</div>`;
+                html += `<div class="step">normalizedUser.role === '7': ${normalizedUser.role === '7'}</div>`;
+
+                if (normalizedUser.role === 7 || normalizedUser.role === '7') {
+                    html += '<div class="step success">✅ MATCHED: QA Manager (Role 7) → Should route to /qa-manager-dashboard</div>';
+                } else {
+                    html += '<div class="step error">❌ NO MATCH: Role 7 condition failed</div>';
+                    
+                    // Check Role 5 condition
+                    html += `<div class="step">Checking Role 5 condition: (normalizedUser.role === 5 || normalizedUser.role === '5') && normalizedUser.departmentId</div>`;
+                    html += `<div class="step">Role 5 check: ${normalizedUser.role === 5 || normalizedUser.role === '5'}</div>`;
+                    html += `<div class="step">Department ID check: ${!!normalizedUser.departmentId} (value: ${normalizedUser.departmentId})</div>`;
+
+                    if ((normalizedUser.role === 5 || normalizedUser.role === '5') && normalizedUser.departmentId) {
+                        html += '<div class="step success">✅ MATCHED: Logistics Manager → Should route to /logistics-manager-dashboard</div>';
+                    } else {
+                        html += '<div class="step error">❌ NO MATCH: Role 5 condition failed</div>';
+                        
+                        // Check Role 3 condition
+                        html += `<div class="step">Checking Role 3 condition: (normalizedUser.role === 3 || normalizedUser.role === '3') && normalizedUser.departmentId</div>`;
+                        html += `<div class="step">Role 3 check: ${normalizedUser.role === 3 || normalizedUser.role === '3'}</div>`;
+                        html += `<div class="step">Department ID check: ${!!normalizedUser.departmentId} (value: ${normalizedUser.departmentId})</div>`;
+
+                        if ((normalizedUser.role === 3 || normalizedUser.role === '3') && normalizedUser.departmentId) {
+                            html += '<div class="step success">✅ MATCHED: Admin Manager → Should route to /admin-manager-dashboard</div>';
+                        } else {
+                            html += '<div class="step error">❌ NO MATCH: Role 3 condition failed</div>';
+                            html += '<div class="step warning">⚠️ Falling through to other routing logic (SDP Affiliated, etc.)</div>';
+                        }
+                    }
+                }
+
+                resultDiv.innerHTML = html;
+
+            } catch (error) {
+                resultDiv.innerHTML += `<div class="step error">ERROR: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

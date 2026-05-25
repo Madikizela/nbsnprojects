@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Routing with Simple Component</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .step { margin: 10px 0; padding: 10px; border-left: 4px solid #007bff; background: #f8f9fa; }
+        .step.success { border-color: #28a745; background: #d4edda; }
+        .step.error { border-color: #dc3545; background: #f8d7da; }
+        button { padding: 10px 20px; margin: 10px 0; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Test Routing with Simple Component</h1>
+    <p>Testing if the routing works with a simple test component</p>
+    
+    <button onclick="testSimpleRouting()">Test QA Manager Login → Test Dashboard</button>
+    <div id="result"></div>
+
+    <script>
+        async function testSimpleRouting() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="step">Testing login with simple routing...</div>';
+
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'zondis411@gmail.com',
+                        password: 'password123'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const user = data.user;
+                    
+                    resultDiv.innerHTML = `
+                        <div class="step success">Login successful!</div>
+                        <div class="step">User: ${user.name || user.Name}</div>
+                        <div class="step">Department: ${user.departmentName || user.DepartmentName}</div>
+                        <div class="step">Expected: Should route to /test-dashboard</div>
+                        <div class="step">Now try logging in through the main app: <a href="http://localhost:5173/login" target="_blank">Login Page</a></div>
+                        <div class="step">After login, you should see "Test Dashboard" page instead of blank screen</div>
+                        <div class="step">If you see the test dashboard, the routing works and the issue is with the dashboard components</div>
+                        <div class="step">If you still see blank screen, the issue is with the routing logic itself</div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = '<div class="step error">Login failed</div>';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="step error">Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

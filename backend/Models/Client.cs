@@ -38,7 +38,8 @@ namespace backend.Models
 
         // Navigation Properties
         public virtual ICollection<User> Users { get; set; } = new List<User>();
-        public virtual ICollection<SkillsDevelopmentProvider> SkillsDevelopmentProviders { get; set; } = new List<SkillsDevelopmentProvider>();
+        // SkillsDevelopmentProviders navigation property temporarily removed due to database schema mismatch
+        // public virtual ICollection<SkillsDevelopmentProvider> SkillsDevelopmentProviders { get; set; } = new List<SkillsDevelopmentProvider>();
     }
 
     public enum ClientStatus

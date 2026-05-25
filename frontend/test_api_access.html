@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Access</title>
+</head>
+<body>
+    <h1>Testing Profile Photo API Access</h1>
+    <div id="results"></div>
+    
+    <h2>Profile Photo Test</h2>
+    <div id="photo-container">
+        <img id="profile-photo" style="width: 200px; height: 200px; border: 2px solid #ccc;" />
+    </div>
+
+    <script>
+        async function testAPI() {
+            const resultsDiv = document.getElementById('results');
+            const photoImg = document.getElementById('profile-photo');
+            
+            try {
+                console.log('🔍 Testing learner API...');
+                
+                // Test the learners API
+                const response = await fetch('http://localhost:5213/api/Learners/class/4');
+                const learners = await response.json();
+                
+                console.log('✅ API Response:', learners);
+                
+                const ntsika = learners.find(l => l.firstName === 'Ntsika' && l.lastName === 'Maphango');
+                
+                if (ntsika) {
+                    resultsDiv.innerHTML = `
+                        <h3>✅ Ntsika Found</h3>
+                        <p><strong>ID:</strong> ${ntsika.id}</p>
+                        <p><strong>Name:</strong> ${ntsika.firstName} ${ntsika.lastName}</p>
+                        <p><strong>ProfilePhotoPath:</strong> ${ntsika.profilePhotoPath || 'NULL'}</p>
+                        <p><strong>Has Photo:</strong> ${!!ntsika.profilePhotoPath}</p>
+                    `;
+                    
+                    if (ntsika.profilePhotoPath) {
+                        const photoUrl = `http://localhost:5213/api/Learners/${ntsika.id}/profile-photo`;
+                        console.log('📸 Loading photo from:', photoUrl);
+                        
+                        photoImg.src = photoUrl;
+                        photoImg.onload = () => {
+                            console.log('✅ Photo loaded successfully');
+                            resultsDiv.innerHTML += '<p style="color: green;">✅ Photo loaded successfully!</p>';
+                        };
+                        photoImg.onerror = (e) => {
+                            console.error('❌ Photo failed to load:', e);
+                            resultsDiv.innerHTML += '<p style="color: red;">❌ Photo failed to load</p>';
+                        };
+                    }
+                } else {
+                    resultsDiv.innerHTML = '<h3>❌ Ntsika not found</h3>';
+                }
+                
+            } catch (error) {
+                console.error('❌ API Error:', error);
+                resultsDiv.innerHTML = `<h3>❌ API Error</h3><p>${error.message}</p>`;
+            }
+        }
+        
+        // Run test when page loads
+        testAPI();
+    </script>
+</body>
+</html>

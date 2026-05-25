@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Current Routing Behavior Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .result { margin-top: 10px; padding: 10px; border-radius: 3px; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Current Routing Behavior Test</h1>
+    <p>Testing what's actually happening with the routing logic</p>
+
+    <div class="test-section">
+        <h3>Test QA Manager (zondis411@gmail.com)</h3>
+        <button onclick="testQAManager()">Test QA Manager Login</button>
+        <div id="qaResult"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:5000/api';
+
+        async function testQAManager() {
+            const resultDiv = document.getElementById('qaResult');
+            resultDiv.innerHTML = '<div class="info">Testing QA Manager login...</div>';
+
+            try {
+                const response = await fetch(`${API_BASE}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: 'zondis411@gmail.com',
+                        password: 'password123'
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const user = data.user;
+                    
+                    console.log('Raw API Response:', user);
+                    
+                    // Normalize user data exactly like Login.tsx
+                    const normalizedUser = {
+                        role: user?.role ?? user?.Role,
+                        skillsDevelopmentProviderId: user?.skillsDevelopmentProviderId ?? user?.SkillsDevelopmentProviderId,
+                        departmentId: user?.departmentId ?? user?.DepartmentId,
+                        clientId: user?.clientId ?? user?.ClientId
+                    };
+
+                    console.log('Normalized User:', normalizedUser);
+
+                    // Apply the EXACT routing logic from Login.tsx
+                    let actualRoute = '';
+                    let routingStep = '';
+                    
+                    console.log('=== ROUTING LOGIC DEBUG ===');
+                    console.log('Raw user role:', normalizedUser.role);
+                    console.log('Role type:', typeof normalizedUser.role);
+                    console.log('SDP ID:', normalizedUser.skillsDevelopmentProviderId);
+                    console.log('Department ID:', normalizedUser.departmentId);
+                    console.log('Client ID:', normalizedUser.clientId);
+                    
+                    // PRIORITY 1: Department-specific routing for managers
+                    if (normalizedUser.role === 7 || normalizedUser.role === '7') {
+                        actualRoute = '/qa-manager-dashboard';
+                        routingStep = 'PRIORITY 1: QA Manager (Role 7)';
+                        console.log('🎯 DETECTED QA MANAGER (Role 7) - Should route to QA Manager Dashboard');
+                    } else if ((normalizedUser.role === 5 || normalizedUser.role === '5') && normalizedUser.departmentId) {
+                        actualRoute = '/logistics-manager-dashboard';
+                        routingStep = 'PRIORITY 1: Logistics Manager (Role 5 + Dept)';
+                        console.log('🚛 DETECTED LOGISTICS MANAGER (Role 5) - Should route to Logistics Manager Dashboard');
+                    } else if ((normalizedUser.role === 3 || normalizedUser.role === '3') && normalizedUser.departmentId) {
+                        actualRoute = '/admin-manager-dashboard';
+                        routingStep = 'PRIORITY 1: Admin Manager (Role 3 + Dept)';
+                        console.log('👔 DETECTED ADMIN MANAGER (Role 3 with Dept) - Should route to Admin Manager Dashboard');
+                    } else {
+                        console.log('❌ NO PRIORITY 1 MATCH - Checking other priorities...');
+                        
+                        // PRIORITY 2: Other SDP Manager roles
+                        const isOtherSDPManager = (
+                            normalizedUser.role === '4' || normalizedUser.role === 4 ||
+                            normalizedUser.role === 'SDPIT' ||
+                            normalizedUser.role === 'SDPAssessor' ||
+                            normalizedUser.role === 'SDPFacilitator'
+                        );
+                        
+                        // PRIORITY 3: Main SDP Administrator
+                        const isMainSDPAdmin = (
+                            (normalizedUser.role === '3' || normalizedUser.role === 3) && 
+                            !normalizedUser.departmentId &&
+                            (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0)
+                        );
+                        
+                        // PRIORITY 4: SDP-affiliated users
+                        const isSDPAffiliated = (
+                            (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0) &&
+                            !isOtherSDPManager && !isMainSDPAdmin
+                        );
+                        
+                        console.log('isOtherSDPManager:', isOtherSDPManager);
+                        console.log('isMainSDPAdmin:', isMainSDPAdmin);
+                        console.log('isSDPAffiliated:', isSDPAffiliated);
+                        
+                        if (isOtherSDPManager) {
+                            actualRoute = '/sdp-manager-dashboard';
+                            routingStep = 'PRIORITY 2: Other SDP Manager';
+                        } else if (isMainSDPAdmin) {
+                            actualRoute = '/sdp-dashboard';
+                            routingStep = 'PRIORITY 3: Main SDP Admin';
+                        } else if (isSDPAffiliated) {
+                            actualRoute = '/sdp-dashboard';
+                            routingStep = 'PRIORITY 4: SDP Affiliated';
+                        } else {
+                            actualRoute = '/dashboard';
+                            routingStep = 'PRIORITY 5: Default';
+                        }
+                    }
+
+                    let html = `<div class="${actualRoute === '/qa-manager-dashboard' ? 'success' : 'error'}">`;
+                    html += `<h4>QA Manager Login Test Results</h4>`;
+                    html += `<p><strong>User:</strong> Sandile Zondi (zondis411@gmail.com)</p>`;
+                    html += `<p><strong>Expected Route:</strong> /qa-manager-dashboard</p>`;
+                    html += `<p><strong>Actual Route:</strong> ${actualRoute}</p>`;
+                    html += `<p><strong>Routing Step:</strong> ${routingStep}</p>`;
+                    html += `<p><strong>Status:</strong> ${actualRoute === '/qa-manager-dashboard' ? '✅ CORRECT' : '❌ INCORRECT'}</p>`;
+                    
+                    html += `<h5>Debug Information:</h5>`;
+                    html += `<pre>Raw User Data:\n${JSON.stringify(user, null, 2)}</pre>`;
+                    html += `<pre>Normalized User Data:\n${JSON.stringify(normalizedUser, null, 2)}</pre>`;
+                    html += `</div>`;
+                    
+                    resultDiv.innerHTML = html;
+                } else {
+                    const errorData = await response.json();
+                    resultDiv.innerHTML = `<div class="error">Login failed: ${errorData.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Network error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

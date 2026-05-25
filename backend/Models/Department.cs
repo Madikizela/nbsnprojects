@@ -21,6 +21,20 @@ namespace backend.Models
         [Required]
         public DepartmentStatus Status { get; set; } = DepartmentStatus.Active;
 
+        // Manager Information
+        [Required]
+        [StringLength(100)]
+        public string ManagerFirstName { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(100)]
+        public string ManagerSurname { get; set; } = string.Empty;
+
+        [Required]
+        [StringLength(255)]
+        [EmailAddress]
+        public string ManagerEmail { get; set; } = string.Empty;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
@@ -30,21 +44,19 @@ namespace backend.Models
 
         // Navigation Properties
         [ForeignKey("SkillsDevelopmentProviderId")]
-        public virtual SkillsDevelopmentProvider SkillsDevelopmentProvider { get; set; } = null!;
+        public virtual SkillsDevelopmentProvider? SkillsDevelopmentProvider { get; set; }
 
         public virtual ICollection<User> Users { get; set; } = new List<User>();
     }
 
     public enum DepartmentType
     {
-        Administration = 1,
-        Finance = 2,
-        Logistics = 3,
-        IT = 4,
-        Moderation = 5,
-        Assessment = 6,
-        Facilitation = 7,
-        Learning = 8
+        AdministratorManager = 1,
+        LogisticManager = 2,
+        FinancialManager = 3,
+        QualityAssuranceManager = 4,
+        ITManager = 5,
+        TrainingManager = 6
     }
 
     public enum DepartmentStatus

@@ -1,18 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import logoImage from '../assets/logo.png';
-import backgroundImage from '../assets/background.jpeg';
+import logoImage from '../assets/nbsn-logo.png';
 import {
-  EmailIcon,
-  LockIcon,
   EyeIcon,
   EyeOffIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon,
-  ExclamationTriangleIcon,
-  SignInIcon,
-  InfoCircleIcon
+  SignInIcon
 } from './CustomIcons';
+import ForgotPassword from './ForgotPassword';
+import { encryptData } from '../utils/encryption';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -22,6 +17,7 @@ const Login: React.FC = () => {
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
 
   const validateEmail = (email: string) => {
@@ -77,74 +73,253 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5213/api/auth/login', {
+      // Build encrypted payload
+      const encryptedPayload = encryptData({ Email: email, Password: password });
+
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, encryptedLoginData: encryptedPayload }),
       });
 
       if (response.ok) {
         const data = await response.json();
         
+        // Normalize user object keys across different backends (camelCase vs PascalCase)
+        const normalizedUser = {
+          id: data.user?.id ?? data.user?.Id,
+          name: data.user?.name ?? data.user?.Name ?? `${data.user?.firstName ?? data.user?.FirstName} ${data.user?.lastName ?? data.user?.LastName}`,
+          firstName: data.user?.firstName ?? data.user?.FirstName,
+          lastName: data.user?.lastName ?? data.user?.LastName,
+          email: data.user?.email ?? data.user?.Email,
+          role: data.user?.role ?? data.user?.Role,
+          status: data.user?.status ?? data.user?.Status,
+          userType: data.user?.userType ?? data.user?.UserType,
+          accessLevel: data.user?.accessLevel ?? data.user?.AccessLevel ?? 0,
+          clientId: data.user?.clientId ?? data.user?.ClientId ?? null,
+          clientName: data.user?.clientName ?? data.user?.ClientName ?? null,
+          skillsDevelopmentProviderId: data.user?.skillsDevelopmentProviderId ?? data.user?.SkillsDevelopmentProviderId ?? null,
+          skillsDevelopmentProviderName: data.user?.skillsDevelopmentProviderName ?? data.user?.SkillsDevelopmentProviderName ?? null,
+          departmentId: data.user?.departmentId ?? data.user?.DepartmentId ?? null,
+          departmentName: data.user?.departmentName ?? data.user?.DepartmentName ?? null,
+          projectCount: data.user?.projectCount ?? data.user?.ProjectCount ?? 0,
+          activeProjectCount: data.user?.activeProjectCount ?? data.user?.ActiveProjectCount ?? 0,
+          departmentCount: data.user?.departmentCount ?? data.user?.DepartmentCount ?? 0,
+        };
+        
         // Store authentication data
         localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('user', JSON.stringify(normalizedUser));
         
-        // Navigate to dashboard
-        navigate('/dashboard');
+        // Determine role from normalized user
+        const isClient =
+          normalizedUser.role === 'ClientAdmin' ||
+          normalizedUser.role === '2' ||
+          normalizedUser.userType === 'ClientAdmin' ||
+          normalizedUser.accessLevel === 3 ||
+          (typeof normalizedUser.clientId === 'number' && normalizedUser.clientId !== null && normalizedUser.clientId > 0);
+
+        const isSDP = 
+          normalizedUser.role === 'SDPAdministrator' ||
+          normalizedUser.role === '3' ||
+          normalizedUser.userType === 'SDPAdmin' ||
+          (typeof normalizedUser.skillsDevelopmentProviderId === 'number' && normalizedUser.skillsDevelopmentProviderId !== null && normalizedUser.skillsDevelopmentProviderId > 0);
+
+        // Enhanced logic for specific manager dashboards
+        const role = String(normalizedUser.role);
+        console.log('Login: Determining dashboard for role:', role, 'Department:', normalizedUser.departmentName);
+        const deptName = (normalizedUser.departmentName || '').toLowerCase();
+        
+        // Logistics Manager/Support
+        const isLogistics = role === '5' || role === '12' || deptName.includes('logistic');
+        
+        // QA Manager/Support (Moderators and Assessors)
+        const isQA = role === '7' || role === '14' || role === '8' || role === 'SDPModerator' || role === 'SDPAssessor' || deptName.includes('quality') || deptName.includes('moderator') || deptName.includes('assessor');
+        
+        // Admin Manager/Support
+        const isAdminManager = (role === '3' && normalizedUser.departmentId) || role === '15' || (role === 'SDPAdministrator' && normalizedUser.departmentId) || deptName.includes('admin');
+        
+        // Finance Manager/Support
+        const isFinance = role === '4' || role === '11' || deptName.includes('finance');
+        
+        // IT Manager/Support
+        const isIT = role === '6' || role === '13' || role === 'SDPIT' || deptName.includes('it');
+
+        // Route to appropriate dashboard
+        if (isLogistics || isQA || isAdminManager || isFinance || isIT) {
+          navigate('/sdp-manager-dashboard');
+        } else if (isSDP) {
+          // If it's a general SDP user with no specific manager role
+          navigate('/sdp-dashboard');
+        } else if (isClient) {
+          navigate('/client-dashboard');
+        } else {
+          navigate('/dashboard');
+        }
       } else {
-        const errorData = await response.json();
-        setError(errorData.message || 'Login failed');
+        const text = await response.text();
+        let errorMessage = 'Login failed';
+        try {
+          const errorData = JSON.parse(text);
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          if (errorData.details) {
+            errorMessage += `\nDetails: ${errorData.details}`;
+          }
+        } catch (e) {
+          errorMessage = `Server Error (${response.status}): ${text.substring(0, 100)}...`;
+        }
+        setError(errorMessage);
       }
-    } catch (error) {
-      setError('Network error. Please try again.');
+    } catch (error: any) {
+      setError(`Network error: ${error.message || 'Please try again.'}`);
     } finally {
       setIsLoading(false);
     }
   };
 
+  // Show forgot password component if requested
+  if (showForgotPassword) {
+    return <ForgotPassword onBackToLogin={() => setShowForgotPassword(false)} />;
+  }
+
   return (
     <div 
-      className="position-relative"
+      className="position-relative overflow-hidden"
       style={{
-        backgroundImage: `url(${backgroundImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center right',
-        backgroundRepeat: 'no-repeat',
         width: '100vw',
         height: '100vh',
         margin: 0,
         padding: 0,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'center'
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #4facfe 75%, #00f2fe 100%)',
+        backgroundSize: '400% 400%',
+        animation: 'gradientShift 15s ease infinite',
+        overflowY: 'auto'
       }}
     >
+      {/* Animated Background Styles */}
+      <style>{`
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          50% { transform: translateY(-20px) rotate(5deg); }
+        }
+        
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.05); }
+        }
+        
+        .floating-shape {
+          position: absolute;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.1);
+          backdrop-filter: blur(10px);
+          animation: float 6s ease-in-out infinite;
+        }
+        
+        .glass-card {
+          background: rgba(255, 255, 255, 0.98);
+          backdrop-filter: blur(20px);
+          border: 2px solid rgba(255, 255, 255, 0.5);
+          box-shadow: 0 20px 60px 0 rgba(0, 0, 0, 0.3), 
+                      0 0 0 1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .input-glass {
+          background: rgba(248, 249, 250, 0.8) !important;
+          backdrop-filter: blur(10px);
+          transition: all 0.3s ease;
+        }
+        
+        .input-glass:focus {
+          background: rgba(255, 255, 255, 0.95) !important;
+          transform: translateY(-2px);
+        }
+        
+        .btn-gradient {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border: none;
+          transition: all 0.3s ease;
+        }
+        
+        .btn-gradient:hover:not(:disabled) {
+          transform: translateY(-3px);
+          box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-gradient:disabled {
+          background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+          cursor: not-allowed;
+        }
+      `}</style>
 
-      <div className="position-relative" style={{ width: '100%', maxWidth: '380px', padding: '0 20px' }}>
+      {/* Floating Decorative Shapes */}
+      <div className="floating-shape" style={{ width: '300px', height: '300px', top: '10%', left: '10%', animationDelay: '0s' }} />
+      <div className="floating-shape" style={{ width: '200px', height: '200px', top: '60%', right: '15%', animationDelay: '2s' }} />
+      <div className="floating-shape" style={{ width: '150px', height: '150px', bottom: '15%', left: '20%', animationDelay: '4s' }} />
+      <div className="floating-shape" style={{ width: '250px', height: '250px', top: '20%', right: '10%', animationDelay: '3s' }} />
+
+      <div className="position-relative" style={{ width: '100%', maxWidth: '550px', padding: '40px 20px', zIndex: 10 }}>
         <div style={{ width: '100%' }}>
-          <div style={{ width: '100%' }}>
-            {/* Login Card */}
-            <div className="card shadow-lg border-0" style={{ borderRadius: '20px', backgroundColor: 'rgba(255, 255, 255, 0.98)', width: '100%' }}>
-              <div className="card-body p-5">
+          <div style={{ width: '100%', marginBottom: '30px' }}>
+            {/* Login Card with Glassmorphism */}
+            <div className="card glass-card border-0" style={{ borderRadius: '24px', overflow: 'hidden' }}>
+              <div className="card-body p-4">
                 {/* Logo and Header */}
-                <div className="text-center mb-4">
-                   <img 
-                     src={logoImage} 
-                     alt="RLMS Logo" 
-                     className="mb-3"
-                     style={{ width: '80px', height: '80px' }}
-                   />
-                  <h2 className="fw-bold text-primary mb-2">RLMS</h2>
-                  <p className="text-muted">Remote Learning Management System</p>
+                <div className="text-center mb-3">
+                   <div style={{ animation: 'pulse 3s ease-in-out infinite' }}>
+                     <img 
+                       src={logoImage} 
+                       alt="Company Logo" 
+                       style={{ 
+                         width: '120px', 
+                         height: '120px', 
+                         objectFit: 'contain',
+                         borderRadius: '12px'
+                       }} 
+                     />
+                   </div>
+                  <h2 className="fw-bold mb-1 mt-2" style={{ 
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    WebkitBackgroundClip: 'text',
+                    WebkitTextFillColor: 'transparent',
+                    backgroundClip: 'text',
+                    fontSize: '1.75rem',
+                    letterSpacing: '0.5px'
+                  }}>
+                    NBSN
+                  </h2>
+                  <p className="text-muted fw-medium mb-0" style={{ fontSize: '0.85rem' }}>
+                    Skills Development & Training Portal
+                  </p>
+                  <div className="mt-1" style={{ 
+                    height: '3px', 
+                    width: '60px', 
+                    background: 'linear-gradient(90deg, #667eea, #764ba2)',
+                    margin: '0 auto',
+                    borderRadius: '2px'
+                  }} />
                 </div>
 
                 {/* Error Alert */}
                 {error && (
-                  <div className="alert alert-danger" role="alert">
-                    <ExclamationTriangleIcon className="me-2" size={18} />
+                  <div className="alert alert-danger border-0 py-2" role="alert" style={{ 
+                    borderRadius: '12px',
+                    background: 'rgba(220, 53, 69, 0.1)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(220, 53, 69, 0.2)'
+                  }}>
+                    <i className="bi bi-exclamation-triangle-fill me-2"></i>
                     {error}
                   </div>
                 )}
@@ -152,90 +327,64 @@ const Login: React.FC = () => {
                 {/* Login Form */}
                 <form onSubmit={handleSubmit} noValidate>
                   {/* Email Field */}
-                  <div className="mb-3">
-                    <label htmlFor="email" className="form-label fw-semibold text-dark">
-                      <EmailIcon className="me-2" size={16} />
+                  <div className="mb-2">
+                    <label htmlFor="email" className="form-label fw-semibold text-dark mb-1" style={{ fontSize: '0.9rem' }}>
+                      <i className="bi bi-envelope-fill me-2" style={{ color: '#667eea' }}></i>
                       Email Address
                     </label>
                     <div className="position-relative">
-                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <EmailIcon className="text-gray-400" size={18} />
-                      </div>
                       <input
                         type="email"
                         id="email"
-                        className="form-control"
+                        className="form-control input-glass border-0"
                         placeholder="Enter your email"
                         value={email}
                         onChange={handleEmailChange}
                         style={{
                           borderRadius: '12px',
-                          border: emailError ? '2px solid #dc3545' : email && !emailError ? '2px solid #198754' : '2px solid #e0e0e0',
-                          backgroundColor: '#f8f9fa',
-                          paddingLeft: '50px',
-                          fontSize: '16px',
-                          transition: 'all 0.3s ease',
-                          height: '56px'
-                        }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = '#4F46E5';
-                          e.target.style.boxShadow = '0 0 0 0.2rem rgba(79, 70, 229, 0.25)';
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = emailError ? '#dc3545' : email && !emailError ? '#198754' : '#e0e0e0';
-                          e.target.style.boxShadow = emailError ? '0 0 0 0.2rem rgba(220, 53, 69, 0.25)' : email && !emailError ? '0 0 0 0.2rem rgba(25, 135, 84, 0.25)' : 'none';
+                          paddingLeft: '16px',
+                          fontSize: '14px',
+                          height: '46px',
+                          boxShadow: emailError ? '0 0 0 3px rgba(220, 53, 69, 0.1)' : email && !emailError ? '0 0 0 3px rgba(25, 135, 84, 0.1)' : 'none'
                         }}
                       />
                       {email && !emailError && (
-                        <CheckCircleIcon className="position-absolute text-success" 
-                           style={{ right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '18px' }} size={18} />
+                        <i className="bi bi-check-circle-fill position-absolute text-success top-50 end-0 translate-middle-y me-3" style={{ fontSize: '18px' }}></i>
                       )}
                       {emailError && (
-                        <ExclamationCircleIcon className="position-absolute text-danger" 
-                           style={{ right: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '18px' }} size={18} />
+                        <i className="bi bi-exclamation-circle-fill position-absolute text-danger top-50 end-0 translate-middle-y me-3" style={{ fontSize: '18px' }}></i>
                       )}
                     </div>
                     {emailError && (
-                      <div id="email-error" className="invalid-feedback d-block mt-2">
-                        <ExclamationTriangleIcon className="me-1" size={14} />
+                      <div className="text-danger mt-2" style={{ fontSize: '13px' }}>
+                        <i className="bi bi-exclamation-triangle-fill me-1"></i>
                         {emailError}
                       </div>
                     )}
                   </div>
 
                   {/* Password Field */}
-                  <div className="mb-4">
-                    <label htmlFor="password" className="form-label fw-semibold text-dark">
-                      <LockIcon className="me-2" size={16} />
+                  <div className="mb-3">
+                    <label htmlFor="password" className="form-label fw-semibold text-dark mb-1" style={{ fontSize: '0.9rem' }}>
+                      <i className="bi bi-lock-fill me-2" style={{ color: '#667eea' }}></i>
                       Password
                     </label>
                     <div className="position-relative">
                       <input
                         type={showPassword ? "text" : "password"}
-                        className={`form-control form-control-lg ${passwordError ? 'is-invalid' : password ? 'is-valid' : ''}`}
+                        className="form-control input-glass border-0"
                         id="password"
                         placeholder="Enter your password"
                         value={password}
                         onChange={handlePasswordChange}
                         required
-                        aria-describedby={passwordError ? "password-error" : undefined}
                         style={{ 
                           borderRadius: '12px',
-                          border: passwordError ? '2px solid #dc3545' : password && !passwordError ? '2px solid #198754' : '2px solid #e0e0e0',
-                          backgroundColor: '#f8f9fa',
                           paddingLeft: '16px',
                           paddingRight: '50px',
-                          fontSize: '16px',
-                          transition: 'all 0.3s ease',
-                          boxShadow: passwordError ? '0 0 0 0.2rem rgba(220, 53, 69, 0.25)' : password && !passwordError ? '0 0 0 0.2rem rgba(25, 135, 84, 0.25)' : 'none'
-                        }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = '#4F46E5';
-                          e.target.style.boxShadow = '0 0 0 0.2rem rgba(79, 70, 229, 0.25)';
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = passwordError ? '#dc3545' : password && !passwordError ? '#198754' : '#e0e0e0';
-                          e.target.style.boxShadow = passwordError ? '0 0 0 0.2rem rgba(220, 53, 69, 0.25)' : password && !passwordError ? '0 0 0 0.2rem rgba(25, 135, 84, 0.25)' : 'none';
+                          fontSize: '14px',
+                          height: '46px',
+                          boxShadow: passwordError ? '0 0 0 3px rgba(220, 53, 69, 0.1)' : password && !passwordError ? '0 0 0 3px rgba(25, 135, 84, 0.1)' : 'none'
                         }}
                       />
                       <button
@@ -258,41 +407,24 @@ const Login: React.FC = () => {
                       </button>
                     </div>
                     {passwordError && (
-                      <div id="password-error" className="invalid-feedback d-block mt-2">
-                        <ExclamationTriangleIcon className="me-1" size={14} />
+                      <div className="text-danger mt-2" style={{ fontSize: '13px' }}>
+                        <i className="bi bi-exclamation-triangle-fill me-1"></i>
                         {passwordError}
                       </div>
                     )}
                   </div>
 
                   {/* Submit Button */}
-                  <div className="d-grid">
+                  <div className="d-grid mb-2">
                     <button
                       type="submit"
-                      className="btn btn-primary btn-lg position-relative"
+                      className="btn btn-gradient btn-lg text-white fw-semibold"
                       disabled={isLoading || emailError !== '' || passwordError !== ''}
                       style={{
                         borderRadius: '12px',
-                        background: isLoading || emailError !== '' || passwordError !== '' 
-                          ? 'linear-gradient(135deg, #6c757d 0%, #495057 100%)' 
-                          : 'linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)',
-                        border: 'none',
-                        fontWeight: '600',
-                        fontSize: '16px',
-                        padding: '14px 24px',
-                        transition: 'all 0.3s ease',
-                        boxShadow: '0 4px 15px rgba(79, 70, 229, 0.3)',
-                        transform: 'translateY(0)'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (!isLoading && emailError === '' && passwordError === '') {
-                          e.currentTarget.style.transform = 'translateY(-2px)';
-                          e.currentTarget.style.boxShadow = '0 6px 20px rgba(79, 70, 229, 0.4)';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 4px 15px rgba(79, 70, 229, 0.3)';
+                        fontSize: '15px',
+                        padding: '12px 24px',
+                        height: '46px'
                       }}
                     >
                       {isLoading ? (
@@ -308,29 +440,59 @@ const Login: React.FC = () => {
                       )}
                     </button>
                   </div>
-                </form>
 
-                {/* Demo Credentials */}
-                <div className="mt-4 p-3 bg-light rounded" style={{ borderRadius: '10px' }}>
-                  <h6 className="text-primary mb-2">
-                    <InfoCircleIcon className="me-2" size={16} />
-                    Demo Credentials
-                  </h6>
-                  <small className="text-muted d-block">
-                    <strong>Email:</strong> admin@system.local
-                  </small>
-                  <small className="text-muted d-block">
-                    <strong>Password:</strong> Admin@123!System
-                  </small>
-                </div>
+                  {/* Forgot Password Link */}
+                  <div className="text-center">
+                    <a 
+                      href="#" 
+                      className="text-decoration-none fw-semibold"
+                      style={{ 
+                        color: '#667eea',
+                        fontSize: '14px',
+                        transition: 'all 0.3s ease'
+                      }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setShowForgotPassword(true);
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.color = '#764ba2'}
+                      onMouseLeave={(e) => e.currentTarget.style.color = '#667eea'}
+                    >
+                      <i className="bi bi-key me-2"></i>
+                      Forgot your password?
+                    </a>
+                  </div>
+                </form>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="text-center mt-4">
-              <p className="text-dark mb-0" style={{ textShadow: '1px 1px 2px rgba(255,255,255,0.8)' }}>
+            <div className="text-center" style={{ 
+              background: 'rgba(255, 255, 255, 0.2)',
+              backdropFilter: 'blur(10px)',
+              padding: '16px 20px',
+              borderRadius: '16px',
+              border: '1px solid rgba(255, 255, 255, 0.3)',
+              marginTop: '50px'
+            }}>
+              <p className="text-white mb-0 fw-medium" style={{ 
+                textShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                fontSize: '15px',
+                lineHeight: '1.6'
+              }}>
                 Don't have an account? 
-                <a href="#" className="text-primary ms-1 text-decoration-none fw-bold">Contact administrator</a>
+                <a 
+                  href="#" 
+                  className="text-white ms-1 text-decoration-none fw-bold"
+                  style={{ 
+                    textShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                  onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                >
+                  Contact administrator
+                </a>
               </p>
             </div>
           </div>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Unit Standard Breakdown API</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        pre { background-color: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; background-color: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <h1>Unit Standard Breakdown API Test</h1>
+    <button onclick="testUnitStandardBreakdown()">Test Unit Standard Breakdown</button>
+    <div id="result"></div>
+
+    <script>
+        async function testUnitStandardBreakdown() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="result">Testing Unit Standard Breakdown...</div>';
+            
+            try {
+                const response = await fetch('http://192.168.68.117:5213/api/QAOverview/unit-standard-breakdown');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    let tableHtml = '';
+                    if (data.length > 0) {
+                        tableHtml = `
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Unit Standard</th>
+                                        <th>Level</th>
+                                        <th>Credits</th>
+                                        <th>Formative Questions</th>
+                                        <th>Summative Questions</th>
+                                        <th>Total Questions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+                        
+                        data.forEach(us => {
+                            tableHtml += `
+                                <tr>
+                                    <td><strong>${us.unitStandardName}</strong></td>
+                                    <td>${us.level}</td>
+                                    <td>${us.credits}</td>
+                                    <td>${us.formativeQuestions} (${us.formativeAssessments} assessments)</td>
+                                    <td>${us.summativeQuestions} (${us.summativeAssessments} assessments)</td>
+                                    <td><strong>${us.formativeQuestions + us.summativeQuestions}</strong></td>
+                                </tr>
+                            `;
+                        });
+                        
+                        tableHtml += '</tbody></table>';
+                        
+                        const totalQuestions = data.reduce((sum, us) => sum + us.formativeQuestions + us.summativeQuestions, 0);
+                        const totalFormative = data.reduce((sum, us) => sum + us.formativeQuestions, 0);
+                        const totalSummative = data.reduce((sum, us) => sum + us.summativeQuestions, 0);
+                        
+                        tableHtml += `
+                            <div style="margin-top: 15px; padding: 10px; background-color: #e9ecef; border-radius: 5px;">
+                                <strong>Summary:</strong> ${data.length} unit standards with assessment questions.<br>
+                                <strong>Total Questions:</strong> ${totalQuestions} (${totalFormative} formative, ${totalSummative} summative)
+                            </div>
+                        `;
+                    }
+                    
+                    resultDiv.innerHTML = `
+                        <div class="result success">
+                            <h3>✅ Unit Standard Breakdown Success!</h3>
+                            <p>Found ${data.length} unit standards with assessments</p>
+                            ${tableHtml}
+                            <details style="margin-top: 15px;">
+                                <summary>Raw JSON Data</summary>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    `;
+                } else {
+                    const errorText = await response.text();
+                    resultDiv.innerHTML = `
+                        <div class="result error">
+                            <h3>❌ Unit Standard Breakdown Error: ${response.status}</h3>
+                            <p>${response.statusText}</p>
+                            <pre>${errorText}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>❌ Network Error</h3>
+                        <p>${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

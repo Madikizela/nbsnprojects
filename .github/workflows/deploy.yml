@@ -1,0 +1,84 @@
+name: CI/CD Deployment to cPanel
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    # --- BUILD BACKEND (.NET) ---
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+
+    - name: Publish Backend
+      run: |
+        cd backend
+        dotnet publish -c Release -r linux-x64 --self-contained true -o ./publish
+
+    # --- BUILD FRONTEND (React) ---
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install Frontend Dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Build Frontend
+      run: |
+        cd frontend
+        # Create a temporary .env for the build process if needed
+        # Variables starting with VITE_ are picked up automatically
+        npm run build
+      env:
+        VITE_API_URL: /api
+
+    # --- DEPLOY FRONTEND (via FTP) ---
+    - name: Deploy Frontend to cPanel (FTP)
+      uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+      with:
+        server: ${{ secrets.FTP_SERVER }}
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        local-dir: ./frontend/dist/
+        server-dir: public_html/
+        dangerous-clean-slate: false
+
+    # --- DEPLOY BACKEND (via SSH) ---
+    - name: Deploy Backend to cPanel (SSH)
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT || 22 }}
+        source: "backend/publish/*"
+        target: "~/nbsn_api"
+        strip_components: 2
+
+    - name: Restart Backend Process (SSH)
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USERNAME }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT || 22 }}
+        script: |
+          cd ~/nbsn_api
+          # Kill existing process if running (using port or name)
+          fuser -k 5213/tcp || true
+          # Start the new process in the background
+          chmod +x backend
+          nohup ./backend --urls "http://127.0.0.1:5213" > app.log 2>&1 &

@@ -1,1 +1,70 @@
-# .NET Core\nbin/\nobj/\n\n# Node.js\nnode_modules/\n.env\n\n# Build results\n[Dd]ebug/\n[Rr]elease/\n[Bb]uild/\n\n# Visual Studio files\n.vs/\n*.user\n*.suo\n\n# React build\nfrontend/build/\nfrontend/dist/\n\n# IDE files\n.idea/\n.vscode/\n\n# Logs\n*.log\nlogs/\n\n# Local configuration\nappsettings.Development.json\n
+# .NET
+bin/
+obj/
+publish/
+*.log
+backend/backend.log
+backend/output.log
+backend/poe_error.log
+backend/debug.log
+
+# Node.js
+node_modules/
+dist/
+frontend/dist/
+frontend/node_modules/
+.eslintcache
+
+# Sensitive files
+.env
+*.user
+*.suo
+*.db
+*.sqlite
+skills_development.db
+backend/test-*.json
+backend/test_*.json
+
+# Mobile / Flutter
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.pub-cache/
+**/.packages
+**/pubspec.lock
+**/.kotlin/
+**/intermediates/
+**/generated/
+**/transformed/
+**/CMakeFiles/
+**/.cxx/
+**/CMakeCache.txt
+**/*.dill
+**/*.salive
+**/*.so
+**/*.dll
+**/*.exe
+**/*.pdb
+**/*.so
+**/*.dylib
+**/*.jar
+**/*.aar
+
+# Ignore specific problematic folders
+mobile_flutter/AnsiSDKDemo_AndroidStudio/
+
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.DS_Store
+
+# Temporary / Build artifacts
+[Dd]ebug/
+[Rr]elease/
+backups/
+*.zip
+*.rar
+*.7z

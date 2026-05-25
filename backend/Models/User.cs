@@ -19,6 +19,10 @@ namespace backend.Models
         [RegularExpression(@"^[a-zA-Z\s'-]+$", ErrorMessage = "Last name can only contain letters, spaces, hyphens, and apostrophes")]
         public string LastName { get; set; } = string.Empty;
 
+        [Required(ErrorMessage = "Username is required")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "Username must be between 3 and 50 characters")]
+        public string Username { get; set; } = string.Empty;
+
         [Required(ErrorMessage = "Email is required")]
         [EmailAddress(ErrorMessage = "Invalid email format")]
         [StringLength(255, ErrorMessage = "Email cannot exceed 255 characters")]
@@ -31,6 +35,30 @@ namespace backend.Models
         [StringLength(20, ErrorMessage = "Phone number cannot exceed 20 characters")]
         [RegularExpression(@"^[\+]?[0-9\s\-\(\)]+$", ErrorMessage = "Invalid phone number format")]
         public string? PhoneNumber { get; set; }
+
+        // Address fields
+        [StringLength(255, ErrorMessage = "Address line 1 cannot exceed 255 characters")]
+        public string? AddressLine1 { get; set; }
+
+        [StringLength(255, ErrorMessage = "Address line 2 cannot exceed 255 characters")]
+        public string? AddressLine2 { get; set; }
+
+        [StringLength(100, ErrorMessage = "City cannot exceed 100 characters")]
+        public string? City { get; set; }
+
+        [StringLength(100, ErrorMessage = "Province cannot exceed 100 characters")]
+        public string? Province { get; set; }
+
+        [StringLength(20, ErrorMessage = "Postal code cannot exceed 20 characters")]
+        public string? PostalCode { get; set; }
+
+        // Profile image and signature (stored as base64 or file path)
+        public string? ProfileImage { get; set; }
+        public string? Signature { get; set; }
+        
+        // Teacher-specific fields
+        [StringLength(50, ErrorMessage = "Practice number cannot exceed 50 characters")]
+        public string? PracticeNumber { get; set; }
 
         [Required]
         public UserRole Role { get; set; }
@@ -68,7 +96,15 @@ namespace backend.Models
         SDPModerator = 7,
         SDPAssessor = 8,
         SDPFacilitator = 9,
-        Learner = 10
+        Learner = 10,
+        // Department Support Roles
+        FinanceSupport = 11,
+        LogisticsSupport = 12,
+        ITSupport = 13,
+        QualityAssuranceSupport = 14,
+        AdministrationSupport = 15,
+        Teacher = 16,
+        TrainingManager = 17
     }
 
     public enum UserStatus

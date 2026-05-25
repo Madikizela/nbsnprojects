@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test QA Overview API</title>
+</head>
+<body>
+    <h1>QA Overview API Test</h1>
+    <button onclick="testQAAPI()">Test QA API</button>
+    <div id="result"></div>
+
+    <script>
+        async function testQAAPI() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                const response = await fetch('http://192.168.68.117:5213/api/QAOverview/metrics');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `
+                        <h3>Success!</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <h3>Error: ${response.status}</h3>
+                        <p>${response.statusText}</p>
+                        <pre>${await response.text()}</pre>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <h3>Network Error</h3>
+                    <p>${error.message}</p>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
