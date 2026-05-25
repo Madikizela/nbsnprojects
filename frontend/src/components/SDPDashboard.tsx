@@ -122,17 +122,10 @@ const SDPDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sdps, setSdps] = useState<any[]>([]);
-  const [filteredSdps, setFilteredSdps] = useState<any[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users'>('overview');
-  const [selectedSdp, setSelectedSdp] = useState<any | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Side panel and project states
-  const [showSidePanel, setShowSidePanel] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(false);
   const [departments, setDepartments] = useState<Department[]>([]);
@@ -264,7 +257,6 @@ const SDPDashboard: React.FC = () => {
       console.log('SDPDashboard: fetchSDPData check:', { sdpId, user });
 
       if (sdpId) {
-        setDataLoading(true);
         setProjectsLoading(true);
         setDepartmentsLoading(true);
         
@@ -322,7 +314,6 @@ const SDPDashboard: React.FC = () => {
           setDepartments([]);
           setUsers([]);
         } finally {
-          setDataLoading(false);
           setProjectsLoading(false);
           setDepartmentsLoading(false);
           setUsersLoading(false);
@@ -393,25 +384,6 @@ const SDPDashboard: React.FC = () => {
     }
   }, [activeSection, user?.skillsDevelopmentProviderId]);
 
-  // Filter SDPs based on search and status
-  useEffect(() => {
-    let filtered = sdps;
-
-    if (searchTerm) {
-      filtered = filtered.filter((sdp: any) =>
-        sdp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (sdp.contactPerson && sdp.contactPerson.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (sdp.description && sdp.description.toLowerCase().includes(searchTerm.toLowerCase()))
-      );
-    }
-
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(sdp => sdp.status.toString() === statusFilter);
-    }
-
-    setFilteredSdps(filtered);
-  }, [sdps, searchTerm, statusFilter]);
-
   // Handle province selection
   useEffect(() => {
     if (selectedProvince) {
@@ -432,78 +404,12 @@ const SDPDashboard: React.FC = () => {
     }
   }, [selectedDistrict, availableDistricts]);
 
-  // Fetch projects when SDP is selected
-  useEffect(() => {
-    const fetchProjects = async () => {
-      if (selectedSdp?.id) {
-        setProjectsLoading(true);
-        try {
-          const token = localStorage.getItem('token');
-          const response = await fetch(`/api/sdp/projects`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            setProjects(data.projects || []);
-          } else {
-            console.error('Failed to fetch projects');
-            setProjects([]);
-          }
-        } catch (error) {
-          console.error('Error fetching projects:', error);
-          setProjects([]);
-        } finally {
-          setProjectsLoading(false);
-        }
-      }
-    };
-
-    fetchProjects();
-  }, [selectedSdp?.id]);
-
-  // Fetch departments when SDP is selected
-  useEffect(() => {
-    const fetchDepartments = async () => {
-      if (selectedSdp?.id) {
-        setDepartmentsLoading(true);
-        try {
-          const token = localStorage.getItem('token');
-          // Match backend route: GET api/Departments/BySDP/{sdpId}
-          const response = await fetch(`/api/Departments/BySDP/${selectedSdp.id}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            setDepartments(data);
-          } else {
-            console.error('Failed to fetch departments');
-            setDepartments([]);
-          }
-        } catch (error) {
-          console.error('Error fetching departments:', error);
-          setDepartments([]);
-        } finally {
-          setDepartmentsLoading(false);
-        }
-      }
-    };
-
-    fetchDepartments();
-  }, [selectedSdp?.id]);
-
   // Handle adding new department
   const handleAddDepartment = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Try to get SDP ID from multiple sources
-    const sdpId = selectedSdp?.id ?? 
-                  user?.skillsDevelopmentProviderId ?? 
+    const sdpId = user?.skillsDevelopmentProviderId ?? 
                   (user as any)?.SkillsDevelopmentProviderId ?? 
                   (user as any)?.sdpId ?? 
                   (user as any)?.SDPId ??
@@ -525,7 +431,6 @@ const SDPDashboard: React.FC = () => {
       console.warn('Validation failed. Context:', {
         sdpId,
         user,
-        selectedSdp,
         formData: departmentFormData
       });
       return;
@@ -1661,8 +1566,8 @@ const SDPDashboard: React.FC = () => {
             // Refresh projects list
             window.location.reload();
           }}
-          skillsDevelopmentProviderId={selectedSdp?.id || user?.skillsDevelopmentProviderId || 0}
-          clientId={selectedSdp?.clientId || user?.clientId || 0}
+          skillsDevelopmentProviderId={user?.skillsDevelopmentProviderId || 0}
+          clientId={user?.clientId || 0}
         />
       </div>
     </div>
