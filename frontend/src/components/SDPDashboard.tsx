@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { southAfricaData, type District, type Municipality } from '../data/southAfricaData';
-import ProjectForm from './ProjectForm';
-import nbsnLogo from '../assets/nbsn-logo.png';
 
 interface SkillsDevelopmentProvider {
   id: number;
@@ -141,11 +139,7 @@ const SDPDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [sdps, setSdps] = useState<SkillsDevelopmentProvider[]>([]);
-  const [filteredSdps, setFilteredSdps] = useState<SkillsDevelopmentProvider[]>([]);
-  const [dataLoading, setDataLoading] = useState(false);
   const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users'>('overview');
-  const [selectedSdp, setSelectedSdp] = useState<SkillsDevelopmentProvider | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isSubmitting, setIsSubmitting] = useState(false);

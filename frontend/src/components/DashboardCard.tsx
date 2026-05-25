@@ -1,4 +1,4 @@
-import React, { ReactNode, CSSProperties } from 'react';
+import React, { type ReactNode, type CSSProperties } from 'react';
 import theme from '../styles/theme';
 
 interface DashboardCardProps {
@@ -100,14 +100,6 @@ export const StatCard: React.FC<StatCardProps> = ({
   subtitle,
   trend
 }) => {
-  const colorMap = {
-    primary: theme.primary,
-    success: theme.success,
-    warning: theme.warning,
-    danger: theme.danger,
-    info: theme.info
-  };
-
   const bgColorMap = {
     primary: theme.primaryLight + '20',
     success: theme.successLight,

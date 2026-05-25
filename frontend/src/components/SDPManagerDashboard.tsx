@@ -549,7 +549,6 @@ const SDPManagerDashboard: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'reports' | 'team' | 'tasks' | 'attendanceTracking' | 'documentApprovals' | 'sickNotes' | 'marking' | 'moderation' | 'assessmentPlan' | 'candidatePreparation' | 'assessorReport' | 'systemLogs' | 'allUsers'>((location.state as any)?.section || 'overview');
-  const [dataLoading, setDataLoading] = useState(false);
   const [expandedProjects, setExpandedProjects] = useState<{[key: number]: boolean}>({});
   const [projectDetails, setProjectDetails] = useState<{[key: number]: any}>({});
   const [competencyReport, setCompetencyReport] = useState<CompetencyReport | null>(null);
