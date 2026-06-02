@@ -73,19 +73,6 @@ interface User {
   userType?: string;
 }
 
-interface SDPFormData {
-  sdpName: string;
-  registrationNumber: string;
-  businessDescription: string;
-  accreditationNumber: string;
-  beneficiaries: string;
-  physicalAddress: string;
-  emailAddress: string;
-  phoneNumber: string;
-  contactPerson: string;
-  website: string;
-}
-
 interface BudgetLineItem {
   id: string;
   category: string;
@@ -182,13 +169,6 @@ const SDPDashboard: React.FC = () => {
   const [numberOfPhases, setNumberOfPhases] = useState(1);
   const [activePhase, setActivePhase] = useState<string>('');
   const [phaseSetupComplete, setPhaseSetupComplete] = useState(false);
-  const [newPhase, setNewPhase] = useState({
-    name: '',
-    description: '',
-    allocatedBudget: 0,
-    startDate: '',
-    endDate: ''
-  });
 
   // Per-learner cost settings (per phase)
   const [perLearnerCosts, setPerLearnerCosts] = useState({
@@ -198,26 +178,8 @@ const SDPDashboard: React.FC = () => {
     consumablesCost: 0
   });
 
-  // Form state
-  const [sdpFormData, setSdpFormData] = useState<SDPFormData>({
-    sdpName: '',
-    registrationNumber: '',
-    businessDescription: '',
-    accreditationNumber: '',
-    beneficiaries: '',
-    physicalAddress: '',
-    emailAddress: '',
-    phoneNumber: '',
-    contactPerson: '',
-    website: ''
-  });
-
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [selectedProvince, setSelectedProvince] = useState('');
-  const [selectedDistrict, setSelectedDistrict] = useState('');
-  const [selectedMunicipality, setSelectedMunicipality] = useState('');
   const [availableDistricts, setAvailableDistricts] = useState<District[]>([]);
-  const [availableMunicipalities, setAvailableMunicipalities] = useState<Municipality[]>([]);
+  const [selectedDistrict, setSelectedDistrict] = useState('');
 
   // Initialize user data
   useEffect(() => {
@@ -384,23 +346,14 @@ const SDPDashboard: React.FC = () => {
     }
   }, [activeSection, user?.skillsDevelopmentProviderId]);
 
-  // Handle province selection
-  useEffect(() => {
-    if (selectedProvince) {
-      const province = southAfricaData.find(p => p.id.toString() === selectedProvince);
-      setAvailableDistricts(province?.districts || []);
-      setSelectedDistrict('');
-      setSelectedMunicipality('');
-      setAvailableMunicipalities([]);
-    }
-  }, [selectedProvince]);
-
   // Handle district selection
   useEffect(() => {
     if (selectedDistrict) {
       const district = availableDistricts.find(d => d.id.toString() === selectedDistrict);
-      setAvailableMunicipalities(district?.municipalities || []);
-      setSelectedMunicipality('');
+      if (district) {
+        // Just for reference if needed
+        console.log('District selected:', district.name);
+      }
     }
   }, [selectedDistrict, availableDistricts]);
 
@@ -1723,10 +1676,6 @@ const SDPDashboard: React.FC = () => {
 
     const learnerCount = selectedProject.numberOfBeneficiaries;
     const newTotalForThisCategory = newCostPerLearner * learnerCount;
-
-    // For phase-based budgets, validate against total project budget
-    const currentTotalAllocated = projectBudget.phases.reduce((sum: number, phase: ProjectPhase) => 
-      sum + phase.lineItems.reduce((phaseSum: number, item: BudgetLineItem) => phaseSum + item.allocatedAmount, 0), 0);
 
     // Calculate what the new total would be across all phases
     const estimatedNewTotal = (projectFormData.stipendAmount || 0) * learnerCount * 4 + newTotalForThisCategory;
