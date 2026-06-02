@@ -8,6 +8,7 @@ import {
 } from './CustomIcons';
 import ForgotPassword from './ForgotPassword';
 import { encryptData } from '../utils/encryption';
+import { apiCall } from '../utils/api';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -76,11 +77,8 @@ const Login: React.FC = () => {
       // Build encrypted payload
       const encryptedPayload = encryptData({ Email: email, Password: password });
 
-      const response = await fetch('/api/auth/login', {
+      const response = await apiCall('/api/auth/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ email, password, encryptedLoginData: encryptedPayload }),
       });
 
@@ -503,3 +501,4 @@ const Login: React.FC = () => {
 };
 
 export default Login;
+
