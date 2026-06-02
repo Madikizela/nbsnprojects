@@ -12,6 +12,11 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 5174,
       strictPort: true,
+      allowedHosts: [
+        'renewed-spirit-production.up.railway.app',
+        'localhost',
+        '127.0.0.1',
+      ],
       proxy: {
         '/api': {
           target: 'http://127.0.0.1:5213',
@@ -22,3 +27,4 @@ export default defineConfig(({ mode }) => {
     },
   }
 })
+
