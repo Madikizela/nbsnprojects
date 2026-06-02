@@ -51,7 +51,7 @@ builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
     
     // Check for environment variables to override connection string
     var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
-    var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "3306";
+    var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
     var dbName = Environment.GetEnvironmentVariable("DB_NAME");
     var dbUser = Environment.GetEnvironmentVariable("DB_USER");
     var dbPass = Environment.GetEnvironmentVariable("DB_PASS");
@@ -61,7 +61,7 @@ builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
         connectionString = $"Server={dbHost};Port={dbPort};Database={dbName};User={dbUser};Password={dbPass}";
     }
 
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mysqlOptions =>
+    options.UseNpgsql(connectionString, mysqlOptions =>
        {
            mysqlOptions.EnableRetryOnFailure(
                maxRetryCount: 3,
