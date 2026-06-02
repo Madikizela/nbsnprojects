@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { EmailIcon, CheckCircleIcon, ExclamationCircleIcon } from './CustomIcons';
+import { apiCall } from '../utils/api';
 
 interface ForgotPasswordProps {
   onBackToLogin: () => void;
@@ -47,11 +48,8 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onBackToLogin }) => {
 
     try {
       console.log('ForgotPassword: Sending request for email:', email);
-      const response = await fetch('/api/auth/forgot-password', {
+      const response = await apiCall('/api/auth/forgot-password', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ email }),
       });
 
@@ -295,3 +293,4 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onBackToLogin }) => {
 };
 
 export default ForgotPassword;
+
