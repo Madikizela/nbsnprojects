@@ -58,15 +58,15 @@ builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
 
     if (!string.IsNullOrEmpty(dbHost) && !string.IsNullOrEmpty(dbName))
     {
-        connectionString = $"Server={dbHost};Port={dbPort};Database={dbName};User={dbUser};Password={dbPass}";
+        connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass}";
     }
 
-    options.UseNpgsql(connectionString, mysqlOptions =>
+    options.UseNpgsql(connectionString, npgsqlOptions =>
        {
-           mysqlOptions.EnableRetryOnFailure(
+           npgsqlOptions.EnableRetryOnFailure(
                maxRetryCount: 3,
                maxRetryDelay: TimeSpan.FromSeconds(5),
-               errorNumbersToAdd: null);
+               errorCodesToAdd: null);
        });
     options.EnableSensitiveDataLogging(true);
     options.EnableDetailedErrors(true);
