@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import SignatureCanvas from 'react-signature-canvas';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
+  PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
 
 interface User {
@@ -716,17 +716,17 @@ const SDPManagerDashboard: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
+  // const [departments, setDepartments] = useState<Department[]>([]);
   const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'reports' | 'team' | 'tasks' | 'attendanceTracking' | 'documentApprovals' | 'sickNotes' | 'marking' | 'moderation' | 'assessmentPlan' | 'candidatePreparation' | 'assessorReport' | 'systemLogs' | 'allUsers'>((location.state as any)?.section || 'overview');
   const [expandedProjects, setExpandedProjects] = useState<{[key: number]: boolean}>({});
   const [projectDetails, setProjectDetails] = useState<{[key: number]: any}>({});
   const [competencyReport, setCompetencyReport] = useState<CompetencyReport | null>(null);
-  const [fetchingReport, setFetchingReport] = useState(false);
+  // const [fetchingReport, setFetchingReport] = useState(false);
 
   // Sick Note state
   const [sickNotes, setSickNotes] = useState<SickNoteResponse[]>([]);
   const [sickNotesLoading, setSickNotesLoading] = useState(false);
-  const [showSickNoteModal, setShowSickNoteModal] = useState(false);
+  // const [showSickNoteModal, setShowSickNoteModal] = useState(false);
   const [selectedSickNote, setSelectedSickNote] = useState<SickNoteResponse | null>(null);
   const [showSickNoteDeclineModal, setShowSickNoteDeclineModal] = useState(false);
   const [sickNoteDeclineReason, setSickNoteDeclineReason] = useState('');
@@ -4739,7 +4739,7 @@ const SDPManagerDashboard: React.FC = () => {
                   <p className="mb-0 opacity-75">Loading...</p>
                 ) : attendanceProjects.length > 0 ? (
                   <div className="text-start">
-                    {attendanceProjects.map((project, index) => (
+                    {attendanceProjects.map((project, _index) => (
                       <div key={project.projectId} className="mb-1">
                         <small className="opacity-75">
                           {project.projectName.length > 15 ? 
