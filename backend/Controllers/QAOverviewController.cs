@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
-using Npgsql;
+using MySqlConnector;
 
 namespace backend.Controllers
 {
@@ -24,47 +24,47 @@ namespace backend.Controllers
                 // Use raw SQL queries to get counts from all tables
                 var connectionString = _context.Database.GetConnectionString();
                 
-                using var connection = new NpgsqlConnection(connectionString);
+                using var connection = new MySqlConnection(connectionString);
                 await connection.OpenAsync();
 
                 // Get total qualifications in system
-                var legacyQualificationsCmd = new NpgsqlCommand("SELECT COUNT(*) FROM legacy_qualifications", connection);
+                var legacyQualificationsCmd = new MySqlCommand("SELECT COUNT(*) FROM legacy_qualifications", connection);
                 var legacyQualifications = Convert.ToInt32(await legacyQualificationsCmd.ExecuteScalarAsync());
 
-                var occupationalQualificationsCmd = new NpgsqlCommand("SELECT COUNT(*) FROM occupational_qualifications", connection);
+                var occupationalQualificationsCmd = new MySqlCommand("SELECT COUNT(*) FROM occupational_qualifications", connection);
                 var occupationalQualifications = Convert.ToInt32(await occupationalQualificationsCmd.ExecuteScalarAsync());
                 
                 var totalQualifications = legacyQualifications + occupationalQualifications;
 
                 // Get total unit standards in system
-                var legacyUnitStandardsCmd = new NpgsqlCommand("SELECT COUNT(*) FROM legacy_unit_standards", connection);
+                var legacyUnitStandardsCmd = new MySqlCommand("SELECT COUNT(*) FROM legacy_unit_standards", connection);
                 var legacyUnitStandards = Convert.ToInt32(await legacyUnitStandardsCmd.ExecuteScalarAsync());
 
-                var occupationalUnitStandardsCmd = new NpgsqlCommand("SELECT COUNT(*) FROM occupational_unit_standards", connection);
+                var occupationalUnitStandardsCmd = new MySqlCommand("SELECT COUNT(*) FROM occupational_unit_standards", connection);
                 var occupationalUnitStandards = Convert.ToInt32(await occupationalUnitStandardsCmd.ExecuteScalarAsync());
                 
                 var totalUnitStandards = legacyUnitStandards + occupationalUnitStandards;
 
                 // Get assessment questions
-                var formativeQuestionsCmd = new NpgsqlCommand("SELECT COUNT(*) FROM `FormativeAssessmentQuestions`", connection);
+                var formativeQuestionsCmd = new MySqlCommand("SELECT COUNT(*) FROM FormativeAssessmentQuestions", connection);
                 var formativeQuestions = Convert.ToInt32(await formativeQuestionsCmd.ExecuteScalarAsync());
 
-                var summativeQuestionsCmd = new NpgsqlCommand("SELECT COUNT(*) FROM `SummativeAssessmentQuestions`", connection);
+                var summativeQuestionsCmd = new MySqlCommand("SELECT COUNT(*) FROM SummativeAssessmentQuestions", connection);
                 var summativeQuestions = Convert.ToInt32(await summativeQuestionsCmd.ExecuteScalarAsync());
                 
                 var totalQuestions = formativeQuestions + summativeQuestions;
 
                 // Get assessments
-                var formativeAssessmentsCmd = new NpgsqlCommand("SELECT COUNT(*) FROM `FormativeAssessments`", connection);
+                var formativeAssessmentsCmd = new MySqlCommand("SELECT COUNT(*) FROM FormativeAssessments", connection);
                 var formativeAssessments = Convert.ToInt32(await formativeAssessmentsCmd.ExecuteScalarAsync());
 
-                var summativeAssessmentsCmd = new NpgsqlCommand("SELECT COUNT(*) FROM `SummativeAssessments`", connection);
+                var summativeAssessmentsCmd = new MySqlCommand("SELECT COUNT(*) FROM SummativeAssessments", connection);
                 var summativeAssessments = Convert.ToInt32(await summativeAssessmentsCmd.ExecuteScalarAsync());
                 
                 var totalAssessments = formativeAssessments + summativeAssessments;
 
                 // Get active projects with qualifications
-                var activeProjectsCmd = new NpgsqlCommand(@"
+                var activeProjectsCmd = new MySqlCommand(@"
                     SELECT COUNT(DISTINCT p.Id) 
                     FROM Projects p
                     INNER JOIN ProjectLearningPathways plp ON p.Id = plp.ProjectId
@@ -73,10 +73,10 @@ namespace backend.Controllers
                 var activeProjectsWithQualifications = Convert.ToInt32(await activeProjectsCmd.ExecuteScalarAsync());
 
                 // Get project qualifications and unit standards
-                var projectQualificationsCmd = new NpgsqlCommand("SELECT COUNT(*) FROM ProjectQualifications", connection);
+                var projectQualificationsCmd = new MySqlCommand("SELECT COUNT(*) FROM ProjectQualifications", connection);
                 var projectQualifications = Convert.ToInt32(await projectQualificationsCmd.ExecuteScalarAsync());
 
-                var projectUnitStandardsCmd = new NpgsqlCommand("SELECT COUNT(*) FROM ProjectQualificationUnitStandards", connection);
+                var projectUnitStandardsCmd = new MySqlCommand("SELECT COUNT(*) FROM ProjectQualificationUnitStandards", connection);
                 var projectUnitStandards = Convert.ToInt32(await projectUnitStandardsCmd.ExecuteScalarAsync());
 
                 var metrics = new QAOverviewMetrics
@@ -113,7 +113,7 @@ namespace backend.Controllers
             {
                 var connectionString = _context.Database.GetConnectionString();
                 
-                using var connection = new NpgsqlConnection(connectionString);
+                using var connection = new MySqlConnection(connectionString);
                 await connection.OpenAsync();
 
                 // Get unit standard assessment breakdown for project unit standards
@@ -137,7 +137,7 @@ namespace backend.Controllers
                     ORDER BY lus.unit_standard_name
                 ";
 
-                var cmd = new NpgsqlCommand(query, connection);
+                var cmd = new MySqlCommand(query, connection);
                 var reader = await cmd.ExecuteReaderAsync();
 
                 var breakdown = new List<UnitStandardAssessmentBreakdown>();
