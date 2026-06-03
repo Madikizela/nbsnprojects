@@ -34,31 +34,35 @@ namespace backend.Controllers
         {
             try
             {
-                var userId = GetCurrentUserId();
-                if (!userId.HasValue)
+                var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                _logger.LogInformation($"DEBUG: GetSDPProjects called. User ID from token: {userIdStr}");
+                
+                if (string.IsNullOrEmpty(userIdStr) || !int.TryParse(userIdStr, out int userId))
                 {
-                    return Unauthorized("User ID not found in token");
+                    return Unauthorized(new { message = "Invalid user ID in token" });
                 }
 
                 // Get user's SDP ID
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId.Value);
-                var sdpId = user?.SkillsDevelopmentProviderId;
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == userId);
+                _logger.LogInformation($"DEBUG: User found: {user?.Email}, SDP ID from DB: {user?.SkillsDevelopmentProviderId}");
                 
-                if (!sdpId.HasValue)
+                if (user == null || !user.SkillsDevelopmentProviderId.HasValue)
                 {
                     return Ok(new { message = "User is not associated with any SDP", projects = new List<object>() });
                 }
 
-                // Get all projects for this SDP
+                var sdpId = user.SkillsDevelopmentProviderId.Value;
+                _logger.LogInformation($"DEBUG: Fetching projects for SDP ID: {sdpId}");
+
                 var projects = await _context.Projects
-                    .Where(p => p.SkillsDevelopmentProviderId == sdpId.Value)
-                    .Include(p => p.Client)
-                    .Include(p => p.SkillsDevelopmentProvider)
+                    .Where(p => p.SkillsDevelopmentProviderId == sdpId)
                     .ToListAsync();
+                
+                _logger.LogInformation($"DEBUG: Found {projects.Count} projects");
 
                 return Ok(new { 
                     message = "SDP Projects Retrieved Successfully", 
-                    sdpId = sdpId.Value,
+                    sdpId = sdpId,
                     projectCount = projects.Count,
                     projects = projects
                 });

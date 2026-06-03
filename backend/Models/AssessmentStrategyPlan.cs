@@ -51,6 +51,9 @@ namespace backend.Models
         [Column("AssessorSignature")]
         public string? AssessorSignature { get; set; }
 
+        [Column("AssessorInitials")]
+        public string? AssessorInitials { get; set; }
+
         [Column("ModeratorName")]
         public string? ModeratorName { get; set; }
 
@@ -59,6 +62,9 @@ namespace backend.Models
 
         [Column("ModeratorSignature")]
         public string? ModeratorSignature { get; set; }
+
+        [Column("ModeratorInitials")]
+        public string? ModeratorInitials { get; set; }
 
         // Candidate Preparation Fields
         [Column("PrepDate")]

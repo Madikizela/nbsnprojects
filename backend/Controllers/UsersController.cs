@@ -134,6 +134,42 @@ namespace backend.Controllers
             return NoContent();
         }
 
+        // PUT: api/Users/Profile/5
+        [HttpPut("Profile/{id}")]
+        public async Task<IActionResult> UpdateProfile(int id, [FromBody] dynamic profileUpdate)
+        {
+            try
+            {
+                string profileJson = profileUpdate.ToString();
+                Console.WriteLine($"UpdateProfile called for user {id}. Data: {profileJson}");
+                
+                var user = await _context.Users.FindAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new { message = "User not found" });
+                }
+
+                // Extract fields manually from dynamic to avoid validation issues
+                var data = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(profileJson);
+                
+                if (data.TryGetProperty("firstName", out var firstName)) user.FirstName = firstName.GetString() ?? user.FirstName;
+                if (data.TryGetProperty("lastName", out var lastName)) user.LastName = lastName.GetString() ?? user.LastName;
+                if (data.TryGetProperty("practiceNumber", out var practiceNumber)) user.PracticeNumber = practiceNumber.GetString();
+                if (data.TryGetProperty("initials", out var initials)) user.Initials = initials.GetString();
+                if (data.TryGetProperty("signature", out var signature)) user.Signature = signature.GetString();
+                
+                user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+
+                await _context.SaveChangesAsync();
+                return Ok(user);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error updating profile: {ex.Message}");
+                return StatusCode(500, new { message = "Error updating profile", error = ex.Message });
+            }
+        }
+
         // POST: api/Users
         [HttpPost]
         public async Task<ActionResult<User>> PostUser(User user)

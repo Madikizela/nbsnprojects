@@ -164,6 +164,31 @@ namespace backend.Controllers
                 }
             ).ToListAsync();
 
+            // 3) Progress status
+            var projectUnitStandardIds = await _context.ProjectQualificationUnitStandards
+                .AsNoTracking()
+                .Where(pqus => _context.ProjectQualifications
+                    .Any(pq => pq.Id == pqus.ProjectQualificationId &&
+                               _context.ProjectLearningPathways
+                                   .Any(plp => plp.Id == pq.ProjectLearningPathwayId &&
+                                              plp.ProjectId == projectId)))
+                .Select(pqus => pqus.Id)
+                .ToListAsync();
+
+            var totalUSInProject = projectUnitStandardIds.Count;
+
+            var progressStats = await _context.LearnerAssessmentProgress
+                .AsNoTracking()
+                .Where(p => projectUnitStandardIds.Contains(p.ProjectQualificationUnitStandardId))
+                .GroupBy(p => p.LearnerId)
+                .Select(g => new
+                {
+                    LearnerId = g.Key,
+                    CompletedUS = g.Count(p => p.FormativeCompleted && p.SummativeCompleted),
+                    StartedUS = g.Count(p => p.FormativeCompleted || p.SummativeCompleted)
+                })
+                .ToDictionaryAsync(x => x.LearnerId);
+
             var allLearners = enrolledLearners
                 .Select(x => new
                 {
@@ -184,15 +209,27 @@ namespace backend.Controllers
                     uploadCount = x.uploadCount
                 }))
                 .GroupBy(x => x.learnerId)
-                .Select(g => new
+                .Select(g => 
                 {
-                    learnerId = g.Key,
-                    firstName = g.First().firstName,
-                    lastName = g.First().lastName,
-                    idNumber = g.First().idNumber,
-                    classCount = g.Max(x => x.classCount),
-                    uploadCount = g.Max(x => x.uploadCount),
-                    hasUploads = g.Max(x => x.uploadCount) > 0
+                    var learnerId = g.Key;
+                    var completed = progressStats.ContainsKey(learnerId) ? progressStats[learnerId].CompletedUS : 0;
+                    var started = progressStats.ContainsKey(learnerId) ? progressStats[learnerId].StartedUS : 0;
+                    
+                    return new
+                    {
+                        learnerId = learnerId,
+                        firstName = g.First().firstName,
+                        lastName = g.First().lastName,
+                        idNumber = g.First().idNumber,
+                        classCount = g.Max(x => x.classCount),
+                        uploadCount = g.Max(x => x.uploadCount),
+                        hasUploads = g.Max(x => x.uploadCount) > 0,
+                        totalUnitStandards = totalUSInProject,
+                        completedUnitStandards = completed,
+                        startedUnitStandards = started,
+                        isMarkingComplete = totalUSInProject > 0 && completed >= totalUSInProject,
+                        isMarkingStarted = started > 0
+                    };
                 })
                 .OrderByDescending(x => x.hasUploads)
                 .ThenByDescending(x => x.uploadCount)

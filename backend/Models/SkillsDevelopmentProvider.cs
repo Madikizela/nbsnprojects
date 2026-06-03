@@ -18,9 +18,11 @@ namespace backend.Models
         [StringLength(200)]
         public string? Address { get; set; }
 
-        // AccreditationNumber temporarily commented out due to missing column in database
-        // [StringLength(50)]
-        // public string? AccreditationNumber { get; set; }
+        [Column("AccreditationNumber")]
+        public string? AccreditationNumber { get; set; }
+
+        [Column("AccreditationExpiryDate")]
+        public DateTime? AccreditationExpiryDate { get; set; }
 
         // ContactEmail property temporarily removed due to missing column in database
         // [Required]

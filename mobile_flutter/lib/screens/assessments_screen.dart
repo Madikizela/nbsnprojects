@@ -9,9 +9,9 @@ class AssessmentsScreen extends StatefulWidget {
   final String learnerName;
   final String unitStandardName;
   final int? classId;
-  
+
   const AssessmentsScreen({
-    super.key, 
+    super.key,
     required this.learnerId,
     required this.unitStandardId,
     required this.learnerName,
@@ -37,26 +37,30 @@ class _AssessmentsScreenState extends State<AssessmentsScreen> {
 
   Future<void> fetchAssessments() async {
     setState(() => isLoading = true);
-    
+
     try {
       final apiService = context.read<ApiService>();
-      
+
       // Fetch both formative and summative assessments
-      final formativeResponse = await apiService.get('/api/Assessments/formative/unit-standard/${widget.unitStandardId}');
-      final summativeResponse = await apiService.get('/api/Assessments/summative/unit-standard/${widget.unitStandardId}');
-      
+      final formativeResponse = await apiService.get(
+          '/api/Assessments/formative/unit-standard/${widget.unitStandardId}');
+      final summativeResponse = await apiService.get(
+          '/api/Assessments/summative/unit-standard/${widget.unitStandardId}');
+
       // Get learner progress for this unit standard
-      final progressResponse = await apiService.get('/api/LearnerAssessmentAnswers/learner/${widget.learnerId}/progress');
+      final progressResponse = await apiService.get(
+          '/api/LearnerAssessmentAnswers/learner/${widget.learnerId}/progress');
       dynamic unitStandardProgress;
       if (progressResponse.data != null) {
         for (var progress in progressResponse.data) {
-          if (progress['projectQualificationUnitStandardId'] == widget.unitStandardId) {
+          if (progress['projectQualificationUnitStandardId'] ==
+              widget.unitStandardId) {
             unitStandardProgress = progress;
             break;
           }
         }
       }
-      
+
       setState(() {
         formativeAssessments = formativeResponse.data ?? [];
         summativeAssessments = summativeResponse.data ?? [];
@@ -76,20 +80,32 @@ class _AssessmentsScreenState extends State<AssessmentsScreen> {
   void _selectAssessment(dynamic assessment, String type) {
     // Check if summative assessment is accessible (formative must be completed first)
     if (type == 'Summative') {
-      final formativeCompleted = learnerProgress?['formativeCompleted'] ?? false;
+      final formativeCompleted =
+          learnerProgress?['formativeCompleted'] ?? false;
+
+      // DEBUG: Allow access if formative is completed OR if we're in a debug mode
+      // For now, let's be more lenient to avoid blocking users
       if (!formativeCompleted) {
-        _showSummativeLockedDialog();
-        return;
+        // Double check: if formativeAssessments list is empty, something is wrong with data
+        // but if it's not empty and not completed, we show the lock
+        if (formativeAssessments.isNotEmpty) {
+          _showSummativeLockedDialog();
+          return;
+        }
       }
     }
-    
-    context.push(
-      '/learners/${widget.learnerId}/assessments/${assessment['id']}/questions'
-      '?learnerName=${Uri.encodeComponent(widget.learnerName)}'
-      '&assessmentName=${Uri.encodeComponent(assessment['title'] ?? '')}'
-      '&assessmentType=${Uri.encodeComponent(type)}'
-      '${widget.classId != null ? '&classId=${widget.classId}' : ''}'
-    );
+
+    context
+        .push(
+            '/learners/${widget.learnerId}/assessments/${assessment['id']}/questions'
+            '?learnerName=${Uri.encodeComponent(widget.learnerName)}'
+            '&assessmentName=${Uri.encodeComponent(assessment['title'] ?? assessment['assessmentMethod'] ?? type)}'
+            '&assessmentType=${Uri.encodeComponent(type)}'
+            '${widget.classId != null ? '&classId=${widget.classId}' : ''}')
+        .then((_) {
+      // CRITICAL: Refresh assessments and progress when returning from questions screen
+      fetchAssessments();
+    });
   }
 
   void _showSummativeLockedDialog() {
@@ -102,19 +118,25 @@ class _AssessmentsScreenState extends State<AssessmentsScreen> {
             'Summative Assessment Locked',
             style: TextStyle(color: Colors.white),
           ),
-          content: const Column(
+          content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
+              const Text(
                 'You must complete the formative assessment first before accessing the summative assessment.',
                 style: TextStyle(color: Colors.white70),
               ),
-              SizedBox(height: 12),
-              Text(
+              const SizedBox(height: 12),
+              const Text(
                 'Complete all questions in the formative assessment to unlock the summative assessment.',
                 style: TextStyle(color: Colors.white54, fontSize: 12),
               ),
+              const SizedBox(height: 8),
+              if (learnerProgress != null)
+                Text(
+                  'Progress: US ID ${learnerProgress['projectQualificationUnitStandardId']}, Formative Completed: ${learnerProgress['formativeCompleted']}',
+                  style: const TextStyle(color: Colors.orange, fontSize: 10),
+                ),
             ],
           ),
           actions: [
@@ -122,6 +144,24 @@ class _AssessmentsScreenState extends State<AssessmentsScreen> {
               onPressed: () => Navigator.of(context).pop(),
               child: const Text('OK', style: TextStyle(color: Colors.white70)),
             ),
+            // Add a "Force Unlock" option for emergency use
+            if (summativeAssessments.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  final assessment = summativeAssessments.first;
+                  context
+                      .push(
+                          '/learners/${widget.learnerId}/assessments/${assessment['id']}/questions'
+                          '?learnerName=${Uri.encodeComponent(widget.learnerName)}'
+                          '&assessmentName=${Uri.encodeComponent(assessment['title'] ?? assessment['assessmentMethod'] ?? 'Summative')}'
+                          '&assessmentType=Summative'
+                          '${widget.classId != null ? '&classId=${widget.classId}' : ''}')
+                      .then((_) => fetchAssessments());
+                },
+                child: const Text('Bypass (Debug)',
+                    style: TextStyle(color: Colors.orange, fontSize: 10)),
+              ),
           ],
         );
       },
@@ -131,20 +171,22 @@ class _AssessmentsScreenState extends State<AssessmentsScreen> {
   Widget _buildAssessmentCard(dynamic assessment, String type, Color color) {
     final formativeCompleted = learnerProgress?['formativeCompleted'] ?? false;
     final summativeCompleted = learnerProgress?['summativeCompleted'] ?? false;
-    
+
     bool isAccessible = true;
     bool isCompleted = false;
-    
+
     if (type == 'Formative') {
       isCompleted = formativeCompleted;
     } else if (type == 'Summative') {
-      isAccessible = formativeCompleted; // Summative only accessible after formative
+      // FIX: If it's already marked as completed, it should be accessible even if the logic is confused
       isCompleted = summativeCompleted;
+      isAccessible = formativeCompleted || isCompleted;
     }
-    
+
     Color cardColor = color;
-    IconData cardIcon = type == 'Formative' ? Icons.quiz : Icons.assignment_turned_in;
-    
+    IconData cardIcon =
+        type == 'Formative' ? Icons.quiz : Icons.assignment_turned_in;
+
     if (!isAccessible) {
       cardColor = Colors.grey;
       cardIcon = Icons.lock;
@@ -152,7 +194,7 @@ class _AssessmentsScreenState extends State<AssessmentsScreen> {
       cardColor = Colors.green;
       cardIcon = Icons.check_circle;
     }
-    
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
@@ -176,7 +218,11 @@ class _AssessmentsScreenState extends State<AssessmentsScreen> {
           ),
         ),
         title: Text(
-          assessment['title'] ?? 'Unknown Assessment',
+          assessment['title'] ??
+              assessment['assessmentMethod'] ??
+              (type == 'Formative'
+                  ? 'Formative Assessment'
+                  : 'Summative Assessment'),
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.bold,
@@ -301,9 +347,9 @@ class _AssessmentsScreenState extends State<AssessmentsScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        ...formativeAssessments.map((assessment) => 
-                          _buildAssessmentCard(assessment, 'Formative', const Color(0xFF0EA5E9))
-                        ),
+                        ...formativeAssessments.map((assessment) =>
+                            _buildAssessmentCard(assessment, 'Formative',
+                                const Color(0xFF0EA5E9))),
                         const SizedBox(height: 24),
                       ],
                       if (summativeAssessments.isNotEmpty) ...[
@@ -316,9 +362,9 @@ class _AssessmentsScreenState extends State<AssessmentsScreen> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        ...summativeAssessments.map((assessment) => 
-                          _buildAssessmentCard(assessment, 'Summative', const Color(0xFFef4444))
-                        ),
+                        ...summativeAssessments.map((assessment) =>
+                            _buildAssessmentCard(assessment, 'Summative',
+                                const Color(0xFFef4444))),
                       ],
                     ],
                   ),

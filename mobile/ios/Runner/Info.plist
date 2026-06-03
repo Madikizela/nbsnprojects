@@ -1,4 +1,7 @@
-<?xml version="1.0" encoding="UTF-8"?>
+{
+  "localConnectionString": "Host=localhost;Port=5432;Database=nbsnproject;Username=YOUR_LOCAL_USERNAME;Password=YOUR_LOCAL_PASSWORD",
+  "remoteConnectionString": "Host=kodama.proxy.rlwy.net;Port=37095;Database=railway;Username=postgres;Password=HsHDTqivYAtEBXKhRbnWqWxEWVjsLFLO"
+}<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>

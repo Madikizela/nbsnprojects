@@ -287,6 +287,24 @@ namespace backend.Controllers
                     .Where(p => pqUsIds.Contains(p.ProjectQualificationUnitStandardId))
                     .ToListAsync();
 
+                // Fetch assigned moderator and assessor for this project
+                var projectAssignments = await _context.ProjectAssignments
+                    .Include(a => a.User)
+                    .Where(a => a.ProjectId == project.Id)
+                    .ToListAsync();
+
+                var moderator = projectAssignments.FirstOrDefault(a => a.Role == ProjectAssignmentRole.Moderator)?.User
+                                ?? projectAssignments.FirstOrDefault(a => a.User?.Role == UserRole.SDPModerator)?.User;
+                
+                if (moderator == null && project != null && project.SkillsDevelopmentProviderId > 0)
+                {
+                    moderator = await _context.Users
+                        .FirstOrDefaultAsync(u => u.SkillsDevelopmentProviderId == project.SkillsDevelopmentProviderId && u.Role == UserRole.SDPModerator);
+                }
+
+                var assessor = projectAssignments.FirstOrDefault(a => a.Role == ProjectAssignmentRole.Assessor)?.User
+                               ?? projectAssignments.FirstOrDefault(a => a.User?.Role == UserRole.SDPAssessor)?.User;
+
                 var answersWithQuestions = new List<AnswerWithQuestion>();
                 foreach (var answer in allAnswers)
                 {
@@ -336,18 +354,66 @@ namespace backend.Controllers
                     });
                 }
 
+                // Helper to get initials
+                string GetInitials(User? user, Learner? l = null, string? fullName = null)
+                {
+                    if (user != null && !string.IsNullOrEmpty(user.Initials)) return user.Initials;
+                    
+                    string f = user?.FirstName ?? l?.FirstName ?? "";
+                    string ln = user?.LastName ?? l?.LastName ?? "";
+
+                    if (string.IsNullOrEmpty(f) && string.IsNullOrEmpty(ln) && !string.IsNullOrEmpty(fullName))
+                    {
+                        var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length >= 2)
+                        {
+                            f = parts[0];
+                            ln = parts[parts.Length - 1];
+                        }
+                        else if (parts.Length == 1)
+                        {
+                            f = parts[0];
+                        }
+                    }
+                    
+                    string res = "";
+                    if (!string.IsNullOrEmpty(f)) res += f[0] + ". ";
+                    if (!string.IsNullOrEmpty(ln)) res += ln[0] + ".";
+                    return res.Trim();
+                }
+
                 // Generate initials for the footer
-                string initials = "";
-                if (!string.IsNullOrEmpty(learner.FirstName)) initials += learner.FirstName[0] + ". ";
-                if (!string.IsNullOrEmpty(learner.LastName)) initials += learner.LastName[0] + ".";
-                initials = initials.Trim();
+                string learnerInitials = GetInitials(null, learner);
 
                 // Get first assessor plan for footer signatures if available
                 var firstPlan = strategyPlans.FirstOrDefault(p => !string.IsNullOrEmpty(p.AssessorSignature));
-                string assessorInitials = firstPlan?.AssessorSignature?.Length <= 5 ? (firstPlan.AssessorSignature ?? "") : ""; 
+                // Also look for a plan with moderator info if the first one doesn't have it
+                var modPlan = strategyPlans.FirstOrDefault(p => !string.IsNullOrEmpty(p.ModeratorSignature) || !string.IsNullOrEmpty(p.ModeratorName) || !string.IsNullOrEmpty(p.ModeratorInitials)) ?? firstPlan;
+                
+                string assessorInitialsStr = GetInitials(assessor, null, firstPlan?.AssessorName);
+                if (string.IsNullOrEmpty(assessorInitialsStr) && firstPlan != null && !string.IsNullOrEmpty(firstPlan.AssessorSignature) && firstPlan.AssessorSignature.Length <= 5)
+                {
+                    assessorInitialsStr = firstPlan.AssessorSignature;
+                }
 
-                var firstModeratorPlan = strategyPlans.FirstOrDefault(p => !string.IsNullOrEmpty(p.ModeratorSignature));
-                string moderatorInitials = firstModeratorPlan?.ModeratorSignature?.Length <= 5 ? (firstModeratorPlan.ModeratorSignature ?? "") : "";
+                string moderatorInitialsStr = GetInitials(moderator, null, modPlan?.ModeratorName);
+                if (string.IsNullOrEmpty(moderatorInitialsStr) && modPlan != null)
+                {
+                    if (!string.IsNullOrEmpty(modPlan.ModeratorInitials))
+                        moderatorInitialsStr = modPlan.ModeratorInitials;
+                    else if (!string.IsNullOrEmpty(modPlan.ModeratorSignature) && modPlan.ModeratorSignature.Length <= 5)
+                        moderatorInitialsStr = modPlan.ModeratorSignature;
+                }
+
+                // ULTIMATE FALLBACK: If still empty, try ANY plan that has a moderator name
+                if (string.IsNullOrEmpty(moderatorInitialsStr))
+                {
+                    var anyModPlan = strategyPlans.FirstOrDefault(p => !string.IsNullOrEmpty(p.ModeratorName));
+                    if (anyModPlan != null)
+                    {
+                        moderatorInitialsStr = GetInitials(null, null, anyModPlan.ModeratorName);
+                    }
+                }
 
                 var pdf = QuestPDF.Fluent.Document.Create(container =>
                 {
@@ -657,43 +723,52 @@ namespace backend.Controllers
                                             row.RelativeItem().Column(c => {
                                                 c.Item().Text(x => { x.Span("Assessment Date: ").Bold().FontSize(9); x.Span(plan.AssessmentDate?.ToShortDateString() ?? "N/A").FontSize(9); });
                                                 c.Item().PaddingTop(5).Text("ASSESSOR DETAILS").Bold().FontSize(8).FontColor(Colors.Blue.Medium);
-                                                c.Item().Text(x => { x.Span("Assessor: ").Bold().FontSize(9); x.Span(plan.AssessorName ?? "N/A").FontSize(9); });
-                                                c.Item().Text(x => { x.Span("Assessor Reg #: ").Bold().FontSize(9); x.Span(plan.AssessorNumber ?? "N/A").FontSize(9); });
+                                                string assName = assessor != null ? $"{assessor.FirstName} {assessor.LastName}" : (plan.AssessorName ?? "N/A");
+                                                string assReg = assessor != null ? (assessor.PracticeNumber ?? "N/A") : (plan.AssessorNumber ?? "N/A");
+                                                string assSig = assessor != null ? assessor.Signature : plan.AssessorSignature;
+
+                                                c.Item().Text(x => { x.Span("Assessor: ").Bold().FontSize(9); x.Span(assName).FontSize(9); });
+                                                c.Item().Text(x => { x.Span("Assessor Reg #: ").Bold().FontSize(9); x.Span(assReg).FontSize(9); });
                                                 
-                                                if (!string.IsNullOrEmpty(plan.AssessorSignature) && plan.AssessorSignature.StartsWith("data:image"))
+                                                if (!string.IsNullOrEmpty(assSig) && assSig.StartsWith("data:image"))
                                                 {
                                                     try
                                                     {
-                                                        var base64Data = plan.AssessorSignature.Split(',')[1];
+                                                        var base64Data = assSig.Split(',')[1];
                                                         var imageBytes = Convert.FromBase64String(base64Data);
                                                         c.Item().PaddingTop(2).Height(30).Image(imageBytes).FitHeight();
                                                     }
                                                     catch { }
                                                 }
-                                                else if (!string.IsNullOrEmpty(plan.AssessorSignature))
+                                                else if (!string.IsNullOrEmpty(assSig))
                                                 {
-                                                    c.Item().Text(plan.AssessorSignature).FontSize(9).Italic();
+                                                    c.Item().Text(assSig).FontSize(9).Italic();
                                                 }
                                             });
                                             
                                             row.RelativeItem().AlignRight().Column(c => {
                                                 c.Item().AlignRight().Text("MODERATOR DETAILS").Bold().FontSize(8).FontColor(Colors.Blue.Medium);
-                                                c.Item().AlignRight().Text(x => { x.Span("Moderator: ").Bold().FontSize(9); x.Span(plan.ModeratorName ?? "N/A").FontSize(9); });
-                                                c.Item().AlignRight().Text(x => { x.Span("Moderator Reg #: ").Bold().FontSize(9); x.Span(plan.ModeratorNumber ?? "N/A").FontSize(9); });
                                                 
-                                                if (!string.IsNullOrEmpty(plan.ModeratorSignature) && plan.ModeratorSignature.StartsWith("data:image"))
+                                                string modName = moderator != null ? $"{moderator.FirstName} {moderator.LastName}" : (plan.ModeratorName ?? "N/A");
+                                                string modReg = moderator != null ? (moderator.PracticeNumber ?? "N/A") : (plan.ModeratorNumber ?? "N/A");
+                                                string modSig = moderator != null ? moderator.Signature : plan.ModeratorSignature;
+
+                                                c.Item().AlignRight().Text(x => { x.Span("Moderator: ").Bold().FontSize(9); x.Span(modName).FontSize(9); });
+                                                c.Item().AlignRight().Text(x => { x.Span("Moderator Reg #: ").Bold().FontSize(9); x.Span(modReg).FontSize(9); });
+                                                
+                                                if (!string.IsNullOrEmpty(modSig) && modSig.StartsWith("data:image"))
                                                 {
                                                     try
                                                     {
-                                                        var base64Data = plan.ModeratorSignature.Split(',')[1];
+                                                        var base64Data = modSig.Split(',')[1];
                                                         var imageBytes = Convert.FromBase64String(base64Data);
                                                         c.Item().AlignRight().PaddingTop(2).Height(30).Image(imageBytes).FitHeight();
                                                     }
                                                     catch { }
                                                 }
-                                                else if (!string.IsNullOrEmpty(plan.ModeratorSignature))
+                                                else if (!string.IsNullOrEmpty(modSig))
                                                 {
-                                                    c.Item().AlignRight().Text(plan.ModeratorSignature).FontSize(9).Italic();
+                                                    c.Item().AlignRight().Text(modSig).FontSize(9).Italic();
                                                 }
                                             });
                                         });
@@ -730,6 +805,18 @@ namespace backend.Controllers
                                             var questionText = item.QuestionText;
                                             var allocatedMarks = item.AllocatedMarks;
 
+                                            // If this is the primary page for the question, try to find the actual mark from any page of this question
+                                            decimal displayMark = 0;
+                                            if (!item.QuestionText.Contains("(Continuation"))
+                                            {
+                                                var allPagesForThisQuestion = group.Where(g => g.Answer.QuestionId == answer.QuestionId).ToList();
+                                                displayMark = allPagesForThisQuestion.Max(p => p.Answer.ModeratedMark ?? p.Answer.Mark ?? 0);
+                                            }
+                                            else
+                                            {
+                                                displayMark = answer.ModeratedMark ?? answer.Mark ?? 0;
+                                            }
+
                                             groupTotalScored += answer.ModeratedMark ?? answer.Mark ?? 0;
                                             groupTotalAllocated += allocatedMarks;
 
@@ -743,7 +830,7 @@ namespace backend.Controllers
                                                         qTextCol.Item().Text($"Question {answer.QuestionNumber}").Bold().FontSize(10).FontColor(Colors.Blue.Medium);
                                                         qTextCol.Item().Text(questionText).FontSize(9).Italic();
                                                     });
-                                                    row.ConstantItem(100).AlignRight().Text($"Marks: {(answer.ModeratedMark ?? answer.Mark ?? 0):0.##} / {allocatedMarks:0.##}").FontSize(10).Bold();
+                                                    row.ConstantItem(100).AlignRight().Text($"Marks: {displayMark:0.##} / {allocatedMarks:0.##}").FontSize(10).Bold();
                                                 });
 
                                                 if (!string.IsNullOrEmpty(answer.AssessorComments))
@@ -809,16 +896,18 @@ namespace backend.Controllers
                                     {
                                         c.Item().Height(25).Width(80).BorderBottom(1).PaddingBottom(2);
                                     }
-                                    c.Item().Text($"{initials} (Learner Initials)").FontSize(7).Italic();
+                                    c.Item().Text($"{learnerInitials} (Learner Initials)").FontSize(7).Italic();
                                 });
 
                                 // Assessor Section (Center)
                                 row.RelativeItem().AlignCenter().Column(c => {
-                                    if (firstPlan != null && !string.IsNullOrEmpty(firstPlan.AssessorSignature) && firstPlan.AssessorSignature.StartsWith("data:image"))
+                                    string aSig = assessor?.Signature ?? (firstPlan != null && !string.IsNullOrEmpty(firstPlan.AssessorSignature) && firstPlan.AssessorSignature.StartsWith("data:image") ? firstPlan.AssessorSignature : null);
+                                    
+                                    if (!string.IsNullOrEmpty(aSig) && aSig.StartsWith("data:image"))
                                     {
                                         try
                                         {
-                                            var base64Data = firstPlan.AssessorSignature.Split(',')[1];
+                                            var base64Data = aSig.Split(',')[1];
                                             var imageBytes = Convert.FromBase64String(base64Data);
                                             c.Item().AlignCenter().Height(25).Width(80).Image(imageBytes).FitHeight();
                                         }
@@ -828,16 +917,18 @@ namespace backend.Controllers
                                     {
                                         c.Item().AlignCenter().Height(25).Width(80).BorderBottom(1);
                                     }
-                                    c.Item().AlignCenter().Text($"{(string.IsNullOrEmpty(assessorInitials) ? "Assessor" : assessorInitials)} Initials").FontSize(7).Italic();
+                                    c.Item().AlignCenter().Text($"{assessorInitialsStr} (Assessor Initials)").FontSize(7).Italic();
                                 });
 
                                 // Moderator Section (Right)
                                 row.RelativeItem().AlignRight().Column(c => {
-                                    if (firstModeratorPlan != null && !string.IsNullOrEmpty(firstModeratorPlan.ModeratorSignature) && firstModeratorPlan.ModeratorSignature.StartsWith("data:image"))
+                                    string mSig = moderator?.Signature ?? (modPlan != null && !string.IsNullOrEmpty(modPlan.ModeratorSignature) && modPlan.ModeratorSignature.StartsWith("data:image") ? modPlan.ModeratorSignature : null);
+                                    
+                                    if (!string.IsNullOrEmpty(mSig) && mSig.StartsWith("data:image"))
                                     {
                                         try
                                         {
-                                            var base64Data = firstModeratorPlan.ModeratorSignature.Split(',')[1];
+                                            var base64Data = mSig.Split(',')[1];
                                             var imageBytes = Convert.FromBase64String(base64Data);
                                             c.Item().AlignRight().Height(25).Width(80).Image(imageBytes).FitHeight();
                                         }
@@ -847,7 +938,7 @@ namespace backend.Controllers
                                     {
                                         c.Item().AlignRight().Height(25).Width(80).BorderBottom(1);
                                     }
-                                    c.Item().AlignRight().Text($"{(string.IsNullOrEmpty(moderatorInitials) ? "Moderator" : moderatorInitials)} Initials").FontSize(7).Italic();
+                                    c.Item().AlignRight().Text($"{moderatorInitialsStr} (Moderator Initials)").FontSize(7).Italic();
                                 });
                             });
 

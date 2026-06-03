@@ -55,6 +55,7 @@ namespace backend.Models
         // Profile image and signature (stored as base64 or file path)
         public string? ProfileImage { get; set; }
         public string? Signature { get; set; }
+        public string? Initials { get; set; }
         
         // Teacher-specific fields
         [StringLength(50, ErrorMessage = "Practice number cannot exceed 50 characters")]

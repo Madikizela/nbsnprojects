@@ -32,9 +32,11 @@ namespace backend.Controllers
                            a.AssessmentType == assessmentType &&
                            a.IsRemedial == isRemedial)
                 .OrderBy(a => a.QuestionNumber)
+                .ThenBy(a => a.ScannedAt)
                 .Select(a => new
                 {
                     id = a.Id,
+                    learnerId = a.LearnerId,
                     questionId = a.QuestionId,
                     questionNumber = a.QuestionNumber,
                     scannedDocumentName = a.ScannedDocumentName,
@@ -55,30 +57,45 @@ namespace backend.Controllers
 
         // GET: api/LearnerAssessmentAnswers/learner/{learnerId}/progress
         [HttpGet("learner/{learnerId}/progress")]
-        public async Task<ActionResult<IEnumerable<object>>> GetLearnerProgress(int learnerId)
+        public async Task<IActionResult> GetLearnerProgress(int learnerId)
         {
-            Console.WriteLine($"GetLearnerProgress called for learner {learnerId}");
-            var progress = await _context.LearnerAssessmentProgress
-                .Where(p => p.LearnerId == learnerId)
-                .OrderBy(p => p.ProjectQualificationUnitStandardId)
-                .Select(p => new
-                {
-                    p.Id,
-                    p.ProjectQualificationUnitStandardId,
-                    p.FormativeAssessmentId,
-                    p.SummativeAssessmentId,
-                    p.FormativeCompleted,
-                    p.FormativeCompletedAt,
-                    p.FormativeModerated,
-                    p.FormativeModeratedAt,
-                    p.SummativeCompleted,
-                    p.SummativeCompletedAt,
-                    p.SummativeModerated,
-                    p.SummativeModeratedAt
-                })
-                .ToListAsync();
+            try
+            {
+                Console.WriteLine($"GetLearnerProgress called for learner {learnerId}");
+                var progress = await _context.LearnerAssessmentProgress
+                    .Where(p => p.LearnerId == learnerId)
+                    .OrderBy(p => p.ProjectQualificationUnitStandardId)
+                    .Select(p => new
+                    {
+                        id = p.Id,
+                        projectQualificationUnitStandardId = p.ProjectQualificationUnitStandardId,
+                        formativeAssessmentId = p.FormativeAssessmentId,
+                        summativeAssessmentId = p.SummativeAssessmentId,
+                        formativeCompleted = p.FormativeCompleted,
+                        formativeCompletedAt = p.FormativeCompletedAt,
+                        formativeModerated = p.FormativeModerated,
+                        formativeModeratedAt = p.FormativeModeratedAt,
+                        summativeCompleted = p.SummativeCompleted,
+                        summativeCompletedAt = p.SummativeCompletedAt,
+                        summativeModerated = p.SummativeModerated,
+                        summativeModeratedAt = p.SummativeModeratedAt,
+                        remedialRequired = p.RemedialRequired,
+                        remedialCompleted = p.RemedialCompleted,
+                        remedialCompletedAt = p.RemedialCompletedAt
+                    })
+                    .ToListAsync();
 
-            return Ok(progress);
+                return Ok(progress);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error in GetLearnerProgress: {ex.Message}");
+                if (ex.InnerException != null)
+                {
+                    Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
+                }
+                return StatusCode(500, new { message = "Error fetching learner progress", error = ex.Message });
+            }
         }
 
         // GET: api/LearnerAssessmentAnswers/assessment/{assessmentType}/{assessmentId}/marking
@@ -337,7 +354,6 @@ namespace backend.Controllers
             return File(bytes, mime, answer.ScannedDocumentName);
         }
 
-        // POST: api/learnerassessmentanswers/mark
         [HttpPost("mark")]
         [AllowAnonymous]
         public async Task<IActionResult> MarkAnswer([FromBody] MarkAnswerDto dto)
@@ -345,11 +361,46 @@ namespace backend.Controllers
             Console.WriteLine($"Marking answer {dto.AnswerId} with mark {dto.Mark}");
             try
             {
-                var answer = await _context.LearnerAssessmentAnswers.FindAsync(dto.AnswerId);
-                if (answer == null)
+                LearnerAssessmentAnswer answer;
+
+                if (dto.AnswerId > 0)
                 {
-                    Console.WriteLine($"Answer with ID {dto.AnswerId} not found");
-                    return NotFound("Answer not found");
+                    answer = await _context.LearnerAssessmentAnswers.FindAsync(dto.AnswerId);
+                    if (answer == null)
+                    {
+                        return NotFound("Answer not found");
+                    }
+                }
+                else
+                {
+                    // Check if identifying fields are present to create a new record
+                    if (dto.LearnerId == null || dto.AssessmentId == null || string.IsNullOrEmpty(dto.AssessmentType) || dto.QuestionId == null)
+                    {
+                        return BadRequest("Identifying fields (LearnerId, AssessmentId, AssessmentType, QuestionId) are required when AnswerId is 0");
+                    }
+
+                    // Check if an answer record already exists (to prevent duplicates)
+                    answer = await _context.LearnerAssessmentAnswers
+                        .FirstOrDefaultAsync(a => a.LearnerId == dto.LearnerId && 
+                                                a.AssessmentId == dto.AssessmentId && 
+                                                a.AssessmentType == dto.AssessmentType && 
+                                                a.QuestionId == dto.QuestionId &&
+                                                a.IsRemedial == (dto.IsRemedial ?? false));
+
+                    if (answer == null)
+                    {
+                        answer = new LearnerAssessmentAnswer
+                        {
+                            LearnerId = dto.LearnerId.Value,
+                            AssessmentId = dto.AssessmentId.Value,
+                            AssessmentType = dto.AssessmentType,
+                            QuestionId = dto.QuestionId.Value,
+                            QuestionNumber = dto.QuestionNumber ?? 0,
+                            IsRemedial = dto.IsRemedial ?? false,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        _context.LearnerAssessmentAnswers.Add(answer);
+                    }
                 }
 
                 // Validate mark against max marks
@@ -365,7 +416,7 @@ namespace backend.Controllers
                     if (question != null) maxMarks = question.AllocatedMarks;
                 }
 
-                if (dto.Mark > maxMarks)
+                if (dto.Mark > maxMarks && maxMarks > 0)
                 {
                     return BadRequest(new { message = $"Mark ({dto.Mark}) cannot exceed allocated marks ({maxMarks})" });
                 }
@@ -378,8 +429,12 @@ namespace backend.Controllers
                 answer.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
-                Console.WriteLine($"Successfully marked answer {dto.AnswerId}");
-                return Ok(new { message = "Answer marked successfully" });
+                
+                // Update progress after marking
+                await UpdateAssessmentProgress(answer.LearnerId, answer.AssessmentId, answer.AssessmentType, null, answer.IsRemedial);
+
+                Console.WriteLine($"Successfully marked answer {answer.Id}");
+                return Ok(new { message = "Answer marked successfully", id = answer.Id });
             }
             catch (Exception ex)
             {
@@ -393,6 +448,40 @@ namespace backend.Controllers
         public IActionResult Ping()
         {
             return Ok("LearnerAssessmentAnswersController is reachable");
+        }
+
+        [HttpGet("debug/progress-check/{learnerId}/{unitStandardId}")]
+        [AllowAnonymous]
+        public async Task<IActionResult> DebugProgressCheck(int learnerId, int unitStandardId)
+        {
+            var formative = await _context.FormativeAssessments
+                .Where(f => f.ProjectQualificationUnitStandardId == unitStandardId)
+                .Select(f => new { f.Id, AssessmentMethod = f.AssessmentMethod ?? "Formative" })
+                .ToListAsync();
+
+            var summative = await _context.SummativeAssessments
+                .Where(s => s.ProjectQualificationUnitStandardId == unitStandardId)
+                .Select(s => new { s.Id, Status = s.Status })
+                .ToListAsync();
+
+            var progress = await _context.LearnerAssessmentProgress
+                .FirstOrDefaultAsync(p => p.LearnerId == learnerId && p.ProjectQualificationUnitStandardId == unitStandardId);
+
+            var answers = await _context.LearnerAssessmentAnswers
+                .Where(a => a.LearnerId == learnerId && formative.Select(f => f.Id).Contains(a.AssessmentId))
+                .Select(a => new { a.Id, a.AssessmentId, a.QuestionId, a.MarkStatus, a.IsRemedial })
+                .ToListAsync();
+
+            return Ok(new
+            {
+                learnerId,
+                unitStandardId,
+                foundFormative = formative,
+                foundSummative = summative,
+                progressRecord = progress,
+                answersCount = answers.Count,
+                answersDetail = answers
+            });
         }
 
         // POST: api/LearnerAssessmentAnswers/moderate
@@ -532,39 +621,53 @@ namespace backend.Controllers
                             var totalQuestions = await _context.FormativeAssessmentQuestions
                                 .CountAsync(q => q.FormativeAssessmentId == assessmentId);
 
-                            // Count marked questions
-                            var markedQuestions = await _context.LearnerAssessmentAnswers
-                                .CountAsync(a => a.LearnerId == learnerId && 
+                            // Count unique questions that have any marked answer (original OR remedial)
+                            var markedQuestionsCount = await _context.LearnerAssessmentAnswers
+                                .Where(a => a.LearnerId == learnerId && 
                                                a.AssessmentId == assessmentId && 
                                                a.AssessmentType == "Formative" &&
-                                               a.IsRemedial == isRemedial &&
-                                               a.MarkStatus == MarkStatus.Marked);
+                                               a.MarkStatus == MarkStatus.Marked)
+                                .Select(a => a.QuestionId > 0 ? a.QuestionId.ToString() : "N" + a.QuestionNumber)
+                                .Distinct()
+                                .CountAsync();
+
+                            // Count unique questions that have been answered (at least one upload)
+                            var answeredQuestionsCount = await _context.LearnerAssessmentAnswers
+                                .Where(a => a.LearnerId == learnerId && 
+                                               a.AssessmentId == assessmentId && 
+                                               a.AssessmentType == "Formative")
+                                .Select(a => a.QuestionId > 0 ? a.QuestionId.ToString() : "N" + a.QuestionNumber)
+                                .Distinct()
+                                .CountAsync();
 
                             if (isRemedial)
                             {
-                                // Remedial logic could be more complex, but for now mark as completed if all marked
-                                progress.RemedialCompleted = markedQuestions >= totalQuestions;
+                                // Remedial logic: mark as completed if all questions have been marked (either original or remedial)
+                                progress.RemedialCompleted = markedQuestionsCount >= totalQuestions && totalQuestions > 0;
                                 if (progress.RemedialCompleted && progress.RemedialCompletedAt == null)
                                     progress.RemedialCompletedAt = DateTime.UtcNow;
 
                                 // Update moderation flag for remedial too
-                                var moderatedQuestions = await _context.LearnerAssessmentAnswers
+                                var moderatedQuestionsCount = await _context.LearnerAssessmentAnswers
                                     .Where(a => a.LearnerId == learnerId && 
                                                a.AssessmentId == assessmentId && 
                                                a.AssessmentType == "Formative" &&
-                                               a.IsRemedial == true &&
                                                (a.ModerationStatus == ModerationStatus.Moderated || a.ModerationStatus == ModerationStatus.ReturnedToAssessor))
-                                    .Select(a => a.QuestionId)
+                                    .Select(a => a.QuestionId > 0 ? a.QuestionId.ToString() : "N" + a.QuestionNumber)
                                     .Distinct()
                                     .CountAsync();
                                 
-                                progress.FormativeModerated = moderatedQuestions >= totalQuestions && totalQuestions > 0;
+                                progress.FormativeModerated = moderatedQuestionsCount >= totalQuestions && totalQuestions > 0;
                                 if (progress.FormativeModerated && progress.FormativeModeratedAt == null)
                                     progress.FormativeModeratedAt = DateTime.UtcNow;
                             }
                             else
                             {
-                                progress.FormativeCompleted = markedQuestions >= totalQuestions;
+                                // IMPORTANT: We allow proceeding to Summative if all Formative questions have been ANSWERED, 
+                                // even if not yet MARKED, to avoid blocking the learner.
+                                // If you prefer they must be MARKED first, use markedQuestionsCount instead of answeredQuestionsCount.
+                                progress.FormativeCompleted = answeredQuestionsCount >= totalQuestions && totalQuestions > 0;
+                                
                                 if (progress.FormativeCompleted && progress.FormativeCompletedAt == null)
                                 {
                                     progress.FormativeCompletedAt = DateTime.UtcNow;
@@ -574,12 +677,11 @@ namespace backend.Controllers
                                     progress.FormativeCompletedAt = null;
                                 }
 
-                                // Count moderated questions (Distinct by QuestionId to handle potential duplicates)
+                                // Count moderated questions
                                 var moderatedQuestions = await _context.LearnerAssessmentAnswers
                                     .Where(a => a.LearnerId == learnerId && 
                                                a.AssessmentId == assessmentId && 
                                                a.AssessmentType == "Formative" &&
-                                               a.IsRemedial == isRemedial &&
                                                (a.ModerationStatus == ModerationStatus.Moderated || a.ModerationStatus == ModerationStatus.ReturnedToAssessor))
                                     .Select(a => a.QuestionId)
                                     .Distinct()
@@ -600,42 +702,63 @@ namespace backend.Controllers
                         {
                             progress.SummativeAssessmentId = assessmentId;
 
+                            // NEW: If the learner is answering Summative, it means Formative MUST be considered completed
+                            // This fixes the "locked" state if they bypassed or if a count was off.
+                            if (!progress.FormativeCompleted)
+                            {
+                                progress.FormativeCompleted = true;
+                                progress.FormativeCompletedAt = DateTime.UtcNow;
+                            }
+
                             // Count total questions for this assessment
                             var totalQuestions = await _context.SummativeAssessmentQuestions
                                 .CountAsync(q => q.SummativeAssessmentId == assessmentId);
 
-                            // Count marked questions
-                            var markedQuestions = await _context.LearnerAssessmentAnswers
-                                .CountAsync(a => a.LearnerId == learnerId && 
+                            // Count unique questions that have any marked answer
+                            var markedQuestionsCount = await _context.LearnerAssessmentAnswers
+                                .Where(a => a.LearnerId == learnerId && 
                                                a.AssessmentId == assessmentId && 
                                                a.AssessmentType == "Summative" &&
-                                               a.IsRemedial == isRemedial &&
-                                               a.MarkStatus == MarkStatus.Marked);
+                                               a.MarkStatus == MarkStatus.Marked)
+                                .Select(a => a.QuestionId > 0 ? a.QuestionId.ToString() : "N" + a.QuestionNumber)
+                                .Distinct()
+                                .CountAsync();
+
+                            // Count unique questions answered
+                            var answeredQuestionsCount = await _context.LearnerAssessmentAnswers
+                                .Where(a => a.LearnerId == learnerId && 
+                                               a.AssessmentId == assessmentId && 
+                                               a.AssessmentType == "Summative")
+                                .Select(a => a.QuestionId > 0 ? a.QuestionId.ToString() : "N" + a.QuestionNumber)
+                                .Distinct()
+                                .CountAsync();
 
                             if (isRemedial)
                             {
-                                progress.RemedialCompleted = markedQuestions >= totalQuestions;
+                                progress.RemedialCompleted = markedQuestionsCount >= totalQuestions && totalQuestions > 0;
                                 if (progress.RemedialCompleted && progress.RemedialCompletedAt == null)
                                     progress.RemedialCompletedAt = DateTime.UtcNow;
 
                                 // Update moderation flag for remedial too
-                                var moderatedQuestions = await _context.LearnerAssessmentAnswers
+                                var moderatedQuestionsCount = await _context.LearnerAssessmentAnswers
                                     .Where(a => a.LearnerId == learnerId && 
                                                    a.AssessmentId == assessmentId && 
                                                    a.AssessmentType == "Summative" &&
-                                                   a.IsRemedial == true &&
                                                    (a.ModerationStatus == ModerationStatus.Moderated || a.ModerationStatus == ModerationStatus.ReturnedToAssessor))
-                                    .Select(a => a.QuestionId)
+                                    .Select(a => a.QuestionId > 0 ? a.QuestionId.ToString() : "N" + a.QuestionNumber)
                                     .Distinct()
                                     .CountAsync();
 
-                                progress.SummativeModerated = moderatedQuestions >= totalQuestions && totalQuestions > 0;
+                                progress.SummativeModerated = moderatedQuestionsCount >= totalQuestions && totalQuestions > 0;
                                 if (progress.SummativeModerated && progress.SummativeModeratedAt == null)
                                     progress.SummativeModeratedAt = DateTime.UtcNow;
                             }
                             else
                             {
-                                progress.SummativeCompleted = markedQuestions >= totalQuestions;
+                                // For Summative, we also use answeredQuestionsCount to mark as "Completed" 
+                                // so the learner can move to the next Unit Standard.
+                                progress.SummativeCompleted = answeredQuestionsCount >= totalQuestions && totalQuestions > 0;
+                                
                                 if (progress.SummativeCompleted && progress.SummativeCompletedAt == null)
                                 {
                                     progress.SummativeCompletedAt = DateTime.UtcNow;
@@ -645,18 +768,17 @@ namespace backend.Controllers
                                     progress.SummativeCompletedAt = null;
                                 }
 
-                                // Count moderated questions (Distinct by QuestionId to handle potential duplicates)
-                                var moderatedQuestions = await _context.LearnerAssessmentAnswers
+                                // Count moderated questions
+                                var moderatedQuestionsCount = await _context.LearnerAssessmentAnswers
                                     .Where(a => a.LearnerId == learnerId && 
-                                                   a.AssessmentId == assessmentId && 
-                                                   a.AssessmentType == "Summative" &&
-                                                   a.IsRemedial == isRemedial &&
-                                                   (a.ModerationStatus == ModerationStatus.Moderated || a.ModerationStatus == ModerationStatus.ReturnedToAssessor))
-                                    .Select(a => a.QuestionId)
+                                               a.AssessmentId == assessmentId && 
+                                               a.AssessmentType == "Summative" &&
+                                               (a.ModerationStatus == ModerationStatus.Moderated || a.ModerationStatus == ModerationStatus.ReturnedToAssessor))
+                                    .Select(a => a.QuestionId > 0 ? a.QuestionId.ToString() : "N" + a.QuestionNumber)
                                     .Distinct()
                                     .CountAsync();
-
-                                progress.SummativeModerated = moderatedQuestions >= totalQuestions && totalQuestions > 0;
+                                
+                                progress.SummativeModerated = moderatedQuestionsCount >= totalQuestions && totalQuestions > 0;
                                 if (progress.SummativeModerated && progress.SummativeModeratedAt == null)
                                 {
                                     progress.SummativeModeratedAt = DateTime.UtcNow;

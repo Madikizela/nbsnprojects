@@ -44,29 +44,28 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Add database context (using MySQL)
+// Add database context (using PostgreSQL)
 builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     
     // Check for environment variables to override connection string
     var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
-    var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "3306";
+    var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
     var dbName = Environment.GetEnvironmentVariable("DB_NAME");
     var dbUser = Environment.GetEnvironmentVariable("DB_USER");
     var dbPass = Environment.GetEnvironmentVariable("DB_PASS");
 
     if (!string.IsNullOrEmpty(dbHost) && !string.IsNullOrEmpty(dbName))
     {
-        connectionString = $"Server={dbHost};Port={dbPort};Database={dbName};User={dbUser};Password={dbPass}";
+        connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass}";
     }
 
-    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mysqlOptions =>
+    options.UseNpgsql(connectionString, npgsqlOptions =>
        {
-           mysqlOptions.EnableRetryOnFailure(
+           npgsqlOptions.EnableRetryOnFailure(
                maxRetryCount: 3,
-               maxRetryDelay: TimeSpan.FromSeconds(5),
-               errorNumbersToAdd: null);
+               maxRetryDelay: TimeSpan.FromSeconds(5));
        });
     options.EnableSensitiveDataLogging(true);
     options.EnableDetailedErrors(true);
@@ -95,6 +94,9 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 
 // Add SDP authorization service
 builder.Services.AddScoped<ISDPAuthorizationService, SDPAuthorizationService>();
+
+// Add data import service
+builder.Services.AddScoped<IDataImportService, DataImportService>();
 
 // Add memory cache for authorization service
 builder.Services.AddMemoryCache();

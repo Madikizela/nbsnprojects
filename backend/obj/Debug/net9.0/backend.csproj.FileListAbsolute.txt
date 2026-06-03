@@ -151,8 +151,6 @@ C:\Users\madik\Documents\New_version\backend\obj\Debug\net9.0\refint\backend.dll
 C:\Users\madik\Documents\New_version\backend\obj\Debug\net9.0\backend.pdb
 C:\Users\madik\Documents\New_version\backend\obj\Debug\net9.0\backend.genruntimeconfig.cache
 C:\Users\madik\Documents\New_version\backend\obj\Debug\net9.0\ref\backend.dll
-C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\MySqlConnector.dll
-C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\Pomelo.EntityFrameworkCore.MySql.dll
 C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\LatoFont\Lato-Black.ttf
 C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\LatoFont\Lato-BlackItalic.ttf
 C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\LatoFont\Lato-Bold.ttf
@@ -203,3 +201,18 @@ C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\runtimes\win-x64\n
 C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\runtimes\win-x64\native\libSkiaSharp.pdb
 C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\runtimes\win-x86\native\libSkiaSharp.dll
 C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\runtimes\win-x86\native\libSkiaSharp.pdb
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\appsettings.Production.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\appsettings.Development.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\appsettings.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\appsettings.Production.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\backend.deps.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\backend.runtimeconfig.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\backend.staticwebassets.endpoints.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\test-client0.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\test-minimal.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\test-registration.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\test_login.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\test_login_payload.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\publish\test_login_simple.json
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\Npgsql.dll
+C:\Users\madik\Documents\New_version\backend\bin\Debug\net9.0\Npgsql.EntityFrameworkCore.PostgreSQL.dll

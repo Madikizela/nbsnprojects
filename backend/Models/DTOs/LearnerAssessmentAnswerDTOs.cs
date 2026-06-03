@@ -53,7 +53,6 @@ namespace backend.Models.DTOs
 
     public class MarkAnswerDto
     {
-        [Required]
         public int AnswerId { get; set; }
 
         [Required]
@@ -63,6 +62,14 @@ namespace backend.Models.DTOs
 
         [Required]
         public int AssessorId { get; set; }
+
+        // Fields to create a new record if AnswerId is 0
+        public int? LearnerId { get; set; }
+        public int? AssessmentId { get; set; }
+        public string? AssessmentType { get; set; }
+        public int? QuestionId { get; set; }
+        public int? QuestionNumber { get; set; }
+        public bool? IsRemedial { get; set; }
     }
 
     public class ModerateAnswerDto

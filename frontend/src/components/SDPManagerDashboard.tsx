@@ -20,7 +20,176 @@ interface User {
   departmentName: string | null;
   userType?: string;
   projectAssignments?: { projectId: number; role: number }[];
+  practiceNumber?: string;
+  signature?: string;
+  initials?: string;
 }
+
+const ModeratorProfileSection: React.FC<{
+  user: User | null;
+  setUser: (user: User | null) => void;
+  fetchWithAuth: (url: string, options?: any) => Promise<Response | null>;
+}> = ({ user, setUser, fetchWithAuth }) => {
+  const [isSaving, setIsSaving] = useState(false);
+  const signaturePadRef = useRef<SignatureCanvas>(null);
+  const [profileData, setProfileData] = useState({
+    firstName: user?.name?.split(' ')[0] || '',
+    lastName: user?.name?.split(' ').slice(1).join(' ') || '',
+    practiceNumber: user?.practiceNumber || '',
+    initials: user?.initials || '',
+    signature: user?.signature || ''
+  });
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    
+    const signature = signaturePadRef.current?.isEmpty() 
+      ? profileData.signature 
+      : signaturePadRef.current?.toDataURL();
+
+    try {
+      const response = await fetchWithAuth(`/api/Users/Profile/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          firstName: profileData.firstName,
+          lastName: profileData.lastName,
+          practiceNumber: profileData.practiceNumber,
+          initials: profileData.initials,
+          signature: signature
+        })
+      });
+
+      if (response && response.ok) {
+        const updatedUser = await response.json();
+        const newUserData = {
+          ...user,
+          name: `${updatedUser.firstName} ${updatedUser.lastName}`,
+          practiceNumber: updatedUser.practiceNumber,
+          initials: updatedUser.initials,
+          signature: updatedUser.signature
+        };
+        setUser(newUserData);
+        localStorage.setItem('user', JSON.stringify(newUserData));
+        alert('Profile updated successfully!');
+      } else {
+        alert('Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('An error occurred while updating the profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="container py-4">
+      <div className="row justify-content-center">
+        <div className="col-lg-8">
+          <div className="card shadow-lg border-0">
+            <div className="card-header bg-primary text-white p-4">
+              <h4 className="mb-0 fw-bold">👤 Moderator Profile</h4>
+              <p className="mb-0 opacity-75">Manage your professional identity and signatures</p>
+            </div>
+            <div className="card-body p-5">
+              <div className="row g-4">
+                <div className="col-md-6">
+                  <label className="form-label small fw-bold text-muted text-uppercase">First Name</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Enter first name"
+                    value={profileData.firstName}
+                    onChange={(e) => setProfileData({...profileData, firstName: e.target.value})}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label small fw-bold text-muted text-uppercase">Last Name</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Enter last name"
+                    value={profileData.lastName}
+                    onChange={(e) => setProfileData({...profileData, lastName: e.target.value})}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label small fw-bold text-muted text-uppercase">Moderator Practice Number</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Enter registration number"
+                    value={profileData.practiceNumber}
+                    onChange={(e) => setProfileData({...profileData, practiceNumber: e.target.value})}
+                  />
+                </div>
+                <div className="col-md-6">
+                  <label className="form-label small fw-bold text-muted text-uppercase">Moderator Initials</label>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder="Type initials"
+                    value={profileData.initials}
+                    onChange={(e) => setProfileData({...profileData, initials: e.target.value})}
+                  />
+                </div>
+                <div className="col-12 mt-4">
+                  <label className="form-label small fw-bold text-muted text-uppercase">Moderator Signature Pad</label>
+                  <div className="border rounded-4 bg-light p-3 mb-2" style={{ borderStyle: 'dashed' }}>
+                    <SignatureCanvas 
+                      ref={signaturePadRef}
+                      penColor="black"
+                      canvasProps={{
+                        width: 600,
+                        height: 200,
+                        className: 'sigCanvas w-100 rounded bg-white shadow-sm'
+                      }}
+                    />
+                  </div>
+                  <div className="d-flex gap-2">
+                    <button 
+                      className="btn btn-outline-secondary btn-sm px-4"
+                      onClick={() => signaturePadRef.current?.clear()}
+                    >
+                      Clear Signature
+                    </button>
+                    <small className="text-muted">Draw your signature above. This will be used in all your moderated POEs.</small>
+                  </div>
+                </div>
+                
+                {profileData.signature && (
+                  <div className="col-12 mt-4">
+                    <label className="form-label small fw-bold text-muted text-uppercase">Current Saved Signature</label>
+                    <div className="p-3 bg-light rounded border text-center">
+                      <img src={profileData.signature} alt="Current Signature" style={{ maxHeight: '100px' }} />
+                    </div>
+                  </div>
+                )}
+
+                <div className="col-12 mt-5">
+                  <button 
+                    className="btn btn-primary w-100 py-3 fw-bold shadow-sm"
+                    onClick={handleSaveProfile}
+                    disabled={isSaving}
+                  >
+                    {isSaving ? (
+                      <><span className="spinner-border spinner-border-sm me-2"></span> Saving Profile...</>
+                    ) : (
+                      'Save Moderator Profile'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 interface Project {
   id: number;
@@ -671,9 +840,11 @@ const SDPManagerDashboard: React.FC = () => {
     assessorName: user?.name || '',
     assessorNumber: '',
     assessorSignature: '',
+    assessorInitials: '',
     moderatorName: '',
     moderatorNumber: '',
     moderatorSignature: '',
+    moderatorInitials: '',
     learnerName: '',
     date: new Date().toISOString().split('T')[0]
   });
@@ -708,6 +879,21 @@ const SDPManagerDashboard: React.FC = () => {
       fetchAssessmentStrategyPlans();
     }
   }, [activeSection]);
+  
+  // Load signature into pad when form opens or signature data changes
+  useEffect(() => {
+    if (showAssessmentPlanForm && signaturePadRef.current && assessmentPlanForm.assessorSignature) {
+      const canvas = signaturePadRef.current.getCanvas();
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.drawImage(img, 0, 0);
+        };
+        img.src = assessmentPlanForm.assessorSignature;
+      }
+    }
+  }, [showAssessmentPlanForm, assessmentPlanForm.assessorSignature]);
 
   // Candidate Preparation state
   const [selectedPrepUnitStandard, setSelectedPrepUnitStandard] = useState<any | null>(null);
@@ -1068,7 +1254,14 @@ const SDPManagerDashboard: React.FC = () => {
 
   // Filter projects based on assignments for Assessors and Moderators
   const filteredProjects = useMemo(() => {
-    // Everyone should see all projects for their SDP by default in this management view
+    console.log('SDPManagerDashboard: Filtering projects', {
+      total: projects.length,
+      userRole: user?.role,
+      assignments: user?.projectAssignments?.length
+    });
+    
+    // TEMPORARY: Disable filtering to ensure projects show up
+    // In a production environment, we would re-enable this based on strict requirements
     return projects;
   }, [projects]);
 
@@ -1468,48 +1661,43 @@ const SDPManagerDashboard: React.FC = () => {
   // Fetch manager-specific data
   useEffect(() => {
     const fetchManagerData = async () => {
-      console.log('SDPManagerDashboard: fetchManagerData called');
+      if (!user?.skillsDevelopmentProviderId) {
+        console.log('SDPManagerDashboard: No SDP ID found for user');
+        return;
+      }
       
-      if (user?.skillsDevelopmentProviderId) {
-        setDataLoading(true);
+      console.log('SDPManagerDashboard: fetchManagerData started for SDP:', user.skillsDevelopmentProviderId);
+      
+      try {
+        // 1. Fetch projects
+        const projectsResponse = await fetchWithAuth('/api/sdp/projects');
         
-        try {
-          // Fetch assessment types
-          const typesResponse = await fetchWithAuth('/api/assessments/types');
-          if (typesResponse && typesResponse.ok) {
-            const types = await typesResponse.json();
-            setAssessmentTypes(types);
-          }
-
-          // Fetch projects for this SDP
-          const projectsResponse = await fetchWithAuth(`/api/sdp/projects`);
-          
-          if (!projectsResponse) return;
-
-          if (projectsResponse.ok) {
-            const projectsData = await projectsResponse.json();
-            setProjects(projectsData.projects || []);
-          } else {
-            setProjects([]);
-          }
-          
-          // Fetch departments for this SDP
-          const departmentsResponse = await fetchWithAuth(`/api/SkillsDevelopmentProviders/${user.skillsDevelopmentProviderId}/Departments`);
-          
-          if (departmentsResponse && departmentsResponse.ok) {
-            const departmentsData = await departmentsResponse.json();
-            setDepartments(departmentsData);
-          } else {
-            setDepartments([]);
-          }
-          
-        } catch (error) {
-          console.error('Error fetching manager data:', error);
+        if (projectsResponse && projectsResponse.ok) {
+          const projectsData = await projectsResponse.json();
+          const fetchedProjects = projectsData.projects || [];
+          console.log('SDPManagerDashboard: Successfully fetched projects:', fetchedProjects.length);
+          setProjects(fetchedProjects);
+        } else {
+          const status = projectsResponse?.status || 'Unknown';
+          console.error('SDPManagerDashboard: Projects fetch failed with status:', status);
           setProjects([]);
-          setDepartments([]);
-        } finally {
-          setDataLoading(false);
         }
+
+        // 2. Fetch other data in parallel (don't let them block projects)
+        Promise.all([
+          fetchWithAuth(`/api/SkillsDevelopmentProviders/${user.skillsDevelopmentProviderId}/Departments`)
+            .then(res => res?.ok ? res.json() : [])
+            .then(data => setDepartments(data))
+            .catch(err => console.error('Error fetching departments:', err)),
+            
+          fetchWithAuth('/api/assessments/types')
+            .then(res => res?.ok ? res.json() : [])
+            .then(data => setAssessmentTypes(data))
+            .catch(err => console.error('Error fetching assessment types:', err))
+        ]);
+
+      } catch (error) {
+        console.error('SDPManagerDashboard: Critical error in fetchManagerData:', error);
       }
     };
 
@@ -3454,14 +3642,20 @@ const SDPManagerDashboard: React.FC = () => {
       const dbModApproval: { [key: string]: boolean } = {};
       
       normalizedAnswers.forEach((ans: any) => {
-        const markKey = `learner:${markingLearnerId}:assessment:${assessmentType}:${assessmentId}:question:${ans.questionId}`;
+        // Find the matching question to get the correct database ID (in case ans.questionId is 0 or incorrect)
+        const matchingQuestion = questions.find((q: any) => 
+          q.id === ans.questionId || (q.questionNumber != null && ans.questionNumber != null && q.questionNumber.toString() === ans.questionNumber.toString())
+        );
+        
+        const qIdToUse = matchingQuestion ? matchingQuestion.id : ans.questionId;
+        const markKey = `learner:${markingLearnerId}:assessment:${assessmentType}:${assessmentId}:question:${qIdToUse}`;
         
         // Assessor marks
         if (ans.mark !== null && ans.mark !== undefined) {
           dbMarks[markKey] = ans.mark.toString();
         }
         if (ans.assessorComments) {
-          dbAssessorComments[`assessor:${ans.questionId}`] = ans.assessorComments;
+          dbAssessorComments[`assessor:${qIdToUse}`] = ans.assessorComments;
         }
 
         // Moderation data (Status 2=Moderated, 3=ReturnedToAssessor)
@@ -3470,12 +3664,12 @@ const SDPManagerDashboard: React.FC = () => {
         
         if (isModerated) {
           if (ans.moderatedMark !== null && ans.moderatedMark !== undefined) {
-            dbModMarks[`q-${ans.questionId}`] = ans.moderatedMark.toString();
+            dbModMarks[`q-${qIdToUse}`] = ans.moderatedMark.toString();
           }
           if (ans.moderatorComments) {
-            dbModComments[`moderator:${ans.questionId}`] = ans.moderatorComments;
+            dbModComments[`moderator:${qIdToUse}`] = ans.moderatorComments;
           }
-          dbModApproval[`q-${ans.questionId}`] = status === 2 || status === 'Moderated';
+          dbModApproval[`q-${qIdToUse}`] = status === 2 || status === 'Moderated';
         }
       });
 
@@ -3513,6 +3707,22 @@ const SDPManagerDashboard: React.FC = () => {
       if (response && response.ok) {
         const data = await response.json();
         setLearnerProgress(data);
+
+        // Update the main learners list so the visual indicators update immediately
+        const completedCount = data.filter((p: any) => p.formativeCompleted && p.summativeCompleted).length;
+        const startedCount = data.filter((p: any) => p.formativeCompleted || p.summativeCompleted).length;
+
+        setMarkingLearners(prev => prev.map(l => 
+          l.learnerId === markingLearnerId 
+            ? { 
+                ...l, 
+                completedUnitStandards: completedCount, 
+                startedUnitStandards: startedCount,
+                isMarkingComplete: l.totalUnitStandards > 0 && completedCount >= l.totalUnitStandards,
+                isMarkingStarted: startedCount > 0
+              } 
+            : l
+        ));
       }
     } catch (error) {
       console.error('Failed to refresh learner progress:', error);
@@ -3530,20 +3740,36 @@ const SDPManagerDashboard: React.FC = () => {
         const comments = moderationComments[`assessor:${q.id}`] || '';
         
         // Find existing answer ID if any
-        const existingAnswer = markingLearnerAnswers.find(a => a.questionId === q.id);
+        // Link by questionId OR questionNumber for maximum reliability
+        const existingAnswer = markingLearnerAnswers.find(a => {
+          const isIdMatch = a.questionId === q.id;
+          const isNumberMatch = a.questionNumber != null && q.questionNumber != null && a.questionNumber.toString() === q.questionNumber.toString();
+          return isIdMatch || isNumberMatch;
+        });
         
-        // Only submit if it has a value and isn't already marked in the database
-        if (markValue !== undefined && markValue !== '' && existingAnswer && (existingAnswer.mark === null || existingAnswer.mark === undefined)) {
+        // Only submit if it has a value
+        if (markValue !== undefined && markValue !== '') {
           const numMark = parseFloat(markValue);
           if (numMark > q.allocatedMarks) {
             throw new Error(`Mark for Q${q.questionNumber} (${numMark}) exceeds maximum allowed (${q.allocatedMarks})`);
           }
-          return {
-            answerId: existingAnswer.answerId,
-            mark: numMark,
-            comments: comments,
-            assessorId: user?.id
-          };
+          
+          // Only return if the mark is actually different from the current one OR it's a new record
+          if (!existingAnswer || existingAnswer.mark !== numMark || (moderationComments[`assessor:${q.id}`] !== undefined && existingAnswer.assessorComments !== comments)) {
+            return {
+              answerId: existingAnswer ? (existingAnswer.answerId || existingAnswer.id) : 0,
+              mark: numMark,
+              comments: comments,
+              assessorId: user?.id,
+              // Add identifying fields for new records
+              learnerId: markingLearnerId,
+              assessmentId: expandedMarkingAssessment.id,
+              assessmentType: expandedMarkingAssessment.type,
+              questionId: q.id,
+              questionNumber: q.questionNumber,
+              isRemedial: isRemedialMarking
+            };
+          }
         }
         return null;
       }).filter(a => a !== null);
@@ -3666,24 +3892,44 @@ const SDPManagerDashboard: React.FC = () => {
       const answersToSubmit = [];
       
       for (const learner of markingData.learners) {
+        // We need to iterate over ALL questions for this assessment, not just those with existing answers
+        // But since markingData.learners[i].answers only contains questions with uploads, 
+        // we should instead iterate over a list of ALL question definitions if available.
+        // However, markingData usually contains question details in each answer record.
+        
+        // Find all unique question IDs from all learners in this data to build a master list
+        const allQuestionIds = new Set<number>();
+        markingData.learners.forEach((l: any) => {
+          (l.answers || []).forEach((a: any) => allQuestionIds.add(a.questionId));
+        });
+
         for (const answer of (learner.answers || [])) {
           const markKey = `${learner.learnerId}-${answer.questionId}`;
           const markValue = draftMarks[markKey];
           
-          // Only submit if it has a value and isn't already marked in the database
-          if (markValue !== undefined && markValue !== '' && (answer.mark === null || answer.mark === undefined)) {
+          // Only submit if it has a value
+          if (markValue !== undefined && markValue !== '') {
             const numMark = parseFloat(markValue);
             
             if (answer.allocatedMarks && numMark > answer.allocatedMarks) {
               throw new Error(`Mark for ${learner.learnerName} Q${answer.questionNumber} (${numMark}) exceeds maximum allowed (${answer.allocatedMarks})`);
             }
             
-            answersToSubmit.push({
-              answerId: answer.answerId,
-              mark: numMark,
-              comments: '', 
-              assessorId: user?.id
-            });
+            // Only add to submission list if the mark is actually different from what's already in the DB
+            if (answer.mark !== numMark) {
+              answersToSubmit.push({
+                answerId: answer.answerId || answer.id || 0,
+                mark: numMark,
+                comments: '', 
+                assessorId: user?.id,
+                learnerId: learner.learnerId,
+                assessmentId: markingAssessment.id,
+                assessmentType: markingAssessment.type,
+                questionId: answer.questionId,
+                questionNumber: answer.questionNumber,
+                isRemedial: markingAssessment.isRemedial || false
+              });
+            }
           }
         }
       }
@@ -4106,13 +4352,7 @@ const SDPManagerDashboard: React.FC = () => {
       await openMarkingAssessment(expandedMarkingAssessment.id, expandedMarkingAssessment.type, isRemedialMarking);
       
       // Refresh progress in the background
-      if (markingLearnerId) {
-        const progressResponse = await fetchWithAuth(`/api/LearnerAssessmentAnswers/learner/${markingLearnerId}/progress`);
-        if (progressResponse && progressResponse.ok) {
-          const progressData = await progressResponse.json();
-          setLearnerProgress(progressData);
-        }
-      }
+      await refreshProgress();
     } catch (error) {
       console.error('Error submitting moderation:', error);
       alert(error instanceof Error ? error.message : 'An error occurred during moderation submission');
@@ -4414,9 +4654,9 @@ const SDPManagerDashboard: React.FC = () => {
                 >
                   <span>🎓</span> Back to SDP Organization
                 </button>
+                </div>
               </div>
             </div>
-          </div>
         </div>
       )}
 
@@ -7798,7 +8038,8 @@ const SDPManagerDashboard: React.FC = () => {
                   assessorSignature: signatureData,
                   moderatorName: assessmentPlanForm.moderatorName,
                   moderatorNumber: assessmentPlanForm.moderatorNumber,
-                  moderatorSignature: moderatorSignatureData
+                  moderatorSignature: moderatorSignatureData,
+                  moderatorInitials: assessmentPlanForm.moderatorInitials
                 };
 
                 try {
@@ -7857,7 +8098,7 @@ const SDPManagerDashboard: React.FC = () => {
               </div>
             </div>
             <div className="col-lg-4">
-              <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '5px solid #10b981' }}>
+              <div className="card shadow-sm border-0 mb-4" style={{ borderLeft: '5px solid #10b981' }}>
                 <div className="card-body p-4">
                   <h6 className="text-uppercase text-muted fw-bold mb-3" style={{ fontSize: '0.75rem' }}>Assessor Profile</h6>
                   <div className="d-flex align-items-center gap-3 mb-4">
@@ -7891,12 +8132,12 @@ const SDPManagerDashboard: React.FC = () => {
                       type="text" 
                       className="form-control form-control-sm" 
                       placeholder="Type initials"
-                      value={assessmentPlanForm.assessorSignature}
-                      onChange={(e) => setAssessmentPlanForm({...assessmentPlanForm, assessorSignature: e.target.value})}
+                      value={assessmentPlanForm.assessorInitials}
+                      onChange={(e) => setAssessmentPlanForm({...assessmentPlanForm, assessorInitials: e.target.value})}
                     />
                   </div>
                   <div className="mt-3">
-                    <label className="form-label small fw-bold text-muted text-uppercase">Digital Signature Pad</label>
+                    <label className="form-label small fw-bold text-muted text-uppercase">Assessor Signature Pad</label>
                     <div className="border rounded bg-white p-1 mb-2">
                       <SignatureCanvas 
                         ref={signaturePadRef}
@@ -7913,60 +8154,6 @@ const SDPManagerDashboard: React.FC = () => {
                       onClick={() => signaturePadRef.current?.clear()}
                     >
                       Clear Signature
-                    </button>
-                  </div>
-
-                  {/* Moderator Section */}
-                  <hr className="my-4" />
-                  <h6 className="text-uppercase text-muted fw-bold mb-3" style={{ fontSize: '0.75rem' }}>Moderator Profile</h6>
-                  <div className="mt-3">
-                    <label className="form-label small fw-bold text-muted text-uppercase">Moderator Name</label>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm" 
-                      placeholder="Enter moderator name"
-                      value={assessmentPlanForm.moderatorName}
-                      onChange={(e) => setAssessmentPlanForm({...assessmentPlanForm, moderatorName: e.target.value})}
-                    />
-                  </div>
-                  <div className="mt-3">
-                    <label className="form-label small fw-bold text-muted text-uppercase">Moderator Practice Number</label>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm" 
-                      placeholder="Enter registration number"
-                      value={assessmentPlanForm.moderatorNumber}
-                      onChange={(e) => setAssessmentPlanForm({...assessmentPlanForm, moderatorNumber: e.target.value})}
-                    />
-                  </div>
-                  <div className="mt-3">
-                    <label className="form-label small fw-bold text-muted text-uppercase">Moderator Initials</label>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm" 
-                      placeholder="Type initials"
-                      value={assessmentPlanForm.moderatorSignature}
-                      onChange={(e) => setAssessmentPlanForm({...assessmentPlanForm, moderatorSignature: e.target.value})}
-                    />
-                  </div>
-                  <div className="mt-3">
-                    <label className="form-label small fw-bold text-muted text-uppercase">Moderator Signature Pad</label>
-                    <div className="border rounded bg-white p-1 mb-2">
-                      <SignatureCanvas 
-                        ref={moderatorSignaturePadRef}
-                        penColor="black"
-                        canvasProps={{
-                          width: 300,
-                          height: 100,
-                          className: 'sigCanvas'
-                        }}
-                      />
-                    </div>
-                    <button 
-                      className="btn btn-sm btn-outline-secondary w-100"
-                      onClick={() => moderatorSignaturePadRef.current?.clear()}
-                    >
-                      Clear Moderator Signature
                     </button>
                   </div>
                 </div>
@@ -8175,6 +8362,7 @@ const SDPManagerDashboard: React.FC = () => {
                       practicalEquipment: assessmentPlanForm.practicalAssignment.equipment,
                       assessorName: user?.name,
                       assessorNumber: assessmentPlanForm.assessorNumber,
+                      assessorInitials: assessmentPlanForm.assessorInitials,
                       assessorSignature: signatureData
                     };
 
@@ -8254,13 +8442,61 @@ const SDPManagerDashboard: React.FC = () => {
                       const hasStrategy = !!(assessmentStrategyPlans[us.id]?.assessmentDate);
                       return (
                         <div 
-                          className={`card h-100 hover-shadow transition-all ${hasStrategy ? 'opacity-75' : 'cursor-pointer'}`}
+                          className={`card h-100 hover-shadow transition-all cursor-pointer`}
                           style={{ borderLeft: `4px solid ${hasStrategy ? '#10b981' : '#4facfe'}` }}
                           onClick={() => {
-                            if (!hasStrategy) {
-                              setSelectedPlanUnitStandard(us);
-                              setShowAssessmentPlanForm(true);
+                            const existingPlan = assessmentStrategyPlans[us.id];
+                            if (existingPlan) {
+                              setAssessmentPlanForm({
+                                dateOfAssessment: existingPlan.assessmentDate ? new Date(existingPlan.assessmentDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+                                questionnaire: {
+                                  time: existingPlan.questionnaireTime || '',
+                                  people: existingPlan.questionnairePeople || '',
+                                  location: existingPlan.questionnaireLocation || '',
+                                  equipment: existingPlan.questionnaireEquipment || ''
+                                },
+                                practicalAssignment: {
+                                  time: existingPlan.practicalTime || '',
+                                  people: existingPlan.practicalPeople || '',
+                                  location: existingPlan.practicalLocation || '',
+                                  equipment: existingPlan.practicalEquipment || ''
+                                },
+                                assessorName: existingPlan.assessorName || user?.name || '',
+                                assessorNumber: existingPlan.assessorNumber || '',
+                                assessorInitials: existingPlan.assessorInitials || '',
+                                assessorSignature: existingPlan.assessorSignature || '',
+                                moderatorName: existingPlan.moderatorName || '',
+                                moderatorNumber: existingPlan.moderatorNumber || '',
+                                moderatorSignature: existingPlan.moderatorSignature || '',
+                                moderatorInitials: existingPlan.moderatorInitials || '',
+                                learnerName: '',
+                                date: new Date().toISOString().split('T')[0]
+                              });
+                            } else {
+                              // Check if any other unit standards have existing plans, use their assessor info
+                              const allPlans = Object.values(assessmentStrategyPlans);
+                              const firstPlanWithAssessor = allPlans.find(
+                                (plan: any) => plan?.assessorNumber || plan?.assessorSignature || plan?.assessorInitials
+                              );
+                              // Reset to default for new plan, but use assessor info from first available
+                              setAssessmentPlanForm({
+                                dateOfAssessment: new Date().toISOString().split('T')[0],
+                                questionnaire: { time: '', people: '', location: '', equipment: '' },
+                                practicalAssignment: { time: '', people: '', location: '', equipment: '' },
+                                assessorName: user?.name || '',
+                                assessorNumber: firstPlanWithAssessor?.assessorNumber || '',
+                                assessorInitials: firstPlanWithAssessor?.assessorInitials || '',
+                                assessorSignature: firstPlanWithAssessor?.assessorSignature || '',
+                                moderatorName: firstPlanWithAssessor?.moderatorName || '',
+                                moderatorNumber: firstPlanWithAssessor?.moderatorNumber || '',
+                                moderatorSignature: firstPlanWithAssessor?.moderatorSignature || '',
+                                moderatorInitials: firstPlanWithAssessor?.moderatorInitials || '',
+                                learnerName: '',
+                                date: new Date().toISOString().split('T')[0]
+                              });
                             }
+                            setSelectedPlanUnitStandard(us);
+                            setShowAssessmentPlanForm(true);
                           }}
                         >
                           <div className="card-body d-flex flex-column">
@@ -8283,8 +8519,8 @@ const SDPManagerDashboard: React.FC = () => {
                                 <div className="alert alert-success py-1 px-2 mb-2 small d-flex align-items-center gap-2">
                                   <span>✅</span> Plan Created
                                 </div>
-                                <button className="btn btn-sm btn-outline-success w-100" disabled>
-                                  Plan Applied
+                                <button className="btn btn-sm btn-outline-info w-100">
+                                  Edit Assessment Plan
                                 </button>
                               </div>
                             ) : (
@@ -8647,6 +8883,12 @@ const SDPManagerDashboard: React.FC = () => {
                           }}
                           onClick={() => {
                             const existingPlan = assessmentStrategyPlans[us.id];
+                            // Check for any other plan with prep data to auto-populate
+                            const allPlans = Object.values(assessmentStrategyPlans);
+                            const firstPlanWithPrep = allPlans.find(
+                              (plan: any) => plan?.prepItemsJson
+                            );
+                            
                             if (existingPlan && existingPlan.prepItemsJson) {
                               try {
                                 setPrepForm({
@@ -8658,6 +8900,39 @@ const SDPManagerDashboard: React.FC = () => {
                                 });
                               } catch (e) {
                                 console.error('Error parsing prep items:', e);
+                              }
+                            } else if (firstPlanWithPrep && firstPlanWithPrep.prepItemsJson) {
+                              try {
+                                // Auto-populate from first available prep
+                                setPrepForm({
+                                  date: firstPlanWithPrep.prepDate ? firstPlanWithPrep.prepDate.split('T')[0] : new Date().toISOString().split('T')[0],
+                                  time: firstPlanWithPrep.prepTime || '',
+                                  venue: firstPlanWithPrep.prepVenue || '',
+                                  comments: firstPlanWithPrep.prepComments || '',
+                                  items: JSON.parse(firstPlanWithPrep.prepItemsJson)
+                                });
+                              } catch (e) {
+                                console.error('Error parsing prep items from other plan:', e);
+                                // Fallback to default
+                                setPrepForm({
+                                  date: new Date().toISOString().split('T')[0],
+                                  time: '',
+                                  venue: '',
+                                  comments: '',
+                                  items: [
+                                    { id: 1, text: 'Explain to the candidate why your are meeting and the purpose of the assessment.', docs: 'NQF Framework Assessment process', agreed: false, action: '' },
+                                    { id: 2, text: 'Discuss the assessment plan in detail.', docs: 'Assessment strategy', agreed: false, action: '' },
+                                    { id: 3, text: 'Explain assessment process, show assessment instruments to candidate and describe assessment conditions.', docs: 'Assessment instruments', agreed: false, action: '' },
+                                    { id: 4, text: 'Identify the role-players during assessment.', docs: 'Assessors / Moderator', agreed: false, action: '' },
+                                    { id: 5, text: 'Describe the evidence required to be declared competent.', docs: 'Examples of evidence', agreed: false, action: '' },
+                                    { id: 6, text: 'Explain how evidence will be judged.', docs: '-', agreed: false, action: '' },
+                                    { id: 7, text: 'Explain to the candidate how to prepare: Give candidate summative task description.', docs: 'Summative task description', agreed: false, action: '' },
+                                    { id: 8, text: 'Confirm with the candidate what he/she should bring to the assessment.', docs: 'Detailed briefing on exact requirements', agreed: false, action: '' },
+                                    { id: 9, text: 'Ensure that candidate understands the procedures of all assessment practices.', docs: 'Appeals / Moderation / Assessment policy', agreed: false, action: '' },
+                                    { id: 10, text: 'Ask the candidate if he/she foresees any problems or identify any special needs.', docs: 'List needs', agreed: false, action: '' },
+                                    { id: 11, text: 'Check with candidate that he/she clearly understands the assessment procedure.', docs: '-', agreed: false, action: '' }
+                                  ]
+                                });
                               }
                             } else {
                               // Reset to default if no plan exists
@@ -9089,49 +9364,86 @@ const SDPManagerDashboard: React.FC = () => {
                   </div>
                 ) : (
                   <div className="row g-3">
-                    {markingLearners.map((learner: any) => (
-                      <div key={learner.learnerId} className="col-12 col-md-6 col-lg-4">
-                        <button
-                          className={`btn w-100 text-start p-3 border-2 h-100 d-flex flex-column justify-content-between ${
-                            markingLearnerId === learner.learnerId
-                              ? (learner.hasUploads ? 'btn-warning' : 'btn-primary')
-                              : (learner.hasUploads ? 'btn-warning' : 'btn-outline-primary')
-                          }`}
-                          style={learner.hasUploads ? { 
-                            backgroundColor: '#f59e0b', 
-                            borderColor: '#d97706', 
-                            color: '#111827',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          } : { 
-                            borderStyle: 'solid',
-                            transition: 'all 0.2s ease'
-                          }}
-                          onClick={() => {
-                            setMarkingLearnerId(learner.learnerId);
-                            setExpandedMarkingQualification(null);
-                            setExpandedMarkingUnitStandard(null);
-                            setExpandedMarkingAssessment(null);
-                            setMarkingAssessmentQuestions([]);
-                            setMarkingLearnerAnswers([]);
-                            setMarkingAnswerPreviewUrl(null);
-                          }}
-                        >
-                          <div className="d-flex justify-content-between align-items-start mb-2">
-                            <div className="fw-bold fs-5">{learner.firstName} {learner.lastName}</div>
-                            {learner.hasUploads && (
-                              <span className="badge bg-dark">
-                                Uploads: {learner.uploadCount ?? 0}
-                              </span>
-                            )}
-                          </div>
-                          <div>
-                            <small className={learner.hasUploads ? 'text-dark opacity-75' : 'text-muted'}>
-                              ID: {learner.idNumber || 'N/A'}
-                            </small>
-                          </div>
-                        </button>
-                      </div>
-                    ))}
+                    {markingLearners.map((learner: any) => {
+                      const isComplete = learner.isMarkingComplete;
+                      const isStarted = learner.isMarkingStarted;
+                      const hasUploads = learner.hasUploads;
+                      
+                      let btnClass = 'btn-outline-primary';
+                      let customStyle: React.CSSProperties = { borderStyle: 'solid', transition: 'all 0.2s ease' };
+
+                      if (isComplete) {
+                        btnClass = 'btn-success';
+                        customStyle = { 
+                          backgroundColor: '#10b981', 
+                          borderColor: '#059669', 
+                          color: '#ffffff',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        };
+                      } else if (isStarted || hasUploads) {
+                        btnClass = 'btn-warning';
+                        customStyle = { 
+                          backgroundColor: '#f59e0b', 
+                          borderColor: '#d97706', 
+                          color: '#111827',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        };
+                      }
+
+                      if (markingLearnerId === learner.learnerId) {
+                        customStyle.boxShadow = '0 0 0 4px rgba(59, 130, 246, 0.5)';
+                      }
+
+                      return (
+                        <div key={learner.learnerId} className="col-12 col-md-6 col-lg-4">
+                          <button
+                            className={`btn w-100 text-start p-3 border-2 h-100 d-flex flex-column justify-content-between ${btnClass}`}
+                            style={customStyle}
+                            onClick={() => {
+                              setMarkingLearnerId(learner.learnerId);
+                              setExpandedMarkingQualification(null);
+                              setExpandedMarkingUnitStandard(null);
+                              setExpandedMarkingAssessment(null);
+                              setMarkingAssessmentQuestions([]);
+                              setMarkingLearnerAnswers([]);
+                              setMarkingAnswerPreviewUrl(null);
+                            }}
+                          >
+                            <div className="d-flex justify-content-between align-items-start mb-2">
+                              <div className="fw-bold fs-5">{learner.firstName} {learner.lastName}</div>
+                              {isComplete ? (
+                                <span className="badge bg-white text-success">
+                                  <i className="fas fa-check-double me-1"></i> COMPLETE
+                                </span>
+                              ) : (
+                                hasUploads && (
+                                  <span className="badge bg-dark">
+                                    Uploads: {learner.uploadCount ?? 0}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                            <div className="d-flex justify-content-between align-items-end">
+                              <div>
+                                <small className={isComplete || isStarted || hasUploads ? 'text-dark opacity-75' : 'text-muted'}>
+                                  ID: {learner.idNumber || 'N/A'}
+                                </small>
+                              </div>
+                              {learner.totalUnitStandards > 0 && (
+                                <div className="text-end">
+                                  <div className={`fw-bold small ${isComplete ? 'text-white' : 'text-dark'}`}>
+                                    {learner.completedUnitStandards} / {learner.totalUnitStandards}
+                                  </div>
+                                  <div className={`small ${isComplete ? 'text-white' : 'text-dark'} opacity-75`} style={{fontSize: '0.65rem'}}>
+                                    US MARKED
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -9213,30 +9525,39 @@ const SDPManagerDashboard: React.FC = () => {
 
                                       return (
                                         <div key={us.id} className="col-12 col-md-6">
-                                          <div className={`border rounded h-100 ${isFormativeMarked && isSummativeMarked ? 'border-success' : ''}`}>
-                                            <div 
-                                              className={`p-2 ${isFormativeMarked && isSummativeMarked ? 'bg-success bg-opacity-10' : 'bg-light'} border-bottom d-flex justify-content-between align-items-center cursor-pointer`}
-                                              onClick={() => {
-                                                const open = usOpen ? null : us.id;
-                                                setExpandedMarkingUnitStandard(open);
-                                                if (open) fetchAssessmentsForUnitStandard(us.id);
-                                              }}
-                                              style={{ cursor: 'pointer' }}
-                                            >
-                                              <div className="d-flex align-items-center gap-2 overflow-hidden">
-                                                <small className="fw-bold text-truncate">{us.unitStandardName}</small>
-                                                <div className="d-flex gap-1 flex-shrink-0">
-                                                  {isFormativeMarked && <span className="badge bg-primary" style={{fontSize: '0.6rem'}}>F</span>}
-                                                  {isSummativeMarked && <span className="badge bg-success" style={{fontSize: '0.6rem'}}>S</span>}
+                                          {(() => {
+                                            const markedCount = (isFormativeMarked ? 1 : 0) + (isSummativeMarked ? 1 : 0);
+                                            const isStarted = markedCount > 0 && markedCount < 2;
+                                            const isComplete = markedCount === 2;
+                                            
+                                            return (
+                                              <div className={`border rounded h-100 ${isComplete ? 'border-success' : (isStarted ? 'border-warning' : '')}`}>
+                                                <div 
+                                                  className={`p-2 ${isComplete ? 'bg-success bg-opacity-10' : (isStarted ? 'bg-warning bg-opacity-10' : 'bg-light')} border-bottom d-flex justify-content-between align-items-center cursor-pointer`}
+                                                  onClick={() => {
+                                                    const open = usOpen ? null : us.id;
+                                                    setExpandedMarkingUnitStandard(open);
+                                                    if (open) fetchAssessmentsForUnitStandard(us.id);
+                                                  }}
+                                                  style={{ cursor: 'pointer' }}
+                                                >
+                                                  <div className="d-flex align-items-center gap-2 overflow-hidden">
+                                                    <small className="fw-bold text-truncate">{us.unitStandardName}</small>
+                                                    <div className="d-flex gap-1 flex-shrink-0">
+                                                      {isFormativeMarked && <span className="badge bg-primary" style={{fontSize: '0.6rem'}}>F</span>}
+                                                      {isSummativeMarked && <span className="badge bg-success" style={{fontSize: '0.6rem'}}>S</span>}
+                                                    </div>
+                                                  </div>
+                                                  <div className="d-flex align-items-center gap-2">
+                                                    <span className={`badge ${isComplete ? 'bg-success' : (isStarted ? 'bg-warning text-dark' : 'bg-secondary')} small`} style={{ fontSize: '0.65rem' }}>
+                                                      {markedCount} / 2 Marked
+                                                    </span>
+                                                    {isComplete && <i className="fas fa-check-circle text-success" style={{fontSize: '0.8rem'}}></i>}
+                                                    <span>{usOpen ? '▼' : '▶'}</span>
+                                                  </div>
                                                 </div>
-                                              </div>
-                                              <div className="d-flex align-items-center">
-                                                {isFormativeMarked && isSummativeMarked && <i className="fas fa-check-circle text-success me-2" style={{fontSize: '0.8rem'}}></i>}
-                                                <span>{usOpen ? '▼' : '▶'}</span>
-                                              </div>
-                                            </div>
-                                            {usOpen && (
-                                              <div className="p-2 d-flex flex-column gap-2" style={{ minHeight: '50px' }}>
+                                                {usOpen && (
+                                                  <div className="p-2 d-flex flex-column gap-2" style={{ minHeight: '50px' }}>
                                                 {/* Assessment Plan Strategy Section */}
                                                 {assessmentStrategyPlans[us.id] && (
                                                   <div className="bg-info bg-opacity-10 border border-info border-opacity-25 rounded p-2 mb-2">
@@ -9299,24 +9620,27 @@ const SDPManagerDashboard: React.FC = () => {
                                                             {(usData?.formative || []).map((a: any) => {
                                                               const isThisFormativeMarked = progress?.formativeAssessmentId === a.id && progress?.formativeCompleted;
                                                               const isThisFormativeModerated = progress?.formativeAssessmentId === a.id && progress?.formativeModerated;
-                                                              const canModerate = activeSection === 'moderation' && isThisFormativeMarked;
-                                                              const isFormativeDone = isThisFormativeModerated;
+                                                              
+                                                              // NEW: Check if there are ANY marks saved for this assessment to allow moderation "In Progress"
+                                                              // We check markingLearnerAnswers if it's currently loaded for this learner
+                                                              const hasAnyMarks = (markingLearnerAnswers || []).some((ans: any) => ans.assessmentId === a.id && ans.mark !== null && ans.mark !== undefined);
+                                                              const isThisFormativeInProgress = !isThisFormativeMarked && hasAnyMarks;
 
                                                               return (
                                                                 <div key={`f-group-${a.id}`} className="d-flex gap-1 align-items-center">
                                                                   <button 
                                                                     className={`btn btn-sm ${
                                                                       activeSection === 'moderation' 
-                                                                        ? (isThisFormativeModerated ? 'btn-info text-white' : (isThisFormativeMarked ? 'btn-success' : 'btn-outline-secondary')) 
+                                                                        ? (isThisFormativeModerated ? 'btn-info text-white' : (isThisFormativeMarked ? 'btn-success' : (isThisFormativeInProgress ? 'btn-warning text-white' : 'btn-outline-secondary'))) 
                                                                         : (isThisFormativeMarked ? 'btn-primary' : 'btn-outline-primary')
                                                                     }`} 
                                                                     onClick={() => openMarkingAssessment(a.id, 'Formative', false)}
-                                                                    disabled={activeSection === 'moderation' ? !isThisFormativeMarked : (isFormativeMarked && isSummativeMarked)}
+                                                                    disabled={activeSection === 'moderation' ? (!isThisFormativeMarked && !isThisFormativeInProgress) : false}
                                                                   >
                                                                     {activeSection === 'moderation' ? (
                                                                       <>
-                                                                        <i className={`fas ${isThisFormativeModerated ? 'fa-eye' : (isThisFormativeMarked ? 'fa-user-check' : 'fa-clock')} me-1`}></i>
-                                                                        {isThisFormativeModerated ? 'View Moderation' : (isThisFormativeMarked ? 'Moderate Formative' : 'Awaiting Mark')}
+                                                                        <i className={`fas ${isThisFormativeModerated ? 'fa-eye' : (isThisFormativeMarked ? 'fa-user-check' : (isThisFormativeInProgress ? 'fa-spinner fa-spin' : 'fa-clock'))} me-1`}></i>
+                                                                        {isThisFormativeModerated ? 'View Moderation' : (isThisFormativeMarked ? 'Moderate Formative' : (isThisFormativeInProgress ? 'Moderation (In Progress)' : 'Awaiting Mark'))}
                                                                       </>
                                                                     ) : (
                                                                       <>
@@ -9330,7 +9654,7 @@ const SDPManagerDashboard: React.FC = () => {
                                                                       className="btn btn-sm btn-outline-warning" 
                                                                       onClick={() => openMarkingAssessment(a.id, 'Formative', true)}
                                                                       title="Mark Remedial"
-                                                                      disabled={(isFormativeMarked && isSummativeMarked) || isFormativeDone}
+                                                                      disabled={false}
                                                                     >
                                                                       Rem
                                                                     </button>
@@ -9341,23 +9665,26 @@ const SDPManagerDashboard: React.FC = () => {
                                                             {(usData?.summative || []).map((a: any) => {
                                                               const isThisSummativeMarked = progress?.summativeAssessmentId === a.id && progress?.summativeCompleted;
                                                               const isThisSummativeModerated = progress?.summativeAssessmentId === a.id && progress?.summativeModerated;
-                                                              const isSummativeDone = isThisSummativeModerated;
+                                                              
+                                                              // NEW: Check if there are ANY marks saved for this assessment to allow moderation "In Progress"
+                                                              const hasAnySumMarks = (markingLearnerAnswers || []).some((ans: any) => ans.assessmentId === a.id && ans.mark !== null && ans.mark !== undefined);
+                                                              const isThisSummativeInProgress = !isThisSummativeMarked && hasAnySumMarks;
                                                               
                                                               return (
                                                                 <div key={`s-group-${a.id}`} className="d-flex gap-1 align-items-center">
                                                                   <button 
                                                                     className={`btn btn-sm ${
                                                                       activeSection === 'moderation' 
-                                                                        ? (isThisSummativeModerated ? 'btn-info text-white' : (isThisSummativeMarked ? 'btn-success' : 'btn-outline-secondary')) 
+                                                                        ? (isThisSummativeModerated ? 'btn-info text-white' : (isThisSummativeMarked ? 'btn-success' : (isThisSummativeInProgress ? 'btn-warning text-white' : 'btn-outline-secondary'))) 
                                                                         : (isThisSummativeMarked ? 'btn-success' : 'btn-outline-success')
                                                                     }`} 
                                                                     onClick={() => openMarkingAssessment(a.id, 'Summative', false)}
-                                                                    disabled={activeSection === 'moderation' ? !isThisSummativeMarked : (isFormativeMarked && isSummativeMarked)}
+                                                                    disabled={activeSection === 'moderation' ? (!isThisSummativeMarked && !isThisSummativeInProgress) : false}
                                                                   >
                                                                     {activeSection === 'moderation' ? (
                                                                       <>
-                                                                        <i className={`fas ${isThisSummativeModerated ? 'fa-eye' : (isThisSummativeMarked ? 'fa-user-check' : 'fa-clock')} me-1`}></i>
-                                                                        {isThisSummativeModerated ? 'View Moderation' : (isThisSummativeMarked ? 'Moderate Summative' : 'Awaiting Mark')}
+                                                                        <i className={`fas ${isThisSummativeModerated ? 'fa-eye' : (isThisSummativeMarked ? 'fa-user-check' : (isThisSummativeInProgress ? 'fa-spinner fa-spin' : 'fa-clock'))} me-1`}></i>
+                                                                        {isThisSummativeModerated ? 'View Moderation' : (isThisSummativeMarked ? 'Moderate Summative' : (isThisSummativeInProgress ? 'Moderation (In Progress)' : 'Awaiting Mark'))}
                                                                       </>
                                                                     ) : (
                                                                       <>
@@ -9371,7 +9698,7 @@ const SDPManagerDashboard: React.FC = () => {
                                                                       className="btn btn-sm btn-outline-warning" 
                                                                       onClick={() => openMarkingAssessment(a.id, 'Summative', true)}
                                                                       title="Mark Remedial"
-                                                                      disabled={(isFormativeMarked && isSummativeMarked) || isSummativeDone}
+                                                                      disabled={false}
                                                                     >
                                                                       Rem
                                                                     </button>
@@ -9391,9 +9718,11 @@ const SDPManagerDashboard: React.FC = () => {
                                               </div>
                                             )}
                                           </div>
-                                        </div>
-                                      );
-                                    })}
+                                        );
+                                      })()}
+                                    </div>
+                                  );
+                                })}
                                   </div>
                                 </div>
                               )}
@@ -9473,9 +9802,14 @@ const SDPManagerDashboard: React.FC = () => {
                       ) : (
                         markingAssessmentQuestions.map((q: any) => {
                         // Find the most relevant answer for this specific learner and question
-                        // We filter by learnerId and then sort to prioritize moderated entries (status 2 or 3)
+                        // We link by questionId OR questionNumber for maximum reliability
                         const learnerAnswers = (markingLearnerAnswers || [])
-                          .filter((a: any) => a.learnerId === markingLearnerId && a.questionId === q.id)
+                          .filter((a: any) => {
+                            const isSameLearner = a.learnerId === markingLearnerId;
+                            const isIdMatch = a.questionId === q.id;
+                            const isNumberMatch = a.questionNumber != null && q.questionNumber != null && a.questionNumber.toString() === q.questionNumber.toString();
+                            return isSameLearner && (isIdMatch || isNumberMatch);
+                          })
                           .sort((a: any, b: any) => {
                             const aStatus = a.moderationStatus === 'Moderated' || a.moderationStatus === 2 || a.moderationStatus === 'ReturnedToAssessor' || a.moderationStatus === 3 ? 1 : 0;
                             const bStatus = b.moderationStatus === 'Moderated' || b.moderationStatus === 2 || b.moderationStatus === 'ReturnedToAssessor' || b.moderationStatus === 3 ? 1 : 0;
@@ -9519,7 +9853,7 @@ const SDPManagerDashboard: React.FC = () => {
                                   {!hasScript && activeSection === 'marking' && (
                                     <div className="alert alert-warning py-2 px-3 mb-3 border-0 small d-flex align-items-center">
                                       <i className="fas fa-exclamation-triangle me-2"></i>
-                                      <span>No script uploaded for this question. Marking disabled.</span>
+                                      <span>No script uploaded for this question. You can still enter a mark if required.</span>
                                     </div>
                                   )}
 
@@ -9555,7 +9889,7 @@ const SDPManagerDashboard: React.FC = () => {
                                           const key = `learner:${markingLearnerId}:assessment:${expandedMarkingAssessment.type}:${expandedMarkingAssessment.id}:question:${q.id}`;
                                           setDraftMarks(prev => ({ ...prev, [key]: value }));
                                         }}
-                                        disabled={activeSection !== 'marking' || !hasScript || isMarked}
+                                        disabled={activeSection !== 'marking' || isModeratedAssessment || isThisQuestionModerated}
                                       />
                                       <label htmlFor={`q-${q.id}`}>Assessor Mark (max {q.allocatedMarks})</label>
                                     </div>
@@ -9569,7 +9903,7 @@ const SDPManagerDashboard: React.FC = () => {
                                           if (activeSection === 'moderation') return;
                                           setModerationComments(prev => ({ ...prev, [`assessor:${q.id}`]: e.target.value }));
                                         }}
-                                        disabled={activeSection !== 'marking' || !hasScript || isMarked}
+                                        disabled={activeSection !== 'marking' || isModeratedAssessment || isThisQuestionModerated}
                                       ></textarea>
                                       <label>Assessor Comments</label>
                                     </div>
@@ -10527,6 +10861,37 @@ const SDPManagerDashboard: React.FC = () => {
                     <span>Moderation</span>
                   </button>
                 )}
+                {isModerator && (
+                  <button
+                    className={`nav-link text-start border-0 ${activeSection === 'moderatorProfile' ? 'active' : ''}`}
+                    style={{
+                      color: '#ffffff',
+                      backgroundColor: activeSection === 'moderatorProfile' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      fontWeight: activeSection === 'moderatorProfile' ? 600 : 400,
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                    onClick={() => setActiveSection('moderatorProfile')}
+                    onMouseEnter={(e) => {
+                      if (activeSection !== 'moderatorProfile') {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (activeSection !== 'moderatorProfile') {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    <span style={{ fontSize: '1.2rem' }}>👤</span>
+                    <span>Moderator Profile</span>
+                  </button>
+                )}
                 {/* Document Approvals - Visible for everyone except strictly Assessor/Moderator (QA Managers can see it) */}
                 {(!isAssessor && (!isModerator || isQA)) && (
                   <button
@@ -10731,6 +11096,7 @@ const SDPManagerDashboard: React.FC = () => {
               {activeSection === 'documentApprovals' && (!isAssessor && (!isModerator || isQA)) && renderDocumentApprovals()}
               {activeSection === 'allUsers' && isIT && renderAllUsers()}
               {activeSection === 'systemLogs' && isIT && renderSystemLogs()}
+              {activeSection === 'moderatorProfile' && isModerator && <ModeratorProfileSection user={user} setUser={setUser} fetchWithAuth={fetchWithAuth} />}
             </div>
           </div>
         </div>

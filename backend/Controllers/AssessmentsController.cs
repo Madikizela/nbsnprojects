@@ -423,9 +423,11 @@ namespace backend.Controllers
                 existingPlan.AssessorName = planDto.AssessorName;
                 existingPlan.AssessorNumber = planDto.AssessorNumber;
                 existingPlan.AssessorSignature = planDto.AssessorSignature;
+                existingPlan.AssessorInitials = planDto.AssessorInitials;
                 existingPlan.ModeratorName = planDto.ModeratorName;
                 existingPlan.ModeratorNumber = planDto.ModeratorNumber;
                 existingPlan.ModeratorSignature = planDto.ModeratorSignature;
+                existingPlan.ModeratorInitials = planDto.ModeratorInitials;
                 
                 // Update Prep fields
                 existingPlan.PrepDate = planDto.PrepDate;
@@ -456,9 +458,11 @@ namespace backend.Controllers
                      AssessorName = planDto.AssessorName,
                      AssessorNumber = planDto.AssessorNumber,
                      AssessorSignature = planDto.AssessorSignature,
+                     AssessorInitials = planDto.AssessorInitials,
                      ModeratorName = planDto.ModeratorName,
                      ModeratorNumber = planDto.ModeratorNumber,
                      ModeratorSignature = planDto.ModeratorSignature,
+                     ModeratorInitials = planDto.ModeratorInitials,
                      
                      // New Prep fields
                      PrepDate = planDto.PrepDate,

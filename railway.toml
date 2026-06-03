@@ -1,0 +1,15 @@
+[build]
+builder = "docker-compose"
+
+[services.backend]
+name = "nbsn-backend"
+build = "backend"
+dockerfile = "Dockerfile.production"
+healthcheckPath = "/api/test/ping"
+healthcheckTimeout = 100
+
+[services.frontend]
+name = "nbsn-frontend"
+build = "frontend"
+dockerfile = "Dockerfile.production"
+dependsOn = ["backend"]

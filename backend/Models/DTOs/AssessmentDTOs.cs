@@ -135,9 +135,11 @@ namespace backend.Models.DTOs
         public string? AssessorName { get; set; }
         public string? AssessorNumber { get; set; }
         public string? AssessorSignature { get; set; }
+        public string? AssessorInitials { get; set; }
         public string? ModeratorName { get; set; }
         public string? ModeratorNumber { get; set; }
         public string? ModeratorSignature { get; set; }
+        public string? ModeratorInitials { get; set; }
 
         // Candidate Preparation
         public DateTime? PrepDate { get; set; }
