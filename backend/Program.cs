@@ -5,6 +5,7 @@ using backend.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Collections.Generic;
 using DotNetEnv;
 
 // Load environment variables from .env file
@@ -65,7 +66,8 @@ builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
        {
            npgsqlOptions.EnableRetryOnFailure(
                maxRetryCount: 3,
-               maxRetryDelay: TimeSpan.FromSeconds(5));
+               maxRetryDelay: TimeSpan.FromSeconds(5),
+               errorCodesToAdd: new List<string>());
        });
     options.EnableSensitiveDataLogging(true);
     options.EnableDetailedErrors(true);
