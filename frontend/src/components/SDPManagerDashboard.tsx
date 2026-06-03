@@ -211,18 +211,18 @@ interface Project {
   updatedAt: string;
 }
 
-interface Department {
-  id: number;
-  name: string;
-  description?: string;
-  type: number;
-  managerFirstName: string;
-  managerSurname: string;
-  managerEmail: string;
-  skillsDevelopmentProviderId: number;
-  createdAt: string;
-  updatedAt: string;
-}
+// interface Department {
+//   id: number;
+//   name: string;
+//   description?: string;
+//   type: number;
+//   managerFirstName: string;
+//   managerSurname: string;
+//   managerEmail: string;
+//   skillsDevelopmentProviderId: number;
+//   createdAt: string;
+//   updatedAt: string;
+// }
 
 interface TeamMember {
   id: number;
@@ -727,19 +727,19 @@ const SDPManagerDashboard: React.FC = () => {
   const [sickNotes, setSickNotes] = useState<SickNoteResponse[]>([]);
   const [sickNotesLoading, setSickNotesLoading] = useState(false);
   // const [showSickNoteModal, setShowSickNoteModal] = useState(false);
-  const [selectedSickNote, setSelectedSickNote] = useState<SickNoteResponse | null>(null);
+  // const [selectedSickNote, setSelectedSickNote] = useState<SickNoteResponse | null>(null);
   const [showSickNoteDeclineModal, setShowSickNoteDeclineModal] = useState(false);
   const [sickNoteDeclineReason, setSickNoteDeclineReason] = useState('');
   const [sickNoteToDecline, setSickNoteToDecline] = useState<SickNoteResponse | null>(null);
-  const [sickNotePreviewUrl, setSickNotePreviewUrl] = useState<string | null>(null);
+  // const [sickNotePreviewUrl, setSickNotePreviewUrl] = useState<string | null>(null);
   
   // Assessment management state
   const [expandedUnitStandards, setExpandedUnitStandards] = useState<{[key: string]: boolean}>({});
   const [unitStandardAssessments, setUnitStandardAssessments] = useState<{[key: number]: any[]}>({});
-  const [assessmentTypes, setAssessmentTypes] = useState<any[]>([]);
+  // const [assessmentTypes, setAssessmentTypes] = useState<any[]>([]);
   const [selectedAssessmentType, setSelectedAssessmentType] = useState<{[key: number]: number}>({});
-  const [assessmentDetails, setAssessmentDetails] = useState<{[key: number]: any}>({});
-  const [showAddQuestionModal, setShowAddQuestionModal] = useState(false);
+  // const [assessmentDetails, setAssessmentDetails] = useState<{[key: number]: any}>({});
+  // const [showAddQuestionModal, setShowAddQuestionModal] = useState(false);
   const [currentAssessmentId, setCurrentAssessmentId] = useState<number | null>(null);
   const [newQuestion, setNewQuestion] = useState({
     questionNumber: 1,
@@ -10193,7 +10193,7 @@ const SDPManagerDashboard: React.FC = () => {
                 {showStatsBreakdown && (
                   <div className="mt-3">
                     <div className="row g-2">
-                      {documentApprovalStats.documentTypeBreakdown.map((docType, index) => (
+                      {documentApprovalStats.documentTypeBreakdown.map((docType, _index) => (
                         <div key={docType.documentType} className="col-md-6 col-lg-4">
                           <div className="card bg-white bg-opacity-10 border-0">
                             <div className="card-body p-3">
@@ -10418,7 +10418,7 @@ const SDPManagerDashboard: React.FC = () => {
                   .filter(learner => 
                     documentFilterStatus === 'All' || learner.filteredDocuments.length > 0
                   )
-                  .map((learner, index) => (
+                  .map((learner, _index) => (
                   <div key={learner.learnerId} className="card border-0 shadow-sm mb-3">
                     <div 
                       className="card-header bg-light cursor-pointer"
