@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import SignatureCanvas from 'react-signature-canvas';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, AreaChart, Area
+  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
 } from 'recharts';
 
 interface User {
@@ -211,18 +211,18 @@ interface Project {
   updatedAt: string;
 }
 
-// interface Department {
-//   id: number;
-//   name: string;
-//   description?: string;
-//   type: number;
-//   managerFirstName: string;
-//   managerSurname: string;
-//   managerEmail: string;
-//   skillsDevelopmentProviderId: number;
-//   createdAt: string;
-//   updatedAt: string;
-// }
+interface Department {
+  id: number;
+  name: string;
+  description?: string;
+  type: number;
+  managerFirstName: string;
+  managerSurname: string;
+  managerEmail: string;
+  skillsDevelopmentProviderId: number;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface TeamMember {
   id: number;
@@ -716,30 +716,30 @@ const SDPManagerDashboard: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
-  // const [departments, setDepartments] = useState<Department[]>([]);
-  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'reports' | 'team' | 'tasks' | 'attendanceTracking' | 'documentApprovals' | 'sickNotes' | 'marking' | 'moderation' | 'assessmentPlan' | 'candidatePreparation' | 'assessorReport' | 'systemLogs' | 'allUsers'>((location.state as any)?.section || 'overview');
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'reports' | 'team' | 'tasks' | 'attendanceTracking' | 'documentApprovals' | 'sickNotes' | 'marking' | 'moderation' | 'assessmentPlan' | 'candidatePreparation' | 'assessorReport' | 'systemLogs' | 'allUsers' | 'moderatorProfile'>((location.state as any)?.section || 'overview');
   const [expandedProjects, setExpandedProjects] = useState<{[key: number]: boolean}>({});
   const [projectDetails, setProjectDetails] = useState<{[key: number]: any}>({});
   const [competencyReport, setCompetencyReport] = useState<CompetencyReport | null>(null);
-  // const [fetchingReport, setFetchingReport] = useState(false);
+  const [fetchingReport, setFetchingReport] = useState(false);
 
   // Sick Note state
   const [sickNotes, setSickNotes] = useState<SickNoteResponse[]>([]);
   const [sickNotesLoading, setSickNotesLoading] = useState(false);
-  // const [showSickNoteModal, setShowSickNoteModal] = useState(false);
-  // const [selectedSickNote, setSelectedSickNote] = useState<SickNoteResponse | null>(null);
+  const [showSickNoteModal, setShowSickNoteModal] = useState(false);
+  const [selectedSickNote, setSelectedSickNote] = useState<SickNoteResponse | null>(null);
   const [showSickNoteDeclineModal, setShowSickNoteDeclineModal] = useState(false);
   const [sickNoteDeclineReason, setSickNoteDeclineReason] = useState('');
   const [sickNoteToDecline, setSickNoteToDecline] = useState<SickNoteResponse | null>(null);
-  // const [sickNotePreviewUrl, setSickNotePreviewUrl] = useState<string | null>(null);
+  const [sickNotePreviewUrl, setSickNotePreviewUrl] = useState<string | null>(null);
   
   // Assessment management state
   const [expandedUnitStandards, setExpandedUnitStandards] = useState<{[key: string]: boolean}>({});
   const [unitStandardAssessments, setUnitStandardAssessments] = useState<{[key: number]: any[]}>({});
-  // const [assessmentTypes, setAssessmentTypes] = useState<any[]>([]);
+  const [assessmentTypes, setAssessmentTypes] = useState<any[]>([]);
   const [selectedAssessmentType, setSelectedAssessmentType] = useState<{[key: number]: number}>({});
-  // const [assessmentDetails, setAssessmentDetails] = useState<{[key: number]: any}>({});
-  // const [showAddQuestionModal, setShowAddQuestionModal] = useState(false);
+  const [assessmentDetails, setAssessmentDetails] = useState<{[key: number]: any}>({});
+  const [showAddQuestionModal, setShowAddQuestionModal] = useState(false);
   const [currentAssessmentId, setCurrentAssessmentId] = useState<number | null>(null);
   const [newQuestion, setNewQuestion] = useState({
     questionNumber: 1,
@@ -775,7 +775,7 @@ const SDPManagerDashboard: React.FC = () => {
   const [assessmentData, setAssessmentData] = useState<{[key: number]: {formative: any[], summative: any[], formativeQuestions: {[key: number]: any[]}, summativeQuestions: {[key: number]: any[]}, logbook: any[]}}>({});
   const [loadingAssessments, setLoadingAssessments] = useState<{[key: number]: boolean}>({});
   const [showMarkingModal, setShowMarkingModal] = useState(false);
-  const [markingAssessment, setMarkingAssessment] = useState<{ id: number; type: 'Formative' | 'Summative'; unitStandardId: number } | null>(null);
+  const [markingAssessment, setMarkingAssessment] = useState<{ id: number; type: 'Formative' | 'Summative'; unitStandardId: number; isRemedial?: boolean } | null>(null);
   const [markingData, setMarkingData] = useState<any | null>(null);
   const [markingLoading, setMarkingLoading] = useState(false);
   const [draftMarks, setDraftMarks] = useState<{ [key: string]: string }>({});
@@ -4739,7 +4739,7 @@ const SDPManagerDashboard: React.FC = () => {
                   <p className="mb-0 opacity-75">Loading...</p>
                 ) : attendanceProjects.length > 0 ? (
                   <div className="text-start">
-                    {attendanceProjects.map((project, _index) => (
+                    {attendanceProjects.map((project, index) => (
                       <div key={project.projectId} className="mb-1">
                         <small className="opacity-75">
                           {project.projectName.length > 15 ? 
@@ -10193,7 +10193,7 @@ const SDPManagerDashboard: React.FC = () => {
                 {showStatsBreakdown && (
                   <div className="mt-3">
                     <div className="row g-2">
-                      {documentApprovalStats.documentTypeBreakdown.map((docType, _index) => (
+                      {documentApprovalStats.documentTypeBreakdown.map((docType, index) => (
                         <div key={docType.documentType} className="col-md-6 col-lg-4">
                           <div className="card bg-white bg-opacity-10 border-0">
                             <div className="card-body p-3">
@@ -10418,7 +10418,7 @@ const SDPManagerDashboard: React.FC = () => {
                   .filter(learner => 
                     documentFilterStatus === 'All' || learner.filteredDocuments.length > 0
                   )
-                  .map((learner, _index) => (
+                  .map((learner, index) => (
                   <div key={learner.learnerId} className="card border-0 shadow-sm mb-3">
                     <div 
                       className="card-header bg-light cursor-pointer"

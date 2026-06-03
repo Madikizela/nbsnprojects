@@ -178,8 +178,8 @@ const SDPDashboard: React.FC = () => {
     consumablesCost: 0
   });
 
-  // const [availableDistricts, setAvailableDistricts] = useState<District[]>([]);
-  // const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [availableDistricts, setAvailableDistricts] = useState<District[]>([]);
+  const [selectedDistrict, setSelectedDistrict] = useState('');
 
   // Initialize user data
   useEffect(() => {
@@ -347,15 +347,15 @@ const SDPDashboard: React.FC = () => {
   }, [activeSection, user?.skillsDevelopmentProviderId]);
 
   // Handle district selection
-  // useEffect(() => {
-  //   if (selectedDistrict) {
-  //     const district = availableDistricts.find(d => d.id.toString() === selectedDistrict);
-  //     if (district) {
-  //       // Just for reference if needed
-  //       console.log('District selected:', district.name);
-  //     }
-  //   }
-  // }, [selectedDistrict, availableDistricts]);
+  useEffect(() => {
+    if (selectedDistrict) {
+      const district = availableDistricts.find(d => d.id.toString() === selectedDistrict);
+      if (district) {
+        // Just for reference if needed
+        console.log('District selected:', district.name);
+      }
+    }
+  }, [selectedDistrict, availableDistricts]);
 
   // Handle adding new department
   const handleAddDepartment = async (e: React.FormEvent) => {
