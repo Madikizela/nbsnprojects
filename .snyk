@@ -1,0 +1,17 @@
+# Snyk (https://snyk.io) policy file
+# This file is used to configure Snyk vulnerability scanning for this project.
+# Add paths to ignore, or accept specific vulnerabilities here.
+
+version: v1.25.0
+
+# Ignore specific vulnerabilities (add entries as needed after reviewing)
+# Example:
+# ignore:
+#   SNYK-JS-SOMEPACKAGE-123456:
+#     - '*':
+#         reason: 'Not exploitable in our usage'
+#         expires: '2026-12-31T00:00:00.000Z'
+
+ignore: {}
+
+patch: {}

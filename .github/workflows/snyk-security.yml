@@ -1,0 +1,142 @@
+name: Snyk Security Scan
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+  schedule:
+    # Run every Monday at 08:00 UTC to catch newly disclosed vulnerabilities
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  # ──────────────────────────────────────────────
+  # 1. Frontend — npm / Node.js
+  # ──────────────────────────────────────────────
+  snyk-frontend:
+    name: Snyk — Frontend (npm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true   # Don't fail the pipeline — report only
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=frontend/package.json --org=797d4e89-f286-4e05-a720-5a7184fe4bd1 --project-name=NBSN-Frontend --severity-threshold=high
+
+      - name: Upload Snyk frontend results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+        continue-on-error: true
+
+  # ──────────────────────────────────────────────
+  # 2. Backend — .NET / NuGet
+  # ──────────────────────────────────────────────
+  snyk-backend:
+    name: Snyk — Backend (.NET)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore backend packages
+        run: |
+          cd backend
+          dotnet restore
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/dotnet@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=backend/backend.csproj --org=797d4e89-f286-4e05-a720-5a7184fe4bd1 --project-name=NBSN-Backend --severity-threshold=high
+
+      - name: Upload Snyk backend results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+        continue-on-error: true
+
+  # ──────────────────────────────────────────────
+  # 3. Mobile — Flutter / Dart (Android Gradle)
+  #    Note: Snyk CLI does not support pub/dart natively.
+  #    We scan the Android Gradle dependencies instead.
+  # ──────────────────────────────────────────────
+  snyk-flutter:
+    name: Snyk — Flutter Android (Gradle)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Java (required for Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 'stable'
+
+      - name: Install Flutter dependencies
+        run: |
+          cd mobile_flutter
+          flutter pub get
+
+      - name: Run Snyk on Android Gradle
+        uses: snyk/actions/gradle@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --file=mobile_flutter/android/build.gradle --org=797d4e89-f286-4e05-a720-5a7184fe4bd1 --project-name=NBSN-Flutter --severity-threshold=high
+
+  # ──────────────────────────────────────────────
+  # 4. Snyk Code — SAST static analysis (all code)
+  # ──────────────────────────────────────────────
+  snyk-code:
+    name: Snyk Code — Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Snyk Code to check for vulnerabilities
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          command: code test
+          args: --org=797d4e89-f286-4e05-a720-5a7184fe4bd1 --severity-threshold=high
+
+      - name: Upload Snyk Code results to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: snyk.sarif
+        continue-on-error: true
