@@ -296,6 +296,9 @@ namespace backend.Controllers
                     .Where(p => pqUsIds.Contains(p.ProjectQualificationUnitStandardId))
                     .ToListAsync();
 
+                var logPath2 = Path.Combine(_environment.ContentRootPath, "poe_error.log");
+                System.IO.File.AppendAllText(logPath2, $"[{DateTime.Now}] Processing {allAnswers.Count} answers for learner {learnerId}\n");
+
                 var answersWithQuestions = new List<AnswerWithQuestion>();
                 foreach (var answer in allAnswers)
                 {
@@ -315,6 +318,7 @@ namespace backend.Controllers
                             allocatedMarks = q.AllocatedMarks;
                             pqUsId = q.FormativeAssessment?.ProjectQualificationUnitStandardId ?? 0;
                         }
+                        System.IO.File.AppendAllText(logPath2, $"  Answer {answer.Id} (Formative Q{answer.QuestionId}): question_found={q!=null}, pqUsId={pqUsId}, fileExists={System.IO.File.Exists(answer.ScannedDocumentPath)}, path={answer.ScannedDocumentPath}\n");
                     }
                     else
                     {
@@ -327,6 +331,7 @@ namespace backend.Controllers
                             allocatedMarks = q.AllocatedMarks;
                             pqUsId = q.SummativeAssessment?.ProjectQualificationUnitStandardId ?? 0;
                         }
+                        System.IO.File.AppendAllText(logPath2, $"  Answer {answer.Id} (Summative Q{answer.QuestionId}): question_found={q!=null}, pqUsId={pqUsId}, fileExists={System.IO.File.Exists(answer.ScannedDocumentPath)}, path={answer.ScannedDocumentPath}\n");
                     }
 
                     // IMPORTANT: If multiple files exist for the same question, only the first one should show the full mark.
@@ -344,6 +349,10 @@ namespace backend.Controllers
                         ProjectQualificationUnitStandardId = pqUsId
                     });
                 }
+
+                // Log unit standard IDs to cross-check with answer pqUsIds
+                System.IO.File.AppendAllText(logPath2, $"[{DateTime.Now}] Unit standard pqUsIds in this qualification: {string.Join(", ", pqUsIds)}\n");
+                System.IO.File.AppendAllText(logPath2, $"[{DateTime.Now}] Answer pqUsIds resolved: {string.Join(", ", answersWithQuestions.Select(a => a.ProjectQualificationUnitStandardId).Distinct())}\n");
 
                 // Generate initials for the footer
                 string initials = "";
@@ -760,16 +769,33 @@ namespace backend.Controllers
                                                     ansCol.Item().PaddingHorizontal(10).PaddingTop(5).Text($"Assessor Comments: {answer.AssessorComments}").FontSize(9).Italic().FontColor(Colors.Blue.Medium);
                                                 }
 
-                                                if (!string.IsNullOrEmpty(answer.ScannedDocumentPath) && System.IO.File.Exists(answer.ScannedDocumentPath))
+                                                // Resolve full path — may be just a filename (new style) or a full absolute path (legacy)
+                                                var resolvedPath = !string.IsNullOrEmpty(answer.ScannedDocumentPath) && Path.IsPathRooted(answer.ScannedDocumentPath)
+                                                    ? answer.ScannedDocumentPath
+                                                    : Path.Combine(_environment.ContentRootPath, "uploads", "assessment-answers", answer.ScannedDocumentPath ?? "");
+
+                                                if (!string.IsNullOrEmpty(resolvedPath) && System.IO.File.Exists(resolvedPath))
                                                 {
                                                     try
                                                     {
-                                                        var answerBytes = System.IO.File.ReadAllBytes(answer.ScannedDocumentPath);
-                                                        // FitArea is the safest option to prevent "Conflicting size constraints" crash
-                                                        // while still maintaining the largest possible readable size for the page.
+                                                        var answerBytes = System.IO.File.ReadAllBytes(resolvedPath);
                                                         ansCol.Item().PaddingTop(5).AlignCenter().Image(answerBytes).FitArea();
                                                     }
-                                                    catch { }
+                                                    catch (Exception imgEx)
+                                                    {
+                                                        ansCol.Item().PaddingTop(5).Border(1).BorderColor(Colors.Red.Lighten2).Padding(10).AlignCenter()
+                                                            .Text($"[Error loading image: {imgEx.Message}]").FontSize(9).FontColor(Colors.Red.Medium).Italic();
+                                                    }
+                                                }
+                                                else
+                                                {
+                                                    // File missing on disk — show placeholder so POE still renders
+                                                    ansCol.Item().PaddingTop(5).Background(Colors.Grey.Lighten4).Border(1).BorderColor(Colors.Grey.Lighten2)
+                                                        .Padding(15).AlignCenter().Column(missing => {
+                                                            missing.Item().AlignCenter().Text("📄").FontSize(24);
+                                                            missing.Item().PaddingTop(5).AlignCenter().Text("Evidence document not available on this server.").FontSize(9).Italic().FontColor(Colors.Grey.Darken1);
+                                                            missing.Item().AlignCenter().Text($"File: {answer.ScannedDocumentName}").FontSize(8).FontColor(Colors.Grey.Medium);
+                                                        });
                                                 }
                                                 
                                                 ansCol.Item().PaddingVertical(5).LineHorizontal(1f).LineColor(Colors.Grey.Lighten2);

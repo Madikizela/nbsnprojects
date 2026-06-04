@@ -217,8 +217,8 @@ namespace backend.Controllers
                     return Conflict(new { message = "Answer already exists for this question. Delete the existing answer first." });
                 }
 
-                // Create uploads directory if it doesn't exist
-                var uploadsPath = Path.Combine(_environment.WebRootPath ?? _environment.ContentRootPath, "uploads", "assessment-answers");
+                // Always use ContentRootPath so the path works on any machine
+                var uploadsPath = Path.Combine(_environment.ContentRootPath, "uploads", "assessment-answers");
                 Directory.CreateDirectory(uploadsPath);
 
                 var uploadedAnswers = new List<object>();
@@ -229,7 +229,7 @@ namespace backend.Controllers
 
                     // Generate unique filename
                     var fileExtension = Path.GetExtension(file.FileName);
-                    var fileName = $"learner_{dto.LearnerId}_assessment_{dto.AssessmentId}_{dto.AssessmentType.ToLower()}_q{dto.QuestionNumber}_{(dto.IsRemedial ? "" : "")}{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString().Substring(0, 8)}{fileExtension}";
+                    var fileName = $"learner_{dto.LearnerId}_assessment_{dto.AssessmentId}_{dto.AssessmentType.ToLower()}_q{dto.QuestionNumber}_{(dto.IsRemedial ? "remedial_" : "")}{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString().Substring(0, 8)}{fileExtension}";
                     var filePath = Path.Combine(uploadsPath, fileName);
 
                     // Save file
@@ -238,7 +238,7 @@ namespace backend.Controllers
                         await file.CopyToAsync(stream);
                     }
 
-                    // Save to database
+                    // Store ONLY the filename in DB — full path is rebuilt at runtime from ContentRootPath
                     var answer = new LearnerAssessmentAnswer
                     {
                         LearnerId = dto.LearnerId,
@@ -247,7 +247,7 @@ namespace backend.Controllers
                         IsRemedial = dto.IsRemedial,
                         QuestionId = dto.QuestionId,
                         QuestionNumber = dto.QuestionNumber,
-                        ScannedDocumentPath = filePath,
+                        ScannedDocumentPath = fileName,   // relative: just the filename
                         ScannedDocumentName = fileName,
                         FileSize = file.Length,
                         MimeType = file.ContentType,
@@ -294,10 +294,13 @@ namespace backend.Controllers
                     return NotFound();
                 }
 
-                // Delete file from disk
-                if (System.IO.File.Exists(answer.ScannedDocumentPath))
+                // Delete file from disk — ScannedDocumentPath may be just a filename (new style) or a full path (legacy)
+                var fullPath = Path.IsPathRooted(answer.ScannedDocumentPath)
+                    ? answer.ScannedDocumentPath
+                    : Path.Combine(_environment.ContentRootPath, "uploads", "assessment-answers", answer.ScannedDocumentPath);
+                if (System.IO.File.Exists(fullPath))
                 {
-                    System.IO.File.Delete(answer.ScannedDocumentPath);
+                    System.IO.File.Delete(fullPath);
                 }
 
                 // Remove from database
@@ -327,12 +330,17 @@ namespace backend.Controllers
                 return NotFound(new { message = "Assessment answer not found" });
             }
 
-            if (string.IsNullOrWhiteSpace(answer.ScannedDocumentPath) || !System.IO.File.Exists(answer.ScannedDocumentPath))
+            // Resolve full path — ScannedDocumentPath may be just a filename (new style) or a full path (legacy)
+            var fullPath = Path.IsPathRooted(answer.ScannedDocumentPath)
+                ? answer.ScannedDocumentPath
+                : Path.Combine(_environment.ContentRootPath, "uploads", "assessment-answers", answer.ScannedDocumentPath);
+
+            if (string.IsNullOrWhiteSpace(fullPath) || !System.IO.File.Exists(fullPath))
             {
                 return NotFound(new { message = "Uploaded file not found on server" });
             }
 
-            var bytes = await System.IO.File.ReadAllBytesAsync(answer.ScannedDocumentPath);
+            var bytes = await System.IO.File.ReadAllBytesAsync(fullPath);
             var mime = string.IsNullOrWhiteSpace(answer.MimeType) ? "application/octet-stream" : answer.MimeType;
             return File(bytes, mime, answer.ScannedDocumentName);
         }

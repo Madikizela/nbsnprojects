@@ -32,9 +32,9 @@ namespace backend.Services
 
         public async Task<(string encryptedPath, string iv, string hash)> EncryptAndSaveFileAsync(byte[] fileContent, string fileName)
         {
-            // Generate unique file name
+            // Generate unique file name only — never store full absolute path in DB
             var uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(fileName)}";
-            var encryptedPath = Path.Combine(_uploadDirectory, uniqueFileName);
+            var fullPath = Path.Combine(_uploadDirectory, uniqueFileName);
 
             // Calculate SHA256 hash of original file
             string fileHash;
@@ -52,22 +52,28 @@ namespace backend.Services
                 var iv = Convert.ToBase64String(aes.IV);
 
                 using (var encryptor = aes.CreateEncryptor())
-                using (var fileStream = new FileStream(encryptedPath, FileMode.Create, FileAccess.Write))
+                using (var fileStream = new FileStream(fullPath, FileMode.Create, FileAccess.Write))
                 using (var cryptoStream = new CryptoStream(fileStream, encryptor, CryptoStreamMode.Write))
                 {
                     await cryptoStream.WriteAsync(fileContent, 0, fileContent.Length);
                     await cryptoStream.FlushFinalBlockAsync();
                 }
 
-                return (encryptedPath, iv, fileHash);
+                // Return only the filename — full path is resolved at runtime from _uploadDirectory
+                return (uniqueFileName, iv, fileHash);
             }
         }
 
         public async Task<byte[]> DecryptFileAsync(string encryptedPath, string iv)
         {
-            if (!File.Exists(encryptedPath))
+            // Resolve full path — encryptedPath may be just a filename (new style) or full path (legacy)
+            var fullPath = Path.IsPathRooted(encryptedPath)
+                ? encryptedPath
+                : Path.Combine(_uploadDirectory, encryptedPath);
+
+            if (!File.Exists(fullPath))
             {
-                throw new FileNotFoundException("Encrypted file not found", encryptedPath);
+                throw new FileNotFoundException("Encrypted file not found", fullPath);
             }
 
             var ivBytes = Convert.FromBase64String(iv);
@@ -78,7 +84,7 @@ namespace backend.Services
                 aes.IV = ivBytes;
 
                 using (var decryptor = aes.CreateDecryptor())
-                using (var fileStream = new FileStream(encryptedPath, FileMode.Open, FileAccess.Read))
+                using (var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read))
                 using (var cryptoStream = new CryptoStream(fileStream, decryptor, CryptoStreamMode.Read))
                 using (var memoryStream = new MemoryStream())
                 {
@@ -100,9 +106,12 @@ namespace backend.Services
 
         public async Task DeleteEncryptedFileAsync(string encryptedPath)
         {
-            if (File.Exists(encryptedPath))
+            var fullPath = Path.IsPathRooted(encryptedPath)
+                ? encryptedPath
+                : Path.Combine(_uploadDirectory, encryptedPath);
+            if (File.Exists(fullPath))
             {
-                await Task.Run(() => File.Delete(encryptedPath));
+                await Task.Run(() => File.Delete(fullPath));
             }
         }
     }
