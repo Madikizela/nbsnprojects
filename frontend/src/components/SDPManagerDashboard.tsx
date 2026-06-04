@@ -5428,20 +5428,33 @@ const SDPManagerDashboard: React.FC = () => {
                         {details.learningPathways && details.learningPathways.length > 0 ? (
                           details.learningPathways.map((pathway: any, pIndex: number) => (
                             <div key={pIndex} className="mb-4">
-                              <div className="bg-white bg-opacity-10 rounded p-3 mb-3">
-                                <h6 className="mb-0">
-                                  Pathway: {pathway.pathway?.name || 'N/A'}
-                                </h6>
-                              </div>
+                                <div className="bg-white bg-opacity-10 rounded p-3 mb-3">
+                                  {(() => {
+                                    const pathwayName = pathway.pathway?.name || pathway.name || (pathway.pathwayId ? `ID ${pathway.pathwayId}` : 'N/A');
+                                    return (
+                                      <h6 className="mb-0">Pathway: {pathwayName}</h6>
+                                    );
+                                  })()}
+                                </div>
 
                               {pathway.qualifications && pathway.qualifications.length > 0 ? (
                                 pathway.qualifications.map((qual: any, qIndex: number) => (
                                   <div key={qIndex} className="bg-white bg-opacity-10 rounded p-3 mb-3">
-                                    <div className="mb-2">
-                                      <strong>Qualification {qIndex + 1}:</strong>
-                                      <br />
-                                      <small>Type: {qual.qualificationType?.name || 'N/A'}</small>
-                                    </div>
+                                        <div className="mb-2">
+                                          {(() => {
+                                            const rawName = qual.legacyQualification?.name || qual.occupationalQualification?.name || qual.qualificationType?.name || `Qualification ${qIndex + 1}`;
+                                            const rawId = qual.legacyQualification?.qualificationId || qual.legacyQualification?.id || qual.occupationalQualification?.qualificationId || qual.occupationalQualification?.QualificationId || null;
+                                            const qualificationName = rawId ? `${rawName} (${rawId})` : rawName;
+                                            const qualificationTypeName = qual.qualificationType?.name || 'N/A';
+                                            return (
+                                              <>
+                                                <strong>{qualificationName}</strong>
+                                                <br />
+                                                <small>Type: {qualificationTypeName}</small>
+                                              </>
+                                            );
+                                          })()}
+                                        </div>
 
                                     {qual.legacyQualification && (
                                       <div className="mb-2">

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\madik\\Documents\\New_version\\backend\\backend.csproj": {}
+    "C:\\Users\\madik\\Documents\\nbsnprojects\\backend\\backend.csproj": {}
   },
   "projects": {
-    "C:\\Users\\madik\\Documents\\New_version\\backend\\backend.csproj": {
+    "C:\\Users\\madik\\Documents\\nbsnprojects\\backend\\backend.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\madik\\Documents\\New_version\\backend\\backend.csproj",
+        "projectUniqueName": "C:\\Users\\madik\\Documents\\nbsnprojects\\backend\\backend.csproj",
         "projectName": "backend",
-        "projectPath": "C:\\Users\\madik\\Documents\\New_version\\backend\\backend.csproj",
+        "projectPath": "C:\\Users\\madik\\Documents\\nbsnprojects\\backend\\backend.csproj",
         "packagesPath": "C:\\Users\\madik\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\madik\\Documents\\New_version\\backend\\obj\\",
+        "outputPath": "C:\\Users\\madik\\Documents\\nbsnprojects\\backend\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\madik\\AppData\\Roaming\\NuGet\\NuGet.Config"
@@ -70,9 +70,9 @@
               "target": "Package",
               "version": "[9.0.9, )"
             },
-            "Pomelo.EntityFrameworkCore.MySql": {
+            "Npgsql.EntityFrameworkCore.PostgreSQL": {
               "target": "Package",
-              "version": "[9.0.0-preview.3.efcore.9.0.0, )"
+              "version": "[9.0.0, )"
             },
             "QuestPDF": {
               "target": "Package",
@@ -98,20 +98,6 @@
           ],
           "assetTargetFallback": true,
           "warn": true,
-          "downloadDependencies": [
-            {
-              "name": "Microsoft.AspNetCore.App.Runtime.linux-x64",
-              "version": "[9.0.16, 9.0.16]"
-            },
-            {
-              "name": "Microsoft.NETCore.App.Host.linux-x64",
-              "version": "[9.0.16, 9.0.16]"
-            },
-            {
-              "name": "Microsoft.NETCore.App.Runtime.linux-x64",
-              "version": "[9.0.16, 9.0.16]"
-            }
-          ],
           "frameworkReferences": {
             "Microsoft.AspNetCore.App": {
               "privateAssets": "none"
@@ -121,11 +107,6 @@
             }
           },
           "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.314/PortableRuntimeIdentifierGraph.json"
-        }
-      },
-      "runtimes": {
-        "linux-x64": {
-          "#import": []
         }
       }
     }

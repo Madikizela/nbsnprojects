@@ -230,12 +230,21 @@ namespace backend.Controllers
                         if (projectQual.OccupationalQualificationId.HasValue)
                         {
                             var oq = await _context.OccupationalQualifications.FindAsync(projectQual.OccupationalQualificationId.Value);
-                            qualificationName = oq?.Name ?? "N/A";
+                            if (oq != null)
+                            {
+                                qualificationName = oq.Name + " (" + oq.QualificationId.ToString() + ")";
+                            }
+                            else qualificationName = "N/A";
                         }
                         else if (projectQual.LegacyQualificationId.HasValue)
                         {
                             var lq = await _context.LegacyQualifications.FindAsync(projectQual.LegacyQualificationId.Value);
-                            qualificationName = lq?.Name ?? "N/A";
+                            if (lq != null)
+                            {
+                                var qId = lq.QualificationId.HasValue ? lq.QualificationId.Value.ToString() : lq.Id.ToString();
+                                qualificationName = lq.Name + " (" + qId + ")";
+                            }
+                            else qualificationName = "N/A";
                         }
                     }
                 }
@@ -869,6 +878,9 @@ namespace backend.Controllers
                 {
                     var logPath = Path.Combine(_environment.ContentRootPath, "poe_error.log");
                     System.IO.File.AppendAllText(logPath, $"[{DateTime.Now}] Starting PDF generation for learner {learnerId}\n");
+                    System.IO.File.AppendAllText(logPath, $"Qualification: {qualificationName} | Pathway: {pathwayName}\n");
+                    System.IO.File.AppendAllText(logPath, $"UnitStandards: {unitStandards.Count} | Answers: {allAnswers.Count} | StrategyPlans: {strategyPlans.Count}\n");
+                    System.IO.File.AppendAllText(logPath, $"IDDocBytes: {(idDocBytes!=null?idDocBytes.Length:0)} | QualDocBytes: {(qualDocBytes!=null?qualDocBytes.Length:0)}\n");
                     
                     pdf.GeneratePdf(stream);
                     
