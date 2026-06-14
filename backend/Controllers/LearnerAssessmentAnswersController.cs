@@ -540,7 +540,18 @@ namespace backend.Controllers
                             var totalQuestions = await _context.FormativeAssessmentQuestions
                                 .CountAsync(q => q.FormativeAssessmentId == assessmentId);
 
-                            // Count marked questions
+                            // Count uploaded questions (all statuses — uploaded = submitted, regardless of marking)
+                            var uploadedQuestions = await _context.LearnerAssessmentAnswers
+                                .Select(a => a.QuestionId)
+                                .Distinct()
+                                .CountAsync(qId => _context.LearnerAssessmentAnswers
+                                    .Any(a => a.LearnerId == learnerId &&
+                                             a.AssessmentId == assessmentId &&
+                                             a.AssessmentType == "Formative" &&
+                                             a.IsRemedial == isRemedial &&
+                                             a.QuestionId == qId));
+
+                            // Count marked questions (for moderation tracking)
                             var markedQuestions = await _context.LearnerAssessmentAnswers
                                 .CountAsync(a => a.LearnerId == learnerId && 
                                                a.AssessmentId == assessmentId && 
@@ -572,7 +583,9 @@ namespace backend.Controllers
                             }
                             else
                             {
-                                progress.FormativeCompleted = markedQuestions >= totalQuestions;
+                                // FormativeCompleted = all questions have been uploaded (scanned)
+                                // Marking happens independently — learner can proceed to summative once all uploaded
+                                progress.FormativeCompleted = uploadedQuestions >= totalQuestions && totalQuestions > 0;
                                 if (progress.FormativeCompleted && progress.FormativeCompletedAt == null)
                                 {
                                     progress.FormativeCompletedAt = DateTime.UtcNow;
@@ -612,7 +625,17 @@ namespace backend.Controllers
                             var totalQuestions = await _context.SummativeAssessmentQuestions
                                 .CountAsync(q => q.SummativeAssessmentId == assessmentId);
 
-                            // Count marked questions
+                            // Count uploaded questions (all statuses — uploaded = submitted)
+                            var uploadedQuestions = await _context.LearnerAssessmentAnswers
+                                .Where(a => a.LearnerId == learnerId &&
+                                           a.AssessmentId == assessmentId &&
+                                           a.AssessmentType == "Summative" &&
+                                           a.IsRemedial == isRemedial)
+                                .Select(a => a.QuestionId)
+                                .Distinct()
+                                .CountAsync();
+
+                            // Count marked questions (for moderation tracking only)
                             var markedQuestions = await _context.LearnerAssessmentAnswers
                                 .CountAsync(a => a.LearnerId == learnerId && 
                                                a.AssessmentId == assessmentId && 
@@ -643,7 +666,8 @@ namespace backend.Controllers
                             }
                             else
                             {
-                                progress.SummativeCompleted = markedQuestions >= totalQuestions;
+                                // SummativeCompleted = all questions uploaded, not waiting for marking
+                                progress.SummativeCompleted = uploadedQuestions >= totalQuestions && totalQuestions > 0;
                                 if (progress.SummativeCompleted && progress.SummativeCompletedAt == null)
                                 {
                                     progress.SummativeCompletedAt = DateTime.UtcNow;

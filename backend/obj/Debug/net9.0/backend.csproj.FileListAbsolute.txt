@@ -403,3 +403,4 @@ C:\Users\madik\Documents\nbsnprojects\backend\obj\Debug\net9.0\backend.genruntim
 C:\Users\madik\Documents\nbsnprojects\backend\obj\Debug\net9.0\ref\backend.dll
 C:\Users\madik\Documents\nbsnprojects\backend\bin\Debug\net9.0\Npgsql.dll
 C:\Users\madik\Documents\nbsnprojects\backend\bin\Debug\net9.0\Npgsql.EntityFrameworkCore.PostgreSQL.dll
+C:\Users\madik\Documents\nbsnprojects\backend\bin\Debug\net9.0\railway.json
