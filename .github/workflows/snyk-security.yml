@@ -101,7 +101,9 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: 'stable'
+          flutter-version: '3.41.4'
+          channel: 'stable'
+          cache: true
 
       - name: Install Flutter dependencies
         run: |
@@ -114,7 +116,7 @@ jobs:
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
-          args: --file=mobile_flutter/android/build.gradle --org=797d4e89-f286-4e05-a720-5a7184fe4bd1 --project-name=NBSN-Flutter --severity-threshold=high
+          args: --file=mobile_flutter/android/app/build.gradle.kts --org=797d4e89-f286-4e05-a720-5a7184fe4bd1 --project-name=NBSN-Flutter --severity-threshold=high
 
   # ──────────────────────────────────────────────
   # 4. Snyk Code — SAST static analysis (all code)
