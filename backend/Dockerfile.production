@@ -1,37 +1,34 @@
 # syntax=docker/dockerfile:1
 
-# Build stage
+# ── Build stage ──────────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy csproj and restore
 COPY backend.csproj ./
 RUN dotnet restore ./backend.csproj
 
-# Copy everything else and publish
 COPY . .
 RUN dotnet publish ./backend.csproj -c Release -o /app/publish
 
-# Runtime stage
+# ── Runtime stage ─────────────────────────────────────────────────────────────
 FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS final
 WORKDIR /app
 
-# Add dependencies for PDF generation (SkiaSharp/QuestPDF often need these)
+# Required for SkiaSharp / QuestPDF PDF generation
 RUN apk add --no-cache \
     icu-libs \
     libintl \
     fontconfig \
     ttf-dejavu
 
-# Copy published output
 COPY --from=build /app/publish .
 
-# Configure ASP.NET Core for Production
-ENV ASPNETCORE_URLS=http://0.0.0.0:5213
+# Railway injects $PORT at runtime — we read it via ASPNETCORE_URLS
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
 
+# Railway sets PORT; expose a default for local testing
 EXPOSE 5213
 
-# Run the application
-ENTRYPOINT ["dotnet", "backend.dll"]
+# Use shell form so $PORT is expanded at runtime
+CMD ASPNETCORE_URLS="http://0.0.0.0:${PORT:-5213}" dotnet backend.dll

@@ -430,7 +430,6 @@ class MainActivity: FlutterActivity() {
         try {
             captureThread?.cancel()
             usbHostCtx?.CloseDevice()
-            usbHostCtx?.Destroy()
             unregisterReceiver(usbReceiver)
         } catch (e: Exception) {
             Log.e(TAG, "Error in cleanup", e)

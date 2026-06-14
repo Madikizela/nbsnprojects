@@ -17,6 +17,7 @@ frontend/node_modules/
 
 # Sensitive files
 .env
+.env.railway
 *.user
 *.suo
 *.db
@@ -68,3 +69,6 @@ backups/
 *.zip
 *.rar
 *.7z
+
+# Uploaded files — never commit user data
+backend/uploads/
