@@ -9498,8 +9498,10 @@ const SDPManagerDashboard: React.FC = () => {
                           });
 
                         const answer = learnerAnswers[0];
-                        const hasScript = !!answer;
-                        const isMarked = hasScript && answer.mark !== null && answer.mark !== undefined;
+                        // Allow marking if ANY uploads exist for this assessment, even if not linked to this specific question
+                        const hasAnyUploads = markingLearnerAnswers.length > 0;
+                        const hasScript = !!answer || hasAnyUploads;
+                        const isMarked = !!answer && answer.mark !== null && answer.mark !== undefined;
                         
                         return (
                           <div key={q.id} className={`border rounded p-3 mb-3 bg-white shadow-sm ${isMarked ? 'border-success' : ''}`}>
@@ -9537,6 +9539,13 @@ const SDPManagerDashboard: React.FC = () => {
                                     </div>
                                   )}
 
+                                  {hasScript && !answer && activeSection === 'marking' && (
+                                    <div className="alert alert-info py-2 px-3 mb-3 border-0 small d-flex align-items-center">
+                                      <i className="fas fa-info-circle me-2"></i>
+                                      <span>No upload linked to this question specifically — use the uploads panel on the right to view the learner's answer.</span>
+                                    </div>
+                                  )}
+
                                   {isMarked && activeSection === 'marking' && (
                                     <div className="alert alert-info py-2 px-3 mb-3 border-0 small d-flex align-items-center">
                                       <i className="fas fa-check-circle me-2"></i>
@@ -9551,23 +9560,23 @@ const SDPManagerDashboard: React.FC = () => {
                                       <input
                                         className={`form-control ${activeSection === 'moderation' ? 'bg-light' : ''}`}
                                         id={`q-${q.id}`}
-                                        type="number"
-                                        step="0.5"
-                                        min="0"
-                                        max={q.allocatedMarks}
+                                        type="text"
+                                        inputMode="decimal"
+                                        pattern="[0-9]*[.,]?[0-9]*"
                                         placeholder="Enter mark"
                                         value={activeSection === 'moderation' ? (answer?.mark?.toString() || '') : (draftMarks[`learner:${markingLearnerId}:assessment:${expandedMarkingAssessment.type}:${expandedMarkingAssessment.id}:question:${q.id}`] || '')}
                                         onChange={(e) => {
                                           if (activeSection === 'moderation') return;
-                                          const value = e.target.value;
-                                          const numValue = parseFloat(value);
-                                          if (numValue > q.allocatedMarks) {
-                                            const key = `learner:${markingLearnerId}:assessment:${expandedMarkingAssessment.type}:${expandedMarkingAssessment.id}:question:${q.id}`;
+                                          // Normalise comma to dot, strip invalid chars
+                                          const raw = e.target.value.replace(',', '.');
+                                          if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return;
+                                          const numValue = parseFloat(raw);
+                                          const key = `learner:${markingLearnerId}:assessment:${expandedMarkingAssessment.type}:${expandedMarkingAssessment.id}:question:${q.id}`;
+                                          if (!isNaN(numValue) && numValue > q.allocatedMarks) {
                                             setDraftMarks(prev => ({ ...prev, [key]: q.allocatedMarks.toString() }));
                                             return;
                                           }
-                                          const key = `learner:${markingLearnerId}:assessment:${expandedMarkingAssessment.type}:${expandedMarkingAssessment.id}:question:${q.id}`;
-                                          setDraftMarks(prev => ({ ...prev, [key]: value }));
+                                          setDraftMarks(prev => ({ ...prev, [key]: raw }));
                                         }}
                                         disabled={activeSection !== 'marking' || !hasScript || isMarked}
                                       />
@@ -9614,17 +9623,17 @@ const SDPManagerDashboard: React.FC = () => {
                                           <div className="form-floating">
                                             <input
                                               className={`form-control ${moderationApproval[`q-${q.id}`] !== undefined || isModeratedAssessment || isThisQuestionModerated ? 'bg-light fw-bold text-success' : ''}`}
-                                              type="number"
-                                              step="0.5"
-                                              min="0"
-                                              max={q.allocatedMarks}
+                                              type="text"
+                                              inputMode="decimal"
+                                              pattern="[0-9]*[.,]?[0-9]*"
                                               placeholder="Moderated mark"
                                               value={moderationDraftMarks[`q-${q.id}`] !== undefined 
                                                 ? moderationDraftMarks[`q-${q.id}`] 
                                                 : (isThisQuestionModerated ? (answer?.moderatedMark?.toString() || '') : (moderationApproval[`q-${q.id}`] !== undefined ? (answer?.mark?.toString() || '') : ''))}
                                               onChange={(e) => {
-                                                const value = e.target.value;
-                                                setModerationDraftMarks(prev => ({ ...prev, [`q-${q.id}`]: value }));
+                                                const raw = e.target.value.replace(',', '.');
+                                                if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return;
+                                                setModerationDraftMarks(prev => ({ ...prev, [`q-${q.id}`]: raw }));
                                               }}
                                               disabled={isModeratedAssessment}
                                             />
@@ -11210,19 +11219,21 @@ const SDPManagerDashboard: React.FC = () => {
                                   <div className="col-12 col-md-4">
                                     <label className="form-label mb-1">Mark</label>
                                     <input
-                                      type="number"
-                                      step="0.5"
+                                      type="text"
+                                      inputMode="decimal"
+                                      pattern="[0-9]*[.,]?[0-9]*"
                                       min="0"
                                       className="form-control form-control-sm bg-dark text-light border-secondary"
                                       value={draftMarks[markKey] || ''}
                                       onChange={(e) => {
-                                        const value = e.target.value;
-                                        const numValue = parseFloat(value);
-                                        if (answer.allocatedMarks && numValue > answer.allocatedMarks) {
+                                        const raw = e.target.value.replace(',', '.');
+                                        if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return;
+                                        const numValue = parseFloat(raw);
+                                        if (answer.allocatedMarks && !isNaN(numValue) && numValue > answer.allocatedMarks) {
                                           setDraftMarks(prev => ({ ...prev, [markKey]: answer.allocatedMarks.toString() }));
                                           return;
                                         }
-                                        setDraftMarks(prev => ({ ...prev, [markKey]: value }));
+                                        setDraftMarks(prev => ({ ...prev, [markKey]: raw }));
                                       }}
                                       placeholder={isMarked ? `Score: ${answer.mark}` : (answer.scannedDocumentName ? "Enter mark" : "No script")}
                                       disabled={!answer.scannedDocumentName || isMarked}

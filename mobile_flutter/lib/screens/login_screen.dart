@@ -68,9 +68,20 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      String errorMessage = ApiService.getErrorMessage(e);
-      if (e is DioException && e.response?.statusCode == 401) {
-        errorMessage = 'Email or password is not correct.';
+      String errorMessage;
+      if (e is DioException) {
+        if (e.response?.statusCode == 401) {
+          errorMessage = 'Invalid email or password.';
+        } else if (e.response?.statusCode != null) {
+          final msg = e.response?.data?['message'];
+          errorMessage = msg != null
+              ? msg.toString()
+              : 'Server error: ${e.response?.statusCode}';
+        } else {
+          errorMessage = ApiService.getErrorMessage(e);
+        }
+      } else {
+        errorMessage = 'An unexpected error occurred.';
       }
       _showError(errorMessage);
     } finally {
@@ -93,6 +104,16 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0f172a),
+      // Settings gear in top-right corner
+      floatingActionButton: FloatingActionButton.small(
+        onPressed: () => context.push('/settings/server'),
+        backgroundColor: const Color(0xFF1e293b),
+        foregroundColor: const Color(0xFF64748b),
+        elevation: 0,
+        tooltip: 'Server Settings',
+        child: const Icon(Icons.settings),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(

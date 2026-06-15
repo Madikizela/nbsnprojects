@@ -1,17 +1,40 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'server_config_service.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://192.168.148.166:5213';
   late final Dio _dio;
+  late String _baseUrl;
+
+  /// The currently active base URL (set during initialise()).
+  String get baseUrl => _baseUrl;
 
   ApiService() {
+    // Temporary Dio instance with the default URL.
+    // Call initialise() once at startup to load the saved URL.
+    _baseUrl = ServerConfigService.defaultServerUrl;
     _dio = Dio(BaseOptions(
-      baseUrl: baseUrl,
+      baseUrl: _baseUrl,
       connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
     ));
+    _attachInterceptors();
+    // Load saved URL asynchronously so it is ready before first request.
+    _loadSavedUrl();
+  }
 
+  Future<void> _loadSavedUrl() async {
+    final saved = await ServerConfigService.getServerUrl();
+    updateBaseUrl(saved);
+  }
+
+  /// Call this after the user saves a new server URL in Settings.
+  void updateBaseUrl(String url) {
+    _baseUrl = url;
+    _dio.options.baseUrl = url;
+  }
+
+  void _attachInterceptors() {
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final prefs = await SharedPreferences.getInstance();
@@ -20,7 +43,6 @@ class ApiService {
           options.headers['Authorization'] = 'Bearer $token';
         }
 
-        // Only set application/json if not sending FormData
         if (options.data is! FormData &&
             options.headers['Content-Type'] == null) {
           options.headers['Content-Type'] = 'application/json';
@@ -37,7 +59,7 @@ class ApiService {
         case DioExceptionType.connectionTimeout:
         case DioExceptionType.sendTimeout:
         case DioExceptionType.receiveTimeout:
-          return 'Connection timed out. Please try again.';
+          return 'Connection timed out. Please check the server address in Settings.';
         case DioExceptionType.badResponse:
           if (error.response?.statusCode == 401) {
             return 'Unauthorized access. Please login again.';
@@ -50,7 +72,7 @@ class ApiService {
         case DioExceptionType.cancel:
           return 'Request cancelled.';
         case DioExceptionType.connectionError:
-          return 'No internet connection or server unreachable.';
+          return 'Cannot reach server. Check the IP address in Settings.';
         default:
           return 'Network error occurred. Please try again.';
       }

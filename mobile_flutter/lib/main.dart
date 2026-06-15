@@ -26,6 +26,7 @@ import 'screens/scan_answers_screen.dart';
 import 'screens/logbook_screen.dart';
 import 'screens/logbook_entries_screen.dart';
 import 'screens/add_logbook_entry_screen.dart';
+import 'screens/server_settings_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -252,6 +253,10 @@ class _MyAppState extends State<MyApp> {
         GoRoute(
           path: '/logistics-dashboard',
           builder: (context, state) => const LogisticsDashboardScreen(),
+        ),
+        GoRoute(
+          path: '/settings/server',
+          builder: (context, state) => const ServerSettingsScreen(),
         ),
         GoRoute(
           path: '/learners/:learnerId/logbook/:unitStandardId/add',
