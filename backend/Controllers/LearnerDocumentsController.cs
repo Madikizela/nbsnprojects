@@ -182,12 +182,17 @@ namespace backend.Controllers
                     return BadRequest(new { message = "No files uploaded" });
                 }
 
-                // Get user ID from claims
+                // Get user ID from claims (may be null for learner-authenticated uploads)
                 var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 int? userId = null;
-                if (int.TryParse(userIdClaim, out int parsedUserId))
+                if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out int parsedUserId))
                 {
-                    userId = parsedUserId;
+                    // Verify the user actually exists in the Users table
+                    var userExists = await _context.Users.AnyAsync(u => u.Id == parsedUserId);
+                    if (userExists)
+                    {
+                        userId = parsedUserId;
+                    }
                 }
 
                 var uploadedDocuments = new List<LearnerDocumentResponseDto>();

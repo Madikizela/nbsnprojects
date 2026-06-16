@@ -1,29 +1,43 @@
-# syntax=docker/dockerfile:1
-
-# Build stage
-FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
-WORKDIR /src
-
-# Copy csproj and restore as distinct layers
-COPY backend.csproj ./
-RUN dotnet restore ./backend.csproj
-
-# Copy everything else and publish
-COPY . .
-RUN dotnet publish ./backend.csproj -c Release -o /app/publish
-
-# Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
+# Use the official .NET 9 SDK image for building
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build-env
 WORKDIR /app
 
-# Copy published output
-COPY --from=build /app/publish .
+# Copy csproj and restore as distinct layers
+COPY *.csproj ./
+RUN dotnet restore
 
-# Configure ASP.NET Core to listen on 5213 inside container
-ENV ASPNETCORE_URLS=http://0.0.0.0:5213
-ENV ASPNETCORE_ENVIRONMENT=Development
+# Copy everything else and build
+COPY . ./
+RUN dotnet publish -c Production -o out
 
-EXPOSE 5213
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:9.0
+WORKDIR /app
 
-# Run the application
+# Install required system dependencies for SkiaSharp and QuestPDF
+RUN apt-get update && apt-get install -y \
+    libfontconfig1 \
+    libfreetype6 \
+    libgdiplus \
+    libx11-6 \
+    libxext6 \
+    libxrender1 \
+    libc6-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy the build output
+COPY --from=build-env /app/out .
+
+# Create uploads directory
+RUN mkdir -p /app/uploads/profile-photos
+RUN mkdir -p /app/uploads/learner-documents
+RUN mkdir -p /app/uploads/assessment-answers
+
+# Set environment variables
+ENV ASPNETCORE_ENVIRONMENT=Production
+ENV ASPNETCORE_URLS=http://+:$PORT
+
+# Expose port (Railway automatically assigns PORT)
+EXPOSE $PORT
+
 ENTRYPOINT ["dotnet", "backend.dll"]

@@ -5,6 +5,7 @@ using backend.Models;
 using backend.Models.DTOs;
 using backend.Services.Interfaces;
 using System.Security.Cryptography;
+using System.Collections.Concurrent;
 
 namespace backend.Controllers
 {
@@ -17,17 +18,27 @@ namespace backend.Controllers
         private readonly ILogger<AttendanceController> _logger;
         private readonly IEmailService _emailService;
         private readonly IPasswordHashingService _passwordHashingService;
+        private readonly IWhatsAppService _whatsApp;
+
+        // ── Per-class face embedding cache ────────────────────────────────────
+        // Key: classId → list of (learnerId, embedding) pairs
+        // Invalidated on new face registration so it stays fresh.
+        private static readonly ConcurrentDictionary<int, (DateTime LoadedAt, List<(int LearnerId, string FullName, List<double> Embedding)> Entries)>
+            _embeddingCache = new();
+        private static readonly TimeSpan _cacheMaxAge = TimeSpan.FromMinutes(10);
 
         public AttendanceController(
             ApplicationDbContext context, 
             ILogger<AttendanceController> logger,
             IEmailService emailService,
-            IPasswordHashingService passwordHashingService)
+            IPasswordHashingService passwordHashingService,
+            IWhatsAppService whatsApp)
         {
             _context = context;
             _logger = logger;
             _emailService = emailService;
             _passwordHashingService = passwordHashingService;
+            _whatsApp = whatsApp;
         }
 
         private DateTime GetSASTime()
@@ -916,6 +927,10 @@ namespace backend.Controllers
             }
         }
 
+        // Called by LearnersController after a new face embedding is registered
+        public static void InvalidateEmbeddingCache(int classId) =>
+            _embeddingCache.TryRemove(classId, out _);
+
         [HttpPost("face-clock-toggle")]
         public async Task<IActionResult> FaceClockToggle([FromBody] FaceClockDTO dto)
         {
@@ -924,88 +939,114 @@ namespace backend.Controllers
                 _logger.LogInformation("Face-clock-toggle attempt - ClassId: {ClassId}, TeacherId: {TeacherId}", 
                     dto.ClassId, dto.TeacherId);
 
-                // Get all active learners in the class who have a face embedding registered
-                var enrollments = await _context.ClassEnrollments
-                    .Include(ce => ce.Learner)
-                    .Where(ce => ce.SiteClassId == dto.ClassId && ce.Status == "Active")
-                    .Where(ce => ce.Learner != null && !string.IsNullOrEmpty(ce.Learner.FaceEmbedding))
-                    .ToListAsync();
+                // ── Load embeddings (from cache or DB) ────────────────────────
+                List<(int LearnerId, string FullName, List<double> Embedding)> candidates;
 
-                _logger.LogInformation("Found {Count} active enrollments with face embeddings in class {ClassId}", enrollments.Count, dto.ClassId);
+                if (_embeddingCache.TryGetValue(dto.ClassId, out var cached) &&
+                    DateTime.UtcNow - cached.LoadedAt < _cacheMaxAge)
+                {
+                    candidates = cached.Entries;
+                    _logger.LogInformation("Embedding cache HIT for class {ClassId} ({Count} entries)", dto.ClassId, candidates.Count);
+                }
+                else
+                {
+                    // Select ONLY the 3 columns we need — avoids loading bank details,
+                    // ID numbers, photos etc. for every learner on every clock request.
+                    var rows = await _context.ClassEnrollments
+                        .AsNoTracking()
+                        .Where(ce => ce.SiteClassId == dto.ClassId &&
+                                     ce.Status == "Active" &&
+                                     ce.Learner != null &&
+                                     !string.IsNullOrEmpty(ce.Learner.FaceEmbedding))
+                        .Select(ce => new
+                        {
+                            ce.Learner!.Id,
+                            FullName = ce.Learner.FirstName + " " + ce.Learner.LastName,
+                            ce.Learner.FaceEmbedding
+                        })
+                        .ToListAsync();
 
-                if (enrollments.Count == 0)
+                    candidates = new List<(int, string, List<double>)>(rows.Count);
+                    foreach (var r in rows)
+                    {
+                        try
+                        {
+                            var emb = System.Text.Json.JsonSerializer.Deserialize<List<double>>(r.FaceEmbedding!);
+                            if (emb != null) candidates.Add((r.Id, r.FullName, emb));
+                        }
+                        catch { /* skip malformed embeddings */ }
+                    }
+
+                    _embeddingCache[dto.ClassId] = (DateTime.UtcNow, candidates);
+                    _logger.LogInformation("Embedding cache MISS for class {ClassId} — loaded {Count} embeddings from DB", dto.ClassId, candidates.Count);
+                }
+
+                if (candidates.Count == 0)
                 {
                     return BadRequest(new { message = "No learners in this class have registered their faces yet. Please register the learner's face first." });
                 }
 
-                ClassEnrollment? matchedEnrollment = null;
-                double bestDistance = 1.0; 
-                const double threshold = 0.6; // Tightened threshold to reduce mismatches (0.6-0.7 is stricter than 0.8)
+                // ── Nearest-neighbour search ──────────────────────────────────
+                const double threshold = 0.6;
+                int matchedLearnerId = -1;
+                string matchedName = "";
+                double bestDistance = threshold;
 
-                foreach (var enrollment in enrollments)
+                foreach (var (learnerId, fullName, storedEmb) in candidates)
                 {
-                    try
+                    if (storedEmb.Count != dto.Embedding.Count) continue;
+
+                    double sum = 0;
+                    for (int i = 0; i < storedEmb.Count; i++)
                     {
-                        var storedEmbeddingJson = enrollment.Learner!.FaceEmbedding;
-                        var storedEmbedding = System.Text.Json.JsonSerializer.Deserialize<List<double>>(storedEmbeddingJson!);
-                        
-                        if (storedEmbedding == null || storedEmbedding.Count != dto.Embedding.Count)
-                        {
-                            _logger.LogWarning("Embedding count mismatch - Learner: {Name}, Stored: {Stored}, Provided: {Provided}", 
-                                $"{enrollment.Learner.FirstName} {enrollment.Learner.LastName}", 
-                                storedEmbedding?.Count ?? 0, dto.Embedding.Count);
-                            continue;
-                        }
-
-                        // Calculate Euclidean distance
-                        double sum = 0;
-                        for (int i = 0; i < storedEmbedding.Count; i++)
-                        {
-                            sum += Math.Pow(storedEmbedding[i] - dto.Embedding[i], 2);
-                        }
-                        double distance = Math.Sqrt(sum);
-
-                        _logger.LogInformation("Match attempt - Learner: {Name}, Distance: {Distance}", 
-                            $"{enrollment.Learner.FirstName} {enrollment.Learner.LastName}", distance);
-
-                        // Match if distance is below threshold
-                        if (distance < threshold && distance < bestDistance)
-                        {
-                            bestDistance = distance;
-                            matchedEnrollment = enrollment;
-                        }
+                        double diff = storedEmb[i] - dto.Embedding[i];
+                        sum += diff * diff;
                     }
-                    catch (Exception ex)
+                    double distance = Math.Sqrt(sum);
+
+                    _logger.LogInformation("Match attempt — Learner: {Name}, Distance: {Distance:F4}", fullName, distance);
+
+                    if (distance < bestDistance)
                     {
-                        _logger.LogWarning(ex, "Error parsing face embedding for learner {LearnerId}", enrollment.LearnerId);
+                        bestDistance = distance;
+                        matchedLearnerId = learnerId;
+                        matchedName = fullName;
                     }
                 }
 
-                if (matchedEnrollment == null)
+                if (matchedLearnerId < 0)
                 {
                     _logger.LogWarning("Face not recognized for ClassId: {ClassId}", dto.ClassId);
                     return BadRequest(new { message = "Face not recognized. Please ensure learner is registered." });
                 }
 
-                var learner = matchedEnrollment.Learner!;
-                var learnerId = learner.Id;
+                _logger.LogInformation("Face matched — Learner: {Name} (id={Id}), Distance: {Distance:F4}", matchedName, matchedLearnerId, bestDistance);
+
+                var learnerId2 = matchedLearnerId;
                 var today = GetSASTime().Date;
 
-                // Check current attendance status for today
+                // Check if learner is on approved sick leave today
+                if (await IsOnApprovedSickNote(learnerId2, today))
+                {
+                    return BadRequest(new { 
+                        message = "Attendance disabled. This learner is currently marked as 'Excused' due to an approved sick note.",
+                        learnerName = matchedName
+                    });
+                }
+
+                // ── Clock in / out logic ──────────────────────────────────────
                 var existingAttendance = await _context.LearnerAttendances
-                    .FirstOrDefaultAsync(a => a.LearnerId == learnerId && 
+                    .FirstOrDefaultAsync(a => a.LearnerId == learnerId2 && 
                                             a.ClassId == dto.ClassId && 
                                             a.AttendanceDate == today);
 
-                // Decide whether to clock in or clock out
                 if (existingAttendance == null || !existingAttendance.ClockInTime.HasValue)
                 {
-                    // CLOCK IN
                     if (existingAttendance == null)
                     {
                         existingAttendance = new LearnerAttendance
                         {
-                            LearnerId = learnerId,
+                            LearnerId = learnerId2,
                             ClassId = dto.ClassId,
                             AttendanceDate = today,
                             ClockInTime = GetSASTime(),
@@ -1033,20 +1074,41 @@ namespace backend.Controllers
                     }
 
                     await _context.SaveChangesAsync();
-                    
-                    _logger.LogInformation("Learner {LearnerId} clocked in with face at {Time}", learnerId, existingAttendance.ClockInTime);
+                    _logger.LogInformation("Learner {LearnerId} clocked in with face at {Time}", learnerId2, existingAttendance.ClockInTime);
+
+                    // ── WhatsApp: clock-in confirmation (fire-and-forget) ──────
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            var learner = await _context.Learners.FindAsync(learnerId2);
+                            if (learner?.ContactNumber != null)
+                            {
+                                var className = await _context.SiteClasses
+                                    .Where(c => c.Id == dto.ClassId)
+                                    .Select(c => c.ClassName)
+                                    .FirstOrDefaultAsync() ?? "your class";
+
+                                await _whatsApp.SendClockInConfirmationAsync(
+                                    learner.ContactNumber,
+                                    matchedName,
+                                    className,
+                                    existingAttendance.ClockInTime?.ToString("HH:mm") ?? "");
+                            }
+                        }
+                        catch { /* never block attendance on notification failure */ }
+                    });
 
                     return Ok(new
                     {
                         action = "ClockIn",
                         message = "Clocked in successfully with Face Recognition",
-                        learnerName = $"{learner.FirstName} {learner.LastName}",
+                        learnerName = matchedName,
                         clockInTime = existingAttendance.ClockInTime
                     });
                 }
                 else if (existingAttendance.ClockInTime.HasValue && !existingAttendance.ClockOutTime.HasValue)
                 {
-                    // CLOCK OUT
                     existingAttendance.ClockOutTime = GetSASTime();
                     existingAttendance.ClockOutMethod = "Face";
                     existingAttendance.ClockOutVerified = true;
@@ -1061,7 +1123,7 @@ namespace backend.Controllers
                     {
                         action = "ClockOut",
                         message = "Clocked out successfully with Face Recognition",
-                        learnerName = $"{learner.FirstName} {learner.LastName}",
+                        learnerName = matchedName,
                         clockOutTime = existingAttendance.ClockOutTime
                     });
                 }

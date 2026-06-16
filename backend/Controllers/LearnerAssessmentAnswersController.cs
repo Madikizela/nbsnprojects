@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Models.DTOs;
 using Microsoft.AspNetCore.Authorization;
+using backend.Services.Interfaces;
 
 namespace backend.Controllers
 {
@@ -12,11 +13,13 @@ namespace backend.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IWebHostEnvironment _environment;
+        private readonly IWhatsAppService _whatsApp;
 
-        public LearnerAssessmentAnswersController(ApplicationDbContext context, IWebHostEnvironment environment)
+        public LearnerAssessmentAnswersController(ApplicationDbContext context, IWebHostEnvironment environment, IWhatsAppService whatsApp)
         {
             _context = context;
             _environment = environment;
+            _whatsApp = whatsApp;
             Console.WriteLine("LearnerAssessmentAnswersController initialized");
         }
 
@@ -270,6 +273,35 @@ namespace backend.Controllers
                 // Update progress if all questions are answered
                 await UpdateAssessmentProgress(dto.LearnerId, dto.AssessmentId, dto.AssessmentType, dto.ProjectQualificationUnitStandardId, dto.IsRemedial);
 
+                // ── WhatsApp: confirm submission to learner (fire-and-forget) ──
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var learner = await _context.Learners.FindAsync(dto.LearnerId);
+                        if (learner?.ContactNumber != null)
+                        {
+                            // Get unit standard name for context
+                            string unitStandardName = dto.AssessmentType;
+                            var pqus = await _context.ProjectQualificationUnitStandards
+                                .FindAsync(dto.ProjectQualificationUnitStandardId);
+                            if (pqus != null)
+                            {
+                                var legacyUs = await _context.LegacyUnitStandards
+                                    .FindAsync(pqus.UnitStandardId);
+                                if (legacyUs != null) unitStandardName = legacyUs.UnitStandardName;
+                            }
+
+                            await _whatsApp.SendAssessmentSubmittedAsync(
+                                learner.ContactNumber,
+                                $"{learner.FirstName} {learner.LastName}",
+                                dto.AssessmentType,
+                                unitStandardName);
+                        }
+                    }
+                    catch { /* notification failure must never affect upload response */ }
+                });
+
                 return Ok(new
                 {
                     message = "Assessment answer(s) uploaded successfully",
@@ -387,6 +419,10 @@ namespace backend.Controllers
 
                 await _context.SaveChangesAsync();
                 Console.WriteLine($"Successfully marked answer {dto.AnswerId}");
+
+                // Update progress so FormativeCompleted/SummativeCompleted flags stay current
+                await UpdateAssessmentProgress(answer.LearnerId, answer.AssessmentId, answer.AssessmentType, null, answer.IsRemedial);
+
                 return Ok(new { message = "Answer marked successfully" });
             }
             catch (Exception ex)

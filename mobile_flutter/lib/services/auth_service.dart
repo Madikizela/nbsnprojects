@@ -24,8 +24,8 @@ class AuthService extends ChangeNotifier {
   Future<bool> login(String email, String password) async {
     try {
       debugPrint('🔐 Attempting login for: $email');
-      debugPrint('📡 API URL: ${ApiService.baseUrl}');
-      
+      debugPrint('📡 API URL: ${ApiService().baseUrl}');
+
       final apiService = ApiService();
       final response = await apiService.post('/api/Auth/login', data: {
         'Email': email,
@@ -40,18 +40,18 @@ class AuthService extends ChangeNotifier {
         final responseData = response.data as Map<String, dynamic>;
         _token = responseData['token'] as String?;
         _user = responseData['user'] as Map<String, dynamic>?;
-        
+
         if (_token == null || _user == null) {
           debugPrint('❌ Missing token or user in response');
           return false;
         }
-        
+
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', _token!);
-        
+
         _isAuthenticated = true;
         notifyListeners();
-        
+
         debugPrint('✅ Login successful! User: ${_user!['name']}');
         return true;
       }

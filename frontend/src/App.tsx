@@ -6,6 +6,7 @@ import SDPDashboard from './components/SDPDashboard'
 import SDPManagerDashboard from './components/SDPManagerDashboard'
 import TestDashboard from './components/TestDashboard'
 import ResetPassword from './components/ResetPassword'
+import LearnerPortal from './components/LearnerPortal'
 import './App.css'
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
           <Route path="/sdp-dashboard" element={<SDPDashboard />} />
           <Route path="/sdp-manager-dashboard" element={<SDPManagerDashboard />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/learner" element={<LearnerPortal />} />
           <Route path="/" element={<Navigate to="/login" replace />} />
         </Routes>
       </div>

@@ -287,6 +287,19 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       context.push('/classes/$classId/learner-evidence');
                     },
                   ),
+                  _buildMenuItem(
+                    icon: Icons.campaign,
+                    title: 'Notice Board',
+                    color: const Color(0xFF0EA5E9),
+                    onTap: () {
+                      Navigator.pop(context);
+                      final classId = classItem['classId'];
+                      final className = classItem['className'] ?? 'Class';
+                      context.push(
+                        '/classes/$classId/notice-board?className=${Uri.encodeComponent(className)}',
+                      );
+                    },
+                  ),
                 ],
               ),
             );

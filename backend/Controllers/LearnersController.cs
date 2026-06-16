@@ -2,7 +2,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Models.DTOs;
+using backend.Services.Interfaces;
 using System.Security.Claims;
+using System.Text;
 
 namespace backend.Controllers
 {
@@ -12,13 +14,68 @@ namespace backend.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly IWebHostEnvironment _environment;
+        private readonly IPasswordHashingService _passwordHashingService;
+        private readonly IEmailService _emailService;
+        private readonly IWhatsAppService _whatsApp;
+        private readonly IConfiguration _configuration;
 
-        public LearnersController(ApplicationDbContext context, IWebHostEnvironment environment)
+        public LearnersController(
+            ApplicationDbContext context,
+            IWebHostEnvironment environment,
+            IPasswordHashingService passwordHashingService,
+            IEmailService emailService,
+            IWhatsAppService whatsApp,
+            IConfiguration configuration)
         {
             _context = context;
             _environment = environment;
+            _passwordHashingService = passwordHashingService;
+            _emailService = emailService;
+            _whatsApp = whatsApp;
+            _configuration = configuration;
         }
 
+        /// <summary>
+        /// Generates a unique username in the format firstname.lastname (with suffix if taken)
+        /// </summary>
+        private async Task<string> GenerateUniqueUsernameAsync(string firstName, string lastName)
+        {
+            Func<string, string> clean = s => System.Text.RegularExpressions.Regex.Replace(s.ToLower().Trim(), @"[^a-z0-9]", "");
+            var baseUsername = $"{clean(firstName)}.{clean(lastName)}";
+            var username = baseUsername;
+            int suffix = 1;
+            while (await _context.Learners.AnyAsync(l => l.Username == username))
+            {
+                username = $"{baseUsername}{suffix++}";
+            }
+            return username;
+        }
+
+        /// <summary>
+        /// Generates a secure random password (10 chars: letters + digits + symbol)
+        /// </summary>
+        private static string GenerateRandomPassword()
+        {
+            const string upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            const string lower = "abcdefghjkmnpqrstuvwxyz";
+            const string digits = "23456789";
+            const string symbols = "@#!$";
+            var rng = new Random();
+            var chars = new char[10];
+            chars[0] = upper[rng.Next(upper.Length)];
+            chars[1] = upper[rng.Next(upper.Length)];
+            chars[2] = lower[rng.Next(lower.Length)];
+            chars[3] = lower[rng.Next(lower.Length)];
+            chars[4] = digits[rng.Next(digits.Length)];
+            chars[5] = digits[rng.Next(digits.Length)];
+            chars[6] = symbols[rng.Next(symbols.Length)];
+            for (int i = 7; i < 10; i++)
+            {
+                var all = upper + lower + digits;
+                chars[i] = all[rng.Next(all.Length)];
+            }
+            return new string(chars.OrderBy(_ => rng.Next()).ToArray());
+        }
         // GET: api/Learners/class/{classId}
         // Get all learners enrolled in a specific class
         [HttpGet("class/{classId}")]
@@ -285,7 +342,48 @@ namespace backend.Controllers
 
                 _context.Learners.Add(learner);
                 await _context.SaveChangesAsync();
-            }
+
+                // Generate credentials and send welcome notifications
+                // Trigger if learner has an email OR a phone number
+                if (!string.IsNullOrWhiteSpace(learner.Email) || !string.IsNullOrWhiteSpace(learner.ContactNumber))
+                {
+                    try
+                    {
+                        var username = await GenerateUniqueUsernameAsync(learner.FirstName, learner.LastName);
+                        var plainPassword = GenerateRandomPassword();
+                        var passwordHash = _passwordHashingService.HashPassword(plainPassword);
+
+                        learner.Username = username;
+                        learner.PasswordHash = passwordHash;
+                        learner.MustChangePassword = true;
+                        await _context.SaveChangesAsync();
+
+                        var portalUrl = Environment.GetEnvironmentVariable("LEARNER_PORTAL_URL")
+                            ?? _configuration["LearnerPortal:Url"]
+                            ?? "http://localhost:5174/learner";
+
+                        var learnerFullName = $"{learner.FirstName} {learner.LastName}";
+
+                        // Send welcome email if email exists
+                        if (!string.IsNullOrWhiteSpace(learner.Email))
+                        {
+                            _ = _emailService.SendLearnerWelcomeEmailAsync(
+                                learner.Email, learnerFullName, username, plainPassword, portalUrl);
+                        }
+
+                        // Send WhatsApp welcome if phone exists
+                        if (!string.IsNullOrWhiteSpace(learner.ContactNumber))
+                        {
+                            _ = _whatsApp.SendLearnerWelcomeAsync(
+                                learner.ContactNumber, learnerFullName, username, plainPassword, portalUrl);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Warning: Could not send welcome notifications to learner {learner.Id}: {ex.Message}");
+                    }
+                }
+            } // end else (new learner)
 
             // Create enrollment
             var enrollment = new ClassEnrollment
@@ -797,6 +895,15 @@ namespace backend.Controllers
             learner.UpdatedAt = DateTime.UtcNow;
 
             await _context.SaveChangesAsync();
+
+            // Invalidate the face embedding cache for all classes this learner belongs to,
+            // so the next clock attempt picks up the fresh embedding immediately.
+            var classIds = await _context.ClassEnrollments
+                .Where(ce => ce.LearnerId == id && ce.Status == "Active")
+                .Select(ce => ce.SiteClassId)
+                .ToListAsync();
+            foreach (var classId in classIds)
+                AttendanceController.InvalidateEmbeddingCache(classId);
 
             return Ok(new { message = "Face embedding registered successfully" });
         }

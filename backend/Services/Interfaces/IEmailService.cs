@@ -16,6 +16,11 @@ namespace backend.Services.Interfaces
         Task<bool> SendWelcomeEmailAsync(string clientEmail, string clientName, string username, string password);
 
         /// <summary>
+        /// Sends welcome email with credentials to a new learner
+        /// </summary>
+        Task<bool> SendLearnerWelcomeEmailAsync(string learnerEmail, string learnerName, string username, string password, string portalUrl);
+
+        /// <summary>
         /// Sends a generic email
         /// </summary>
         /// <param name="to">Recipient email address</param>

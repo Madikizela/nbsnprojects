@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using backend.Services;
-using QuestPDF.Infrastructure;
 using backend.Services.Interfaces;
+using QuestPDF.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -93,8 +93,15 @@ builder.Services.AddScoped<ILearnerDocumentEncryptionService, LearnerDocumentEnc
 builder.Services.AddScoped<IDataEncryptionService, DataEncryptionService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
+// Add WhatsApp Business API service
+builder.Services.AddHttpClient("WhatsApp");
+builder.Services.AddScoped<IWhatsAppService, WhatsAppService>();
+
 // Add SDP authorization service
 builder.Services.AddScoped<ISDPAuthorizationService, SDPAuthorizationService>();
+
+// Add daily attendance summary background service
+builder.Services.AddHostedService<DailyAttendanceSummaryService>();
 
 // Add memory cache for authorization service
 builder.Services.AddMemoryCache();
@@ -192,6 +199,14 @@ if (app.Environment.IsDevelopment())
 
 // Use CORS
 app.UseCors("AllowReactApp");
+
+// Serve static files from uploads directory
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
+        Path.Combine(builder.Environment.ContentRootPath, "uploads")),
+    RequestPath = "/uploads"
+});
 
 // Global logging and error handling middleware
 app.Use(async (context, next) =>

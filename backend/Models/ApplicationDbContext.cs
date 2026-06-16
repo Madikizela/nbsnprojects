@@ -78,6 +78,9 @@ namespace backend.Models
         public DbSet<LearnerAttendance> LearnerAttendances { get; set; }
         public DbSet<AttendanceLog> AttendanceLogs { get; set; }
         public DbSet<SickNote> SickNotes { get; set; }
+
+        // Notice Board
+        public DbSet<Announcement> Announcements { get; set; }
         
         // Legacy Assessment System Entities
         public DbSet<AssessmentType> AssessmentTypes { get; set; }

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Models.DTOs;
+using backend.Services.Interfaces;
 
 namespace backend.Controllers
 {
@@ -10,10 +11,12 @@ namespace backend.Controllers
     public class DocumentApprovalsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IWhatsAppService _whatsApp;
 
-        public DocumentApprovalsController(ApplicationDbContext context)
+        public DocumentApprovalsController(ApplicationDbContext context, IWhatsAppService whatsApp)
         {
             _context = context;
+            _whatsApp = whatsApp;
         }
 
         // GET: api/DocumentApprovals/stats
@@ -253,6 +256,30 @@ namespace backend.Controllers
                 document.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
+
+                // ── WhatsApp notification ──────────────────────────────────
+                // Load learner details for notification (fire-and-forget — don't fail the request)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        var learner = await _context.Learners.FindAsync(document.LearnerId);
+                        if (learner?.ContactNumber != null)
+                        {
+                            var learnerName = $"{learner.FirstName} {learner.LastName}";
+                            if (approvalDto.ApprovalStatus == "Approved")
+                                await _whatsApp.SendDocumentApprovedAsync(
+                                    learner.ContactNumber, learnerName, document.DocumentType);
+                            else
+                                await _whatsApp.SendDocumentDeclinedAsync(
+                                    learner.ContactNumber, learnerName,
+                                    document.DocumentType,
+                                    approvalDto.DeclineReason ?? "Please re-upload a clearer copy.");
+                        }
+                    }
+                    catch { /* notification failure must never affect the approval response */ }
+                });
+
                 return Ok(new { message = $"Document {approvalDto.ApprovalStatus.ToLower()} successfully", approvedBy = currentUserId });
             }
             catch (Exception ex)

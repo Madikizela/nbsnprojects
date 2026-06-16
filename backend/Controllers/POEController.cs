@@ -776,15 +776,44 @@ namespace backend.Controllers
 
                                                 if (!string.IsNullOrEmpty(resolvedPath) && System.IO.File.Exists(resolvedPath))
                                                 {
-                                                    try
+                                                    // Determine if the file is an image or plain text
+                                                    var mimeType = answer.MimeType ?? "";
+                                                    var fileExt = Path.GetExtension(resolvedPath).ToLowerInvariant();
+                                                    var isImage = mimeType.StartsWith("image/") ||
+                                                                  fileExt == ".jpg" || fileExt == ".jpeg" ||
+                                                                  fileExt == ".png" || fileExt == ".gif" ||
+                                                                  fileExt == ".webp" || fileExt == ".bmp";
+
+                                                    if (isImage)
                                                     {
-                                                        var answerBytes = System.IO.File.ReadAllBytes(resolvedPath);
-                                                        ansCol.Item().PaddingTop(5).AlignCenter().Image(answerBytes).FitArea();
+                                                        try
+                                                        {
+                                                            var answerBytes = System.IO.File.ReadAllBytes(resolvedPath);
+                                                            ansCol.Item().PaddingTop(5).AlignCenter().Image(answerBytes).FitArea();
+                                                        }
+                                                        catch (Exception imgEx)
+                                                        {
+                                                            ansCol.Item().PaddingTop(5).Border(1).BorderColor(Colors.Red.Lighten2).Padding(10).AlignCenter()
+                                                                .Text($"[Error loading image: {imgEx.Message}]").FontSize(9).FontColor(Colors.Red.Medium).Italic();
+                                                        }
                                                     }
-                                                    catch (Exception imgEx)
+                                                    else
                                                     {
-                                                        ansCol.Item().PaddingTop(5).Border(1).BorderColor(Colors.Red.Lighten2).Padding(10).AlignCenter()
-                                                            .Text($"[Error loading image: {imgEx.Message}]").FontSize(9).FontColor(Colors.Red.Medium).Italic();
+                                                        // Plain text answer (typed via web portal)
+                                                        var textContent = System.IO.File.ReadAllText(resolvedPath);
+                                                        ansCol.Item().PaddingTop(5)
+                                                            .Border(1).BorderColor(Colors.Grey.Lighten2)
+                                                            .Background(Colors.Grey.Lighten5)
+                                                            .Padding(12)
+                                                            .Column(txtCol =>
+                                                            {
+                                                                txtCol.Item()
+                                                                    .Text("Typed Answer:")
+                                                                    .FontSize(8).Bold().FontColor(Colors.Grey.Darken1);
+                                                                txtCol.Item().PaddingTop(4)
+                                                                    .Text(textContent)
+                                                                    .FontSize(10);
+                                                            });
                                                     }
                                                 }
                                                 else

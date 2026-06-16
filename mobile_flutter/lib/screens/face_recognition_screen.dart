@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
@@ -10,6 +11,7 @@ import 'package:geolocator/geolocator.dart';
 import '../services/face_recognition_service.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/offline_attendance_queue.dart';
 
 enum FaceMode { register, verify }
 
@@ -521,7 +523,6 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       final authService = context.read<AuthService>();
       final rawTeacherId = authService.user?['id'];
 
-      // Safely parse teacherId to int
       final int? teacherId = rawTeacherId is int
           ? rawTeacherId
           : (rawTeacherId != null
@@ -534,7 +535,6 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
         return;
       }
 
-      // Get current position for the API call
       Position? position;
       try {
         position = await Geolocator.getCurrentPosition(
@@ -545,70 +545,88 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
         debugPrint('Warning: Could not get precise location for API: $e');
       }
 
-      final response = await apiService.faceClockToggle(
-        classId: widget.classId!,
-        teacherId: teacherId,
-        embedding: embedding,
-        latitude: position?.latitude,
-        longitude: position?.longitude,
-      );
-
-      if (mounted) {
-        final data = response.data;
-        // Use toString() to ensure we don't get type mismatch if backend returns int
-        final String action = data['action']?.toString() ?? 'Clocked';
-        final String name = data['learnerName']?.toString() ?? 'Learner';
-
-        setState(() {
-          _status = '$action successful: $name';
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$action successful for $name'),
-            backgroundColor: action == 'ClockIn' ? Colors.green : Colors.blue,
-          ),
+      try {
+        // ── Try live clock first ───────────────────────────────────────────
+        final response = await apiService.faceClockToggle(
+          classId: widget.classId!,
+          teacherId: teacherId,
+          embedding: embedding,
+          latitude: position?.latitude,
+          longitude: position?.longitude,
         );
 
-        Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          final data = response.data;
+          final String action = data['action']?.toString() ?? 'Clocked';
+          final String name = data['learnerName']?.toString() ?? 'Learner';
+
+          // Try to sync any previously queued records now that we're online
+          unawaited(OfflineAttendanceQueue.instance.trySyncAll(apiService));
+
+          setState(() => _status = '$action successful: $name');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('$action successful for $name'),
+              backgroundColor: action == 'ClockIn' ? Colors.green : Colors.blue,
+            ),
+          );
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) Navigator.pop(context);
+          });
+        }
+      } on DioException catch (e) {
+        // ── Network failure → queue for later sync ────────────────────────
+        final isNetworkError = e.type == DioExceptionType.connectionError ||
+            e.type == DioExceptionType.connectionTimeout ||
+            e.type == DioExceptionType.receiveTimeout ||
+            e.type == DioExceptionType.sendTimeout;
+
+        if (isNetworkError) {
+          await OfflineAttendanceQueue.instance.enqueue(
+            classId: widget.classId!,
+            teacherId: teacherId,
+            embedding: embedding,
+            latitude: position?.latitude,
+            longitude: position?.longitude,
+          );
+
           if (mounted) {
-            Navigator.pop(context);
+            final pending =
+                await OfflineAttendanceQueue.instance.pendingCount();
+            setState(
+                () => _status = 'Offline — queued for sync ($pending pending)');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                    '📴 No connection. Attendance saved locally and will sync when online. ($pending queued)'),
+                backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) Navigator.pop(context);
+            });
           }
-        });
-      }
-    } catch (e, stackTrace) {
-      debugPrint('❌ [FACE CLOCK] Raw Error: $e');
-      debugPrint('❌ [FACE CLOCK] StackTrace: $stackTrace');
-
-      String errorMsg = '';
-
-      if (e is DioException) {
-        final dynamic responseData = e.response?.data;
-        if (responseData != null) {
+        } else {
+          // Server-side error (4xx/5xx) — don't queue, show the error
+          String errorMsg = '';
+          final dynamic responseData = e.response?.data;
           if (responseData is Map) {
             errorMsg = responseData['message']?.toString() ??
                 'Server error (${e.response?.statusCode})';
           } else {
-            errorMsg = responseData.toString();
+            errorMsg = e.message ?? 'Unknown error';
           }
-        } else {
-          errorMsg =
-              e.message ?? e.error?.toString() ?? 'Network connection failed';
+          if (mounted) {
+            setState(() => _status = 'Error: $errorMsg');
+            _resetLiveness();
+          }
         }
-      } else {
-        errorMsg = e.toString();
       }
-
-      // Final safety check to ensure we don't show "Error:" with no text
-      if (errorMsg.trim().isEmpty || errorMsg == 'null') {
-        errorMsg = 'Unknown error during verification';
-      }
-
+    } catch (e) {
+      debugPrint('❌ [FACE CLOCK] Unexpected error: $e');
       if (mounted) {
-        setState(() {
-          _status =
-              'Error: ${errorMsg.length > 100 ? '${errorMsg.substring(0, 97)}...' : errorMsg}';
-        });
+        setState(() => _status = 'Error: ${e.toString()}');
         _resetLiveness();
       }
     }

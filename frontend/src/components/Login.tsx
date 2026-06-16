@@ -464,34 +464,33 @@ const Login: React.FC = () => {
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="text-center" style={{ 
-              background: 'rgba(255, 255, 255, 0.2)',
-              backdropFilter: 'blur(10px)',
-              padding: '16px 20px',
-              borderRadius: '16px',
-              border: '1px solid rgba(255, 255, 255, 0.3)',
-              marginTop: '50px'
-            }}>
-              <p className="text-white mb-0 fw-medium" style={{ 
-                textShadow: '0 2px 8px rgba(0,0,0,0.4)',
-                fontSize: '15px',
-                lineHeight: '1.6'
-              }}>
-                Don't have an account? 
-                <a 
-                  href="#" 
-                  className="text-white ms-1 text-decoration-none fw-bold"
-                  style={{ 
-                    textShadow: '0 2px 8px rgba(0,0,0,0.5)',
-                    transition: 'all 0.3s ease'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                  onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-                >
-                  Contact administrator
-                </a>
-              </p>
+            {/* Learner Portal Button */}
+            <div className="text-center" style={{ marginTop: '20px' }}>
+              <button
+                onClick={() => navigate('/learner')}
+                className="btn btn-lg text-white fw-bold shadow-lg"
+                style={{
+                  background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                  border: 'none',
+                  borderRadius: '16px',
+                  padding: '14px 32px',
+                  fontSize: '16px',
+                  transition: 'all 0.3s ease',
+                  width: '100%',
+                  maxWidth: '400px'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-3px)';
+                  e.currentTarget.style.boxShadow = '0 15px 35px rgba(245, 87, 108, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 10px 25px rgba(0, 0, 0, 0.3)';
+                }}
+              >
+                <i className="bi bi-person-circle me-2" style={{ fontSize: '20px' }}></i>
+                Learner Portal
+              </button>
             </div>
           </div>
         </div>

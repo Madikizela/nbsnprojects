@@ -291,6 +291,15 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: Color(0xFF64748b),
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  // Learner portal link
+                  TextButton(
+                    onPressed: () => context.go('/learner/login'),
+                    child: const Text(
+                      '🎓 Learner? Login here',
+                      style: TextStyle(color: Color(0xFF10b981), fontSize: 13),
+                    ),
+                  ),
                 ],
               ),
             ),

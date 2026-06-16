@@ -175,7 +175,7 @@ class _LearnerDetailScreenState extends State<LearnerDetailScreen> {
     if (!mounted) return;
     setState(() {
       _profilePhotoUrl =
-          '${ApiService.baseUrl}/api/Learners/${widget.learnerId}/profile-photo?t=${DateTime.now().millisecondsSinceEpoch}';
+          '${ApiService.staticBaseUrl}/api/Learners/${widget.learnerId}/profile-photo?t=${DateTime.now().millisecondsSinceEpoch}';
     });
   }
 
@@ -183,7 +183,7 @@ class _LearnerDetailScreenState extends State<LearnerDetailScreen> {
     if (!mounted) return;
     setState(() {
       _signatureUrl =
-          '${ApiService.baseUrl}/api/Learners/${widget.learnerId}/signature?t=${DateTime.now().millisecondsSinceEpoch}';
+          '${ApiService.staticBaseUrl}/api/Learners/${widget.learnerId}/signature?t=${DateTime.now().millisecondsSinceEpoch}';
     });
   }
 

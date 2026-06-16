@@ -9,6 +9,9 @@ class ApiService {
   /// The currently active base URL (set during initialise()).
   String get baseUrl => _baseUrl;
 
+  /// Static access for URLs built outside of an ApiService instance context.
+  static String get staticBaseUrl => ServerConfigService.defaultServerUrl;
+
   ApiService() {
     // Temporary Dio instance with the default URL.
     // Call initialise() once at startup to load the saved URL.
@@ -38,7 +41,9 @@ class ApiService {
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
         final prefs = await SharedPreferences.getInstance();
-        final token = prefs.getString('token');
+        // Use admin token if present, otherwise fall back to learner token
+        final token =
+            prefs.getString('token') ?? prefs.getString('learner_token');
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }

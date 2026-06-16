@@ -102,6 +102,15 @@ namespace backend.Models
         [StringLength(500)]
         public string? ProfilePhotoPath { get; set; }
 
+        // Learner Portal Credentials (generated on registration)
+        [StringLength(100)]
+        public string? Username { get; set; }
+
+        [StringLength(255)]
+        public string? PasswordHash { get; set; }
+
+        public bool MustChangePassword { get; set; } = true;
+
         // Fingerprint Data (Base64 encoded ANSI templates)
         public string? LeftThumbTemplate { get; set; }
         public string? RightThumbTemplate { get; set; }

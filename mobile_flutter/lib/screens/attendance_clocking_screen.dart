@@ -7,6 +7,7 @@ import 'dart:math' as math;
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import '../services/fingerprint_service.dart';
+import '../services/offline_attendance_queue.dart';
 
 class AttendanceClockingScreen extends StatefulWidget {
   final int classId;
@@ -30,6 +31,7 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
   List<dynamic> learners = [];
   bool isLoading = true;
   bool isScanning = false;
+  int _pendingQueueCount = 0;
 
   @override
   void initState() {
@@ -37,7 +39,35 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
     debugPrint('📍 [DEBUG] AttendanceClockingScreen initialized');
     debugPrint('📍 [DEBUG] Latitude from widget: ${widget.latitude}');
     debugPrint('📍 [DEBUG] Longitude from widget: ${widget.longitude}');
+    _initQueue();
     fetchLearners();
+  }
+
+  Future<void> _initQueue() async {
+    final queue = OfflineAttendanceQueue.instance;
+    await queue.init();
+    // Attempt to drain any records queued while offline
+    final apiService = context.read<ApiService>();
+    final synced = await queue.trySyncAll(apiService);
+    if (synced > 0 && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Synced $synced offline attendance record(s)'),
+          backgroundColor: const Color(0xFF10b981),
+        ),
+      );
+    }
+    _refreshQueueBadge();
+  }
+
+  Future<void> _refreshQueueBadge() async {
+    final count = await OfflineAttendanceQueue.instance.pendingCount();
+    if (mounted) setState(() => _pendingQueueCount = count);
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
   }
 
   Future<void> fetchLearners() async {
@@ -132,10 +162,10 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
         widget.longitude!,
       );
 
-      print(
+      debugPrint(
           '📍 [LOCATION] Current: ${position.latitude}, ${position.longitude}');
-      print('📍 [LOCATION] Site: ${widget.latitude}, ${widget.longitude}');
-      print('📍 [LOCATION] Distance: ${distanceInMeters.toStringAsFixed(2)}m');
+      debugPrint('📍 [LOCATION] Site: ${widget.latitude}, ${widget.longitude}');
+      debugPrint('📍 [LOCATION] Distance: ${distanceInMeters.toStringAsFixed(2)}m');
 
       if (distanceInMeters > 50) {
         if (mounted) {
@@ -372,18 +402,18 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
 
   Future<void> _processAttendance(
       dynamic learner, String fingerprintTemplate) async {
-    print('🔵 [ATTENDANCE] Starting _processAttendance');
-    print(
+    debugPrint('🔵 [ATTENDANCE] Starting _processAttendance');
+    debugPrint(
         '🔵 [ATTENDANCE] Learner: ${learner['firstName']} ${learner['lastName']}');
 
     try {
-      print('🔵 [ATTENDANCE] Getting services...');
+      debugPrint('🔵 [ATTENDANCE] Getting services...');
       final apiService = context.read<ApiService>();
       final authService = context.read<AuthService>();
       final teacherId = authService.user?['id'] ?? 0;
 
-      print('🔵 [ATTENDANCE] TeacherId from auth: $teacherId');
-      print('🔵 [ATTENDANCE] ClassId from widget: ${widget.classId}');
+      debugPrint('🔵 [ATTENDANCE] TeacherId from auth: $teacherId');
+      debugPrint('🔵 [ATTENDANCE] ClassId from widget: ${widget.classId}');
 
       final requestData = {
         'ClassId': widget.classId,
@@ -392,32 +422,31 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
       };
 
       // Debug logging
-      print('🟢 === Smart Clock Toggle Request ===');
-      print(
+      debugPrint('🟢 === Smart Clock Toggle Request ===');
+      debugPrint(
           '🟢 ClassId: ${widget.classId} (type: ${widget.classId.runtimeType})');
-      print('🟢 TeacherId: $teacherId (type: ${teacherId.runtimeType})');
-      print('🟢 FingerprintTemplate length: ${fingerprintTemplate.length}');
-      print(
+      debugPrint('🟢 TeacherId: $teacherId (type: ${teacherId.runtimeType})');
+      debugPrint('🟢 FingerprintTemplate length: ${fingerprintTemplate.length}');
+      debugPrint(
           '🟢 FingerprintTemplate preview: ${fingerprintTemplate.substring(0, math.min(50, fingerprintTemplate.length))}...');
-      print('🟢 Request data: $requestData');
+      debugPrint('🟢 Request data: $requestData');
 
       setState(() => isScanning = false);
-      print('🔵 [ATTENDANCE] Set isScanning = false');
+      debugPrint('🔵 [ATTENDANCE] Set isScanning = false');
 
       // Use the smart clock-toggle endpoint
-      print(
+      debugPrint(
           '🔵 [ATTENDANCE] Calling API endpoint: /api/Attendance/clock-toggle');
 
       try {
         final response = await apiService.post('/api/Attendance/clock-toggle',
             data: requestData);
-        print('✅ [ATTENDANCE] Clock-toggle successful!');
-        print('🟢 Response status: ${response.statusCode}');
-        print('🟢 Response data: ${response.data}');
+        debugPrint('✅ [ATTENDANCE] Clock-toggle successful!');
+        debugPrint('🟢 Response status: ${response.statusCode}');
 
         if (mounted && response.statusCode == 200) {
           final action = response.data['action'] ?? 'Unknown';
-          print('✅ [ATTENDANCE] Action performed: $action');
+          debugPrint('✅ [ATTENDANCE] Action performed: $action');
 
           if (action == 'ClockIn') {
             _showSuccessDialog(learner, response.data, 'ClockIn');
@@ -427,25 +456,54 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
 
           fetchLearners(); // Refresh list
         }
-      } catch (clockToggleError) {
-        print('❌ [ATTENDANCE] Clock-toggle failed: $clockToggleError');
+      } on DioException catch (clockToggleError) {
+        debugPrint('❌ [ATTENDANCE] Clock-toggle failed: $clockToggleError');
 
-        if (mounted) {
-          String errorMessage = 'Failed to process attendance';
-          if (clockToggleError is DioException &&
-              clockToggleError.response?.data != null) {
-            errorMessage =
-                clockToggleError.response?.data['message']?.toString() ??
-                    errorMessage;
-          }
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
+        // Check if it was a network / connectivity error — queue for later
+        final isNetworkError =
+            clockToggleError.type == DioExceptionType.connectionError ||
+                clockToggleError.type == DioExceptionType.connectionTimeout ||
+                clockToggleError.type == DioExceptionType.sendTimeout ||
+                clockToggleError.type == DioExceptionType.receiveTimeout ||
+                clockToggleError.response == null;
+
+        if (isNetworkError) {
+          // Queue the record for later sync
+          await OfflineAttendanceQueue.instance.enqueue(
+            classId: widget.classId,
+            teacherId: teacherId is int
+                ? teacherId
+                : int.tryParse(teacherId.toString()) ?? 0,
+            embedding: [], // fingerprint-based flow stores template, not embedding; queue for manual sync
+            latitude: widget.latitude,
+            longitude: widget.longitude,
           );
+          await _refreshQueueBadge();
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    '📶 No connection — attendance queued and will sync automatically when online'),
+                backgroundColor: Color(0xFFf59e0b),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            final errorMessage =
+                clockToggleError.response?.data?['message']?.toString() ??
+                    'Failed to process attendance';
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                  content: Text(errorMessage), backgroundColor: Colors.red),
+            );
+          }
         }
       }
     } catch (e, stackTrace) {
-      print('❌ [ATTENDANCE] Unexpected exception: $e');
-      print('❌ [ATTENDANCE] Stack trace: $stackTrace');
+      debugPrint('❌ [ATTENDANCE] Unexpected exception: $e');
+      debugPrint('❌ [ATTENDANCE] Stack trace: $stackTrace');
       setState(() => isScanning = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -454,7 +512,7 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
       }
     }
 
-    print('🔵 [ATTENDANCE] _processAttendance completed');
+    debugPrint('🔵 [ATTENDANCE] _processAttendance completed');
   }
 
   void _showSuccessDialog(
@@ -600,6 +658,51 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
                 style: const TextStyle(fontSize: 14, color: Color(0xFF0EA5E9))),
           ],
         ),
+        actions: [
+          if (_pendingQueueCount > 0)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Tooltip(
+                message:
+                    '$_pendingQueueCount attendance record(s) queued offline — tap to sync',
+                child: GestureDetector(
+                  onTap: () async {
+                    final apiService = context.read<ApiService>();
+                    final synced = await OfflineAttendanceQueue.instance
+                        .trySyncAll(apiService);
+                    await _refreshQueueBadge();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(synced > 0
+                            ? '✅ Synced $synced record(s)'
+                            : '⚠️ Still offline — $_pendingQueueCount record(s) pending'),
+                        backgroundColor: synced > 0
+                            ? const Color(0xFF10b981)
+                            : const Color(0xFFf59e0b),
+                      ));
+                    }
+                  },
+                  child: Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      const Icon(Icons.cloud_upload_outlined,
+                          color: Color(0xFFf59e0b), size: 28),
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: const BoxDecoration(
+                            color: Colors.red, shape: BoxShape.circle),
+                        child: Text('$_pendingQueueCount',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: learners.isEmpty
           ? const Center(

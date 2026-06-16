@@ -3,7 +3,15 @@ import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'services/api_service.dart';
 import 'services/auth_service.dart';
+import 'services/learner_auth_service.dart';
+import 'services/offline_attendance_queue.dart';
 import 'screens/login_screen.dart';
+import 'screens/learner_login_screen.dart';
+import 'screens/learner_dashboard_screen.dart';
+import 'screens/learner_profile_screen_portal.dart';
+import 'screens/learner_documents_portal_screen.dart';
+import 'screens/learner_assessments_portal_screen.dart';
+import 'screens/learner_change_password_screen.dart';
 import 'screens/projects_screen.dart';
 import 'screens/sites_screen.dart';
 import 'screens/classes_screen.dart';
@@ -27,8 +35,13 @@ import 'screens/logbook_screen.dart';
 import 'screens/logbook_entries_screen.dart';
 import 'screens/add_logbook_entry_screen.dart';
 import 'screens/server_settings_screen.dart';
+import 'screens/notice_board_screen.dart';
+import 'screens/learner_noticeboard_screen.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Initialise offline attendance queue (creates SQLite DB if not exists)
+  await OfflineAttendanceQueue.instance.init();
   runApp(const MyApp());
 }
 
@@ -258,6 +271,57 @@ class _MyAppState extends State<MyApp> {
           path: '/settings/server',
           builder: (context, state) => const ServerSettingsScreen(),
         ),
+        // ── Notice Board ──────────────────────────────────────────────────
+        GoRoute(
+          path: '/classes/:classId/notice-board',
+          builder: (context, state) => NoticeBoardScreen(
+            classId: int.parse(state.pathParameters['classId']!),
+            className: state.uri.queryParameters['className'] ?? 'Class',
+          ),
+        ),
+        GoRoute(
+          path: '/learner/noticeboard',
+          builder: (context, state) => LearnerNoticeboardScreen(
+            authService: context.read<LearnerAuthService>(),
+          ),
+        ),
+        // ── Learner Portal routes ──────────────────────────────────────────
+        GoRoute(
+          path: '/learner/login',
+          builder: (context, state) => LearnerLoginScreen(
+            authService: context.read<LearnerAuthService>(),
+          ),
+        ),
+        GoRoute(
+          path: '/learner/dashboard',
+          builder: (context, state) => LearnerDashboardScreen(
+            authService: context.read<LearnerAuthService>(),
+          ),
+        ),
+        GoRoute(
+          path: '/learner/profile',
+          builder: (context, state) => LearnerProfilePortalScreen(
+            authService: context.read<LearnerAuthService>(),
+          ),
+        ),
+        GoRoute(
+          path: '/learner/documents',
+          builder: (context, state) => LearnerDocumentsPortalScreen(
+            authService: context.read<LearnerAuthService>(),
+          ),
+        ),
+        GoRoute(
+          path: '/learner/assessments',
+          builder: (context, state) => LearnerAssessmentsPortalScreen(
+            authService: context.read<LearnerAuthService>(),
+          ),
+        ),
+        GoRoute(
+          path: '/learner/change-password',
+          builder: (context, state) => LearnerChangePasswordScreen(
+            authService: context.read<LearnerAuthService>(),
+          ),
+        ),
         GoRoute(
           path: '/learners/:learnerId/logbook/:unitStandardId/add',
           builder: (context, state) => AddLogbookEntryScreen(
@@ -280,6 +344,7 @@ class _MyAppState extends State<MyApp> {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => LearnerAuthService()),
         Provider(create: (_) => ApiService()),
       ],
       child: MaterialApp.router(

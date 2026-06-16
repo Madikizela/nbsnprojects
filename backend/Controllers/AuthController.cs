@@ -507,6 +507,104 @@ namespace backend.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        // ─── Learner Portal Login ───────────────────────────────────────────
+        [HttpPost("learner-login")]
+        [AllowAnonymous]
+        public async Task<IActionResult> LearnerLogin([FromBody] LearnerLoginRequest request)
+        {
+            var login = request.Login?.Trim().ToLowerInvariant() ?? string.Empty;
+            var password = request.Password?.Trim() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
+                return BadRequest(new { message = "Username/email and password are required" });
+
+            try
+            {
+                // Accept either username or email
+                var learner = await _context.Learners
+                    .FirstOrDefaultAsync(l =>
+                        (l.Username != null && l.Username.ToLower() == login) ||
+                        (l.Email    != null && l.Email.ToLower()    == login));
+
+                if (learner == null || string.IsNullOrWhiteSpace(learner.PasswordHash))
+                    return Unauthorized(new { message = "Invalid credentials" });
+
+                if (!_passwordHashingService.VerifyPassword(password, learner.PasswordHash))
+                    return Unauthorized(new { message = "Invalid credentials" });
+
+                // Generate JWT
+                var jwtSettings = _configuration.GetSection("JwtSettings");
+                var secretKey   = Environment.GetEnvironmentVariable("JWT_SECRET") ?? jwtSettings["SecretKey"] ?? "YourSuperSecretKeyThatIsAtLeast32CharactersLong!";
+                var issuer      = Environment.GetEnvironmentVariable("JWT_ISSUER")   ?? jwtSettings["Issuer"]   ?? "YourAppName";
+                var audience    = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? jwtSettings["Audience"] ?? "YourAppUsers";
+                var expiryMin   = int.Parse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES") ?? jwtSettings["ExpiryMinutes"] ?? "480");
+
+                var key         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+                var creds       = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+                var claims = new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, learner.Id.ToString()),
+                    new Claim(ClaimTypes.Name,  $"{learner.FirstName} {learner.LastName}"),
+                    new Claim(ClaimTypes.Email, learner.Email ?? ""),
+                    new Claim(ClaimTypes.Role,  "Learner"),
+                    new Claim("UserType",       "Learner"),
+                    new Claim("LearnerId",       learner.Id.ToString()),
+                    new Claim("MustChangePassword", learner.MustChangePassword.ToString())
+                };
+
+                var jwtToken = new JwtSecurityToken(issuer, audience, claims,
+                    expires: DateTime.UtcNow.AddMinutes(expiryMin),
+                    signingCredentials: creds);
+
+                var tokenString = new JwtSecurityTokenHandler().WriteToken(jwtToken);
+
+                _logger.LogInformation("Learner login successful: {Login}", login);
+
+                return Ok(new
+                {
+                    token = tokenString,
+                    user = new
+                    {
+                        id              = learner.Id,
+                        name            = $"{learner.FirstName} {learner.LastName}",
+                        email           = learner.Email,
+                        username        = learner.Username,
+                        role            = "Learner",
+                        mustChangePassword = learner.MustChangePassword,
+                        profilePhotoPath   = learner.ProfilePhotoPath
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Learner login error for {Login}", login);
+                return StatusCode(500, new { message = "Login error", error = ex.Message });
+            }
+        }
+
+        // ─── Learner Change Password ────────────────────────────────────────
+        [HttpPost("learner-change-password")]
+        public async Task<IActionResult> LearnerChangePassword([FromBody] LearnerChangePasswordRequest request)
+        {
+            var learnerIdClaim = User.FindFirst("LearnerId")?.Value;
+            if (!int.TryParse(learnerIdClaim, out int learnerId))
+                return Unauthorized(new { message = "Not authenticated as a learner" });
+
+            var learner = await _context.Learners.FindAsync(learnerId);
+            if (learner == null) return NotFound();
+
+            if (!_passwordHashingService.VerifyPassword(request.CurrentPassword, learner.PasswordHash ?? ""))
+                return BadRequest(new { message = "Current password is incorrect" });
+
+            learner.PasswordHash = _passwordHashingService.HashPassword(request.NewPassword);
+            learner.MustChangePassword = false;
+            learner.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Password changed successfully" });
+        }
     }
 
     public class ForgotPasswordRequest
@@ -525,6 +623,18 @@ namespace backend.Controllers
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string EncryptedLoginData { get; set; } = string.Empty;
+    }
+
+    public class LearnerLoginRequest
+    {
+        public string Login { get; set; } = string.Empty;   // username or email
+        public string Password { get; set; } = string.Empty;
+    }
+
+    public class LearnerChangePasswordRequest
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
     }
 
     public class LoginPayload

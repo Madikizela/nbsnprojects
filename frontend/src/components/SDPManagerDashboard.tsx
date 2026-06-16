@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SignatureCanvas from 'react-signature-canvas';
+import FunderReport from './FunderReport';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
@@ -616,6 +617,7 @@ const SDPManagerDashboard: React.FC = () => {
   const [markingProjectDetails, setMarkingProjectDetails] = useState<any | null>(null);
   const [markingLearnerId, setMarkingLearnerId] = useState<number | null>(null);
   const [learnerProgress, setLearnerProgress] = useState<LearnerProgress[]>([]);
+  const [markedLearnerIds, setMarkedLearnerIds] = useState<Set<number>>(new Set());
   const [isRemedialMarking, setIsRemedialMarking] = useState(false);
   const [expandedMarkingQualification, setExpandedMarkingQualification] = useState<number | null>(null);
   const [expandedMarkingUnitStandard, setExpandedMarkingUnitStandard] = useState<number | null>(null);
@@ -1443,6 +1445,41 @@ const SDPManagerDashboard: React.FC = () => {
     };
     fetchProgress();
   }, [markingLearnerId]);
+
+  // Track which learners have all unit standards fully marked → turn card green
+  useEffect(() => {
+    if (!markingLearnerId || !markingProjectDetails) return;
+
+    // Collect all unit standard IDs across all qualifications in the project
+    const allUnitStandardIds: number[] = [];
+    for (const pathway of markingProjectDetails.learningPathways || []) {
+      for (const qual of pathway.qualifications || []) {
+        for (const us of qual.unitStandards || []) {
+          allUnitStandardIds.push(us.id);
+        }
+      }
+    }
+
+    if (allUnitStandardIds.length === 0) return;
+
+    // A learner is "fully marked" when every unit standard has formativeCompleted
+    // (summative may not always be required — if formative is done, consider it marked)
+    const allMarked = allUnitStandardIds.every(usId =>
+      learnerProgress.some(
+        p => p.projectQualificationUnitStandardId === usId && p.formativeCompleted
+      )
+    );
+
+    setMarkedLearnerIds(prev => {
+      const next = new Set(prev);
+      if (allMarked) {
+        next.add(markingLearnerId);
+      } else {
+        next.delete(markingLearnerId);
+      }
+      return next;
+    });
+  }, [learnerProgress, markingProjectDetails, markingLearnerId]);
 
   const compilePOE = async (learnerId: number) => {
     try {
@@ -9108,10 +9145,15 @@ const SDPManagerDashboard: React.FC = () => {
                         <button
                           className={`btn w-100 text-start p-3 border-2 h-100 d-flex flex-column justify-content-between ${
                             markingLearnerId === learner.learnerId
-                              ? (learner.hasUploads ? 'btn-warning' : 'btn-primary')
-                              : (learner.hasUploads ? 'btn-warning' : 'btn-outline-primary')
+                              ? (markedLearnerIds.has(learner.learnerId) ? 'btn-success' : (learner.hasUploads ? 'btn-warning' : 'btn-primary'))
+                              : (markedLearnerIds.has(learner.learnerId) ? 'btn-success' : (learner.hasUploads ? 'btn-warning' : 'btn-outline-primary'))
                           }`}
-                          style={learner.hasUploads ? { 
+                          style={markedLearnerIds.has(learner.learnerId) ? {
+                            backgroundColor: '#16a34a',
+                            borderColor: '#15803d',
+                            color: '#ffffff',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          } : learner.hasUploads ? { 
                             backgroundColor: '#f59e0b', 
                             borderColor: '#d97706', 
                             color: '#111827',
@@ -9137,9 +9179,14 @@ const SDPManagerDashboard: React.FC = () => {
                                 Uploads: {learner.uploadCount ?? 0}
                               </span>
                             )}
+                            {markedLearnerIds.has(learner.learnerId) && (
+                              <span className="badge bg-white text-success">
+                                ✓ Fully Marked
+                              </span>
+                            )}
                           </div>
                           <div>
-                            <small className={learner.hasUploads ? 'text-dark opacity-75' : 'text-muted'}>
+                            <small className={markedLearnerIds.has(learner.learnerId) ? 'text-white opacity-75' : (learner.hasUploads ? 'text-dark opacity-75' : 'text-muted')}>
                               ID: {learner.idNumber || 'N/A'}
                             </small>
                           </div>
@@ -9325,7 +9372,7 @@ const SDPManagerDashboard: React.FC = () => {
                                                                         : (isThisFormativeMarked ? 'btn-primary' : 'btn-outline-primary')
                                                                     }`} 
                                                                     onClick={() => openMarkingAssessment(a.id, 'Formative', false)}
-                                                                    disabled={activeSection === 'moderation' ? !isThisFormativeMarked : (isFormativeMarked && isSummativeMarked)}
+                                                                    disabled={activeSection === 'moderation' ? !isThisFormativeMarked : false}
                                                                   >
                                                                     {activeSection === 'moderation' ? (
                                                                       <>
@@ -9344,7 +9391,7 @@ const SDPManagerDashboard: React.FC = () => {
                                                                       className="btn btn-sm btn-outline-warning" 
                                                                       onClick={() => openMarkingAssessment(a.id, 'Formative', true)}
                                                                       title="Mark Remedial"
-                                                                      disabled={(isFormativeMarked && isSummativeMarked) || isFormativeDone}
+                                                                      disabled={isFormativeDone}
                                                                     >
                                                                       Rem
                                                                     </button>
@@ -9366,7 +9413,7 @@ const SDPManagerDashboard: React.FC = () => {
                                                                         : (isThisSummativeMarked ? 'btn-success' : 'btn-outline-success')
                                                                     }`} 
                                                                     onClick={() => openMarkingAssessment(a.id, 'Summative', false)}
-                                                                    disabled={activeSection === 'moderation' ? !isThisSummativeMarked : (isFormativeMarked && isSummativeMarked)}
+                                                                    disabled={activeSection === 'moderation' ? !isThisSummativeMarked : false}
                                                                   >
                                                                     {activeSection === 'moderation' ? (
                                                                       <>
@@ -9385,7 +9432,7 @@ const SDPManagerDashboard: React.FC = () => {
                                                                       className="btn btn-sm btn-outline-warning" 
                                                                       onClick={() => openMarkingAssessment(a.id, 'Summative', true)}
                                                                       title="Mark Remedial"
-                                                                      disabled={(isFormativeMarked && isSummativeMarked) || isSummativeDone}
+                                                                      disabled={isSummativeDone}
                                                                     >
                                                                       Rem
                                                                     </button>
@@ -10647,6 +10694,39 @@ const SDPManagerDashboard: React.FC = () => {
                   </button>
                 )}
 
+                {/* Reports - Only for Admin and QA Managers */}
+                {(isAdmin || isQA) && (
+                  <button
+                    className={`nav-link text-start border-0 ${activeSection === 'reports' ? 'active' : ''}`}
+                    style={{
+                      color: '#ffffff',
+                      backgroundColor: activeSection === 'reports' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      fontWeight: activeSection === 'reports' ? 600 : 400,
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}
+                    onClick={() => setActiveSection('reports')}
+                    onMouseEnter={(e) => {
+                      if (activeSection !== 'reports') {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (activeSection !== 'reports') {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    <span style={{ fontSize: '1.2rem' }}>📄</span>
+                    <span>Reports & Certificates</span>
+                  </button>
+                )}
+
                 {/* IT Specific Sections */}
                 {isIT && (
                   <>
@@ -10749,6 +10829,7 @@ const SDPManagerDashboard: React.FC = () => {
               {activeSection === 'assessmentPlan' && renderAssessmentPlan()}
               {activeSection === 'candidatePreparation' && renderCandidatePreparation()}
               {activeSection === 'assessorReport' && renderAssessorReport()}
+              {activeSection === 'reports' && (isAdmin || isQA) && <FunderReport token={localStorage.getItem('token') || ''} />}
               {activeSection === 'sickNotes' && (isAdmin || isFinance) && renderSickNotes()}
               {activeSection === 'attendanceTracking' && (!isAssessor && (!isModerator || isQA || isIT)) && renderAttendanceTracking()}
               {activeSection === 'documentApprovals' && (!isAssessor && (!isModerator || isQA)) && renderDocumentApprovals()}

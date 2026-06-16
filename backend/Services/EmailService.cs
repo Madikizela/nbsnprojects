@@ -71,6 +71,86 @@ namespace backend.Services
         }
 
         /// <summary>
+        /// Sends welcome email with login credentials to a newly registered learner
+        /// </summary>
+        public async Task<bool> SendLearnerWelcomeEmailAsync(string learnerEmail, string learnerName, string username, string password, string portalUrl)
+        {
+            if (!IsValidEmail(learnerEmail))
+            {
+                _logger.LogWarning("Invalid learner email address: {Email}", learnerEmail);
+                return false;
+            }
+
+            try
+            {
+                var subject = "Welcome to NBSN Learner Portal – Your Login Credentials";
+                var body = $@"
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <title>Welcome to NBSN</title>
+  <style>
+    body{{font-family:Arial,sans-serif;background:#f4f7fb;margin:0;padding:20px}}
+    .wrap{{max-width:600px;margin:auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.1)}}
+    .top{{background:#0EA5E9;padding:30px;text-align:center;color:#fff}}
+    .top h1{{margin:0;font-size:24px}}
+    .body{{padding:30px}}
+    .cred-box{{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:20px;margin:20px 0}}
+    .cred-row{{display:flex;justify-content:space-between;margin-bottom:8px}}
+    .label{{color:#64748b;font-size:14px}}
+    .value{{font-weight:bold;color:#0f172a;font-size:14px}}
+    .btn{{display:block;background:#0EA5E9;color:#fff;text-align:center;padding:14px 0;border-radius:8px;text-decoration:none;font-weight:bold;margin:24px 0}}
+    .warning{{background:#fef9c3;border:1px solid #fde68a;border-radius:8px;padding:14px;font-size:13px;color:#78350f}}
+    .footer{{text-align:center;font-size:12px;color:#94a3b8;padding:20px}}
+  </style>
+</head>
+<body>
+  <div class='wrap'>
+    <div class='top'>
+      <div style='font-size:40px'>🎓</div>
+      <h1>Welcome, {learnerName}!</h1>
+      <p style='margin:4px 0;opacity:.85'>National Building Skills Network – Learner Portal</p>
+    </div>
+    <div class='body'>
+      <p>Your learner account has been created. Use the credentials below to log in to your personal portal where you can:</p>
+      <ul>
+        <li>Upload and manage your documents</li>
+        <li>Answer assessment questions (type or scan)</li>
+        <li>Update your profile, photo and face recognition</li>
+        <li>Track your progress</li>
+      </ul>
+
+      <div class='cred-box'>
+        <div class='cred-row'><span class='label'>Portal URL</span><span class='value'>{portalUrl}</span></div>
+        <div class='cred-row'><span class='label'>Username</span><span class='value'>{username}</span></div>
+        <div class='cred-row'><span class='label'>Password</span><span class='value'>{password}</span></div>
+      </div>
+
+      <a href='{portalUrl}' class='btn'>Access My Portal →</a>
+
+      <div class='warning'>
+        ⚠️ <strong>Important:</strong> You will be asked to change your password on first login.
+        Keep your credentials safe and do not share them with anyone.
+      </div>
+
+      <p>If you have any questions, please contact your facilitator or training coordinator.</p>
+      <p>Best regards,<br><strong>NBSN Team</strong></p>
+    </div>
+    <div class='footer'>This is an automated message. Do not reply to this email.</div>
+  </div>
+</body>
+</html>";
+                return await SendEmailAsync(learnerEmail, subject, body);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending learner welcome email to {Email}", learnerEmail);
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Sends a generic email
         /// </summary>
         public async Task<bool> SendEmailAsync(string to, string subject, string body)

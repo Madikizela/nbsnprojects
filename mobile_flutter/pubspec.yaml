@@ -28,6 +28,10 @@ dependencies:
   # Storage
   shared_preferences: ^2.2.2
   
+  # Offline queue & connectivity
+  sqflite: ^2.3.2
+  connectivity_plus: ^6.0.5
+  
   # Document Scanning with Edge Detection
   cunning_document_scanner: ^1.2.2
   
