@@ -16,7 +16,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   bool _isLoading = true;
   bool _isEditing = false;
   bool _isSaving = false;
-  
+
   final _formKey = GlobalKey<FormState>();
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
@@ -28,7 +28,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   final _provinceController = TextEditingController();
   final _postalCodeController = TextEditingController();
   final _practiceNumberController = TextEditingController();
-  
+
   String? _signatureBase64;
   int? _teacherId;
 
@@ -55,17 +55,17 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
 
   Future<void> _loadTeacherProfile() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final authService = context.read<AuthService>();
       final user = authService.user;
       if (user == null) throw Exception('User not found');
-      
+
       _teacherId = user['id'];
-      
+
       final apiService = context.read<ApiService>();
       final response = await apiService.get('/api/TeacherProfile/$_teacherId');
-      
+
       if (response.statusCode == 200) {
         final profile = response.data;
         setState(() {
@@ -96,7 +96,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
   Future<void> _saveProfile() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isSaving = true);
-    
+
     try {
       final data = {
         'firstName': _firstNameController.text.trim(),
@@ -111,10 +111,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
         'practiceNumber': _practiceNumberController.text.trim(),
         if (_signatureBase64 != null) 'signature': _signatureBase64,
       };
-      
+
       final apiService = context.read<ApiService>();
-      final response = await apiService.put('/api/TeacherProfile/$_teacherId', data: data);
-      
+      final response =
+          await apiService.put('/api/TeacherProfile/$_teacherId', data: data);
+
       if (response.statusCode == 200) {
         setState(() {
           _isEditing = false;
@@ -122,7 +123,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Profile updated successfully'), backgroundColor: Colors.green),
+            const SnackBar(
+                content: Text('Profile updated successfully'),
+                backgroundColor: Colors.green),
           );
         }
       }
@@ -130,7 +133,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
       setState(() => _isSaving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving profile: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Error saving profile: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
@@ -142,7 +147,7 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
       penColor: Colors.black,
       exportBackgroundColor: Colors.white,
     );
-    
+
     await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -157,7 +162,8 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   border: Border.all(color: Colors.grey),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Signature(controller: controller, backgroundColor: Colors.white),
+                child: Signature(
+                    controller: controller, backgroundColor: Colors.white),
               ),
               const SizedBox(height: 10),
               TextButton.icon(
@@ -169,14 +175,17 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               if (controller.isNotEmpty) {
+                final nav = Navigator.of(context);
                 final signature = await controller.toPngBytes();
                 if (signature != null) {
                   setState(() => _signatureBase64 = base64Encode(signature));
-                  if (mounted) Navigator.pop(context);
+                  if (mounted) nav.pop();
                 }
               }
             },
@@ -194,7 +203,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
         title: const Text('Teacher Profile'),
         actions: [
           if (!_isEditing && !_isLoading)
-            IconButton(icon: const Icon(Icons.edit), onPressed: () => setState(() => _isEditing = true)),
+            IconButton(
+                icon: const Icon(Icons.edit),
+                onPressed: () => setState(() => _isEditing = true)),
           if (_isEditing)
             IconButton(
               icon: const Icon(Icons.close),
@@ -215,36 +226,78 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildSection('Personal Information', [
-                      _buildTextField(controller: _firstNameController, label: 'First Name', enabled: _isEditing, required: true),
-                      _buildTextField(controller: _lastNameController, label: 'Last Name', enabled: _isEditing, required: true),
-                      _buildTextField(controller: _emailController, label: 'Email', enabled: _isEditing, required: true, keyboardType: TextInputType.emailAddress),
+                      _buildTextField(
+                          controller: _firstNameController,
+                          label: 'First Name',
+                          enabled: _isEditing,
+                          required: true),
+                      _buildTextField(
+                          controller: _lastNameController,
+                          label: 'Last Name',
+                          enabled: _isEditing,
+                          required: true),
+                      _buildTextField(
+                          controller: _emailController,
+                          label: 'Email',
+                          enabled: _isEditing,
+                          required: true,
+                          keyboardType: TextInputType.emailAddress),
                     ]),
                     const SizedBox(height: 20),
                     _buildSection('Contact Information', [
-                      _buildTextField(controller: _phoneController, label: 'Phone Number', enabled: _isEditing, keyboardType: TextInputType.phone),
-                      _buildTextField(controller: _practiceNumberController, label: 'Practice Number', enabled: _isEditing),
+                      _buildTextField(
+                          controller: _phoneController,
+                          label: 'Phone Number',
+                          enabled: _isEditing,
+                          keyboardType: TextInputType.phone),
+                      _buildTextField(
+                          controller: _practiceNumberController,
+                          label: 'Practice Number',
+                          enabled: _isEditing),
                     ]),
                     const SizedBox(height: 20),
                     _buildSection('Address', [
-                      _buildTextField(controller: _addressLine1Controller, label: 'Address Line 1', enabled: _isEditing),
-                      _buildTextField(controller: _addressLine2Controller, label: 'Address Line 2', enabled: _isEditing),
-                      _buildTextField(controller: _cityController, label: 'City', enabled: _isEditing),
-                      _buildTextField(controller: _provinceController, label: 'Province', enabled: _isEditing),
-                      _buildTextField(controller: _postalCodeController, label: 'Postal Code', enabled: _isEditing),
+                      _buildTextField(
+                          controller: _addressLine1Controller,
+                          label: 'Address Line 1',
+                          enabled: _isEditing),
+                      _buildTextField(
+                          controller: _addressLine2Controller,
+                          label: 'Address Line 2',
+                          enabled: _isEditing),
+                      _buildTextField(
+                          controller: _cityController,
+                          label: 'City',
+                          enabled: _isEditing),
+                      _buildTextField(
+                          controller: _provinceController,
+                          label: 'Province',
+                          enabled: _isEditing),
+                      _buildTextField(
+                          controller: _postalCodeController,
+                          label: 'Postal Code',
+                          enabled: _isEditing),
                     ]),
                     const SizedBox(height: 20),
                     _buildSection('Signature', [
                       if (_signatureBase64 != null)
                         Container(
                           padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8)),
-                          child: Image.memory(base64Decode(_signatureBase64!), height: 100, fit: BoxFit.contain),
+                          decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8)),
+                          child: Image.memory(base64Decode(_signatureBase64!),
+                              height: 100, fit: BoxFit.contain),
                         )
                       else
                         Container(
                           padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8)),
-                          child: const Center(child: Text('No signature added', style: TextStyle(color: Colors.grey))),
+                          decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8)),
+                          child: const Center(
+                              child: Text('No signature added',
+                                  style: TextStyle(color: Colors.grey))),
                         ),
                       if (_isEditing)
                         Padding(
@@ -252,7 +305,9 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                           child: ElevatedButton.icon(
                             onPressed: _showSignatureDialog,
                             icon: const Icon(Icons.edit),
-                            label: Text(_signatureBase64 == null ? 'Add Signature' : 'Update Signature'),
+                            label: Text(_signatureBase64 == null
+                                ? 'Add Signature'
+                                : 'Update Signature'),
                           ),
                         ),
                     ]),
@@ -262,9 +317,15 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
                         width: double.infinity,
                         child: ElevatedButton(
                           onPressed: _isSaving ? null : _saveProfile,
-                          style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16)),
+                          style: ElevatedButton.styleFrom(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 16)),
                           child: _isSaving
-                              ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child:
+                                      CircularProgressIndicator(strokeWidth: 2))
                               : const Text('Save Profile'),
                         ),
                       ),
@@ -280,7 +341,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6))),
+        Text(title,
+            style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF8B5CF6))),
         const SizedBox(height: 10),
         ...children,
       ],
@@ -306,7 +371,11 @@ class _TeacherProfileScreenState extends State<TeacherProfileScreen> {
           filled: !enabled,
           fillColor: enabled ? null : Colors.grey[800],
         ),
-        validator: required ? (value) => (value == null || value.trim().isEmpty) ? '$label is required' : null : null,
+        validator: required
+            ? (value) => (value == null || value.trim().isEmpty)
+                ? '$label is required'
+                : null
+            : null,
       ),
     );
   }

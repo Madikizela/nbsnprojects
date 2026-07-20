@@ -816,7 +816,8 @@ class _LearnerAssessmentsPortalScreenState
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF0EA5E9).withOpacity(0.1),
+                                color: const Color(0xFF0EA5E9)
+                                    .withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                     color: const Color(0xFF0EA5E9), width: 1),
@@ -908,7 +909,8 @@ class _LearnerAssessmentsPortalScreenState
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFf59e0b).withOpacity(0.1),
+                                color: const Color(0xFFf59e0b)
+                                    .withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(
                                     color: const Color(0xFFf59e0b), width: 1),

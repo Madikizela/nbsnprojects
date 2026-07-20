@@ -5,18 +5,22 @@ import 'services/api_service.dart';
 import 'services/auth_service.dart';
 import 'services/learner_auth_service.dart';
 import 'services/offline_attendance_queue.dart';
+import 'services/local_database_service.dart';
+import 'services/sync_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/learner_login_screen.dart';
 import 'screens/learner_dashboard_screen.dart';
 import 'screens/learner_profile_screen_portal.dart';
 import 'screens/learner_documents_portal_screen.dart';
 import 'screens/learner_assessments_portal_screen.dart';
+import 'screens/learner_study_materials_screen.dart';
 import 'screens/learner_change_password_screen.dart';
 import 'screens/projects_screen.dart';
 import 'screens/sites_screen.dart';
 import 'screens/classes_screen.dart';
 import 'screens/learners_screen.dart';
 import 'screens/attendance_clocking_screen.dart';
+import 'screens/attendance_history_screen.dart';
 import 'screens/add_learner_screen.dart';
 import 'screens/scan_document_screen.dart';
 import 'screens/learner_detail_screen.dart';
@@ -40,8 +44,12 @@ import 'screens/learner_noticeboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // Initialise offline attendance queue (creates SQLite DB if not exists)
+
+  // Initialize offline services
   await OfflineAttendanceQueue.instance.init();
+  await LocalDatabaseService.instance.database; // Initialize DB
+  await SyncService.instance.init(); // Initialize sync service
+
   runApp(const MyApp());
 }
 
@@ -120,6 +128,13 @@ class _MyAppState extends State<MyApp> {
                 double.tryParse(state.uri.queryParameters['lat']?.trim() ?? ''),
             longitude:
                 double.tryParse(state.uri.queryParameters['lng']?.trim() ?? ''),
+          ),
+        ),
+        GoRoute(
+          path: '/classes/:classId/attendance-history',
+          builder: (context, state) => AttendanceHistoryScreen(
+            classId: int.parse(state.pathParameters['classId']!),
+            className: state.uri.queryParameters['className'] ?? 'Class',
           ),
         ),
         GoRoute(
@@ -313,6 +328,12 @@ class _MyAppState extends State<MyApp> {
         GoRoute(
           path: '/learner/assessments',
           builder: (context, state) => LearnerAssessmentsPortalScreen(
+            authService: context.read<LearnerAuthService>(),
+          ),
+        ),
+        GoRoute(
+          path: '/learner/study-materials',
+          builder: (context, state) => LearnerStudyMaterialsScreen(
             authService: context.read<LearnerAuthService>(),
           ),
         ),

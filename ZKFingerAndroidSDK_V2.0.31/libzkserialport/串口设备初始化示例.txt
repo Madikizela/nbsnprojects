@@ -1,0 +1,10 @@
+引入libzkserialport的动态库
+
+private final String idSerialName = "/dev/ttyMT3";
+private final int idBaudrate = 115200;
+
+
+Map idrparams = new HashMap();
+idrparams.put(ParameterHelper.PARAM_SERIAL_SERIALNAME, idSerialName);
+idrparams.put(ParameterHelper.PARAM_SERIAL_BAUDRATE, idBaudrate);
+idCardReader = IDCardReaderFactory.createIDCardReader(this, TransportType.SERIALPORT, idrparams);

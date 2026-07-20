@@ -143,4 +143,69 @@ namespace backend.Models.DTOs
         public bool ClockOutVerified { get; set; }
         public string? Notes { get; set; }
     }
+
+    // ─── Calendar View DTOs ──────────────────────────────────────────────────
+    public class LearnerAttendanceCalendarDto
+    {
+        public int LearnerId { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string IdNumber { get; set; } = string.Empty;
+        public string? Gender { get; set; }
+        public string? Telephone { get; set; }
+        public string? Address { get; set; }
+        public string? ProfilePhotoPath { get; set; }
+        public string? SignaturePath { get; set; }
+        
+        // Project Details
+        public string? ProjectName { get; set; }
+        public string? Pathway { get; set; }
+        public string? Province { get; set; }
+        public string? SiteName { get; set; }
+        
+        // Class Details
+        public string? ClassName { get; set; }
+        public string? TeacherName { get; set; }
+        public string? TeacherEmail { get; set; }
+        public string? TeacherSignaturePath { get; set; }
+        public string? TeacherProfileImagePath { get; set; }
+        public string? QualificationLevel { get; set; }
+        public List<string> UnitStandards { get; set; } = new List<string>();
+        
+        // Calendar Data
+        public int Year { get; set; }
+        public int Month { get; set; }
+        public string MonthName { get; set; } = string.Empty;
+        public List<CalendarDayDto> CalendarDays { get; set; } = new List<CalendarDayDto>();
+        
+        // Statistics
+        public int PresentDays { get; set; }
+        public int AbsentDays { get; set; }
+        public int LateDays { get; set; }
+        public double TotalContactHours { get; set; }
+        public double AttendanceRate { get; set; }
+        
+        // Additional Stats
+        public int ExpectedAttendance { get; set; }
+        public int ActualAttendance { get; set; }
+        public int DaysAbsent { get; set; }
+        public int InvalidAttendance { get; set; }
+        public int Holidays { get; set; }
+        public int ApprovedSickDays { get; set; }
+        public int PendingSickDays { get; set; }
+    }
+
+    public class CalendarDayDto
+    {
+        public DateTime Date { get; set; }
+        public int Day { get; set; }
+        public string DayOfWeek { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty; // Present, Absent, Late, Excused, No Record
+        public DateTime? ClockInTime { get; set; }
+        public DateTime? ClockOutTime { get; set; }
+        public string? SignaturePath { get; set; }
+        public double? ContactHours { get; set; }
+        public string? Notes { get; set; }
+        public bool IsWeekend { get; set; }
+    }
 }

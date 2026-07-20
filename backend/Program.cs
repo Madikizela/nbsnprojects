@@ -38,6 +38,13 @@ QuestPDF.Settings.License = LicenseType.Community;
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
     serverOptions.ListenAnyIP(5213); // Listen on all network interfaces on port 5213
+    
+    // Increase timeouts for long-running operations like POE compilation
+    serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(5);
+    serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMinutes(5);
+    
+    // Increase max request body size for file uploads
+    serverOptions.Limits.MaxRequestBodySize = 100 * 1024 * 1024; // 100 MB
 });
 
 // Add services to the container.
@@ -211,7 +218,10 @@ app.UseStaticFiles(new StaticFileOptions
 // Global logging and error handling middleware
 app.Use(async (context, next) =>
 {
-    Console.WriteLine($"Incoming Request: {context.Request.Method} {context.Request.Path}");
+    var logPath = Path.Combine(builder.Environment.ContentRootPath, "poe_error.log");
+    var logMsg = $"[{DateTime.Now}] Incoming Request: {context.Request.Method} {context.Request.Path}{context.Request.QueryString}\n";
+    Console.Write(logMsg);
+    try { System.IO.File.AppendAllText(logPath, logMsg); } catch {}
     try
     {
         await next();
@@ -228,6 +238,9 @@ app.Use(async (context, next) =>
             Console.WriteLine($"Inner Stack Trace: {ex.InnerException.StackTrace}");
         }
         Console.WriteLine("--------------------------------------------------");
+        
+        var errorMsg = $"[{DateTime.Now}] 🔥 UNHANDLED EXCEPTION: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}\n\n";
+        try { System.IO.File.AppendAllText(logPath, errorMsg); } catch {}
         
         context.Response.StatusCode = 500;
         await context.Response.WriteAsJsonAsync(new { message = "An internal server error occurred.", details = ex.Message });

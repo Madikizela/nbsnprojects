@@ -104,7 +104,8 @@ namespace backend.Models
         QualityAssuranceSupport = 14,
         AdministrationSupport = 15,
         Teacher = 16,
-        TrainingManager = 17
+        TrainingManager = 17,
+        ExternalUser = 18
     }
 
     public enum UserStatus

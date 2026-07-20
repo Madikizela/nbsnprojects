@@ -32,6 +32,23 @@ namespace backend.Models.DTOs
         public string Status { get; set; } = "Active";
     }
 
+    // DTO for updating video conference details
+    public class UpdateVideoConferenceDto
+    {
+        [StringLength(1000)]
+        public string? VideoConferenceLink { get; set; }
+        
+        [StringLength(50)]
+        public string? VideoConferenceType { get; set; } // Teams, Zoom, Google Meet, Other
+        
+        public DateTime? VideoConferenceStartTime { get; set; }
+        
+        [StringLength(500)]
+        public string? VideoConferenceDescription { get; set; }
+        
+        public bool SendAnnouncement { get; set; } = true;
+    }
+
     public class SiteClassResponseDto
     {
         public int Id { get; set; }
@@ -44,5 +61,11 @@ namespace backend.Models.DTOs
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public string? CreatedByUserName { get; set; }
+        
+        // Video Conference fields
+        public string? VideoConferenceLink { get; set; }
+        public string? VideoConferenceType { get; set; }
+        public DateTime? VideoConferenceStartTime { get; set; }
+        public string? VideoConferenceDescription { get; set; }
     }
 }

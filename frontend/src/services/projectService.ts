@@ -424,3 +424,99 @@ export const deleteSDP = async (id: number): Promise<void> => {
     throw error;
   }
 };
+
+/**
+ * Creates a new occupational qualification
+ */
+export const createOccupationalQualification = async (oq: Omit<OccupationalQualification, 'qualificationId'>): Promise<OccupationalQualification> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/qualifications/occupational`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(oq),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating occupational qualification:', error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a new occupational unit standard
+ */
+export const createOccupationalUnitStandard = async (qualificationId: number, ous: Omit<OccupationalUnitStandard, 'id' | 'qualificationId'>): Promise<OccupationalUnitStandard> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/qualifications/occupational/${qualificationId}/unit-standards`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(ous),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating occupational unit standard:', error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a new legacy qualification
+ */
+export const createLegacyQualification = async (lq: Omit<LegacyQualification, 'id'>): Promise<LegacyQualification> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/qualifications/legacy`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(lq),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating legacy qualification:', error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a new legacy unit standard
+ */
+export const createLegacyUnitStandard = async (qualificationId: number, lus: Omit<LegacyUnitStandard, 'id' | 'qualificationId'>): Promise<LegacyUnitStandard> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/qualifications/legacy/${qualificationId}/unit-standards`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(lus),
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error creating legacy unit standard:', error);
+    throw error;
+  }
+};

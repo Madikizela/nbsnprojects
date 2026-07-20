@@ -54,6 +54,7 @@ class _SickNoteUploadScreenState extends State<SickNoteUploadScreen> {
   }
 
   Future<void> _scanDocument() async {
+    final messenger = ScaffoldMessenger.of(context);
     try {
       List<String>? pictures = await CunningDocumentScanner.getPictures();
       if (pictures != null && pictures.isNotEmpty) {
@@ -62,9 +63,11 @@ class _SickNoteUploadScreenState extends State<SickNoteUploadScreen> {
         });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error scanning document: $e')),
-      );
+      if (mounted) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Error scanning document: $e')),
+        );
+      }
     }
   }
 
@@ -83,9 +86,11 @@ class _SickNoteUploadScreenState extends State<SickNoteUploadScreen> {
     _formKey.currentState!.save();
     setState(() => isSubmitting = true);
 
-    try {
-      final apiService = context.read<ApiService>();
+    final apiService = context.read<ApiService>();
+    final messenger = ScaffoldMessenger.of(context);
+    final nav = Navigator.of(context);
 
+    try {
       FormData formData = FormData.fromMap({
         'LearnerId': selectedLearnerId,
         'MedicalFacility': medicalFacility,
@@ -101,17 +106,17 @@ class _SickNoteUploadScreenState extends State<SickNoteUploadScreen> {
           await apiService.post('/api/SickNote/upload', data: formData);
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           const SnackBar(
               content: Text(
                   'Sick note uploaded successfully! It will be reviewed by finance.')),
         );
-        Navigator.pop(context);
+        nav.pop();
       }
     } catch (e) {
       setState(() => isSubmitting = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(content: Text(ApiService.getErrorMessage(e))),
         );
       }

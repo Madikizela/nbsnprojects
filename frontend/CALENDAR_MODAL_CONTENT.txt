@@ -1,0 +1,210 @@
+/* Replace the modal body content (after calendarData ?) with this */
+
+<div className="row g-3">
+  {/* LEFT COLUMN - Calendar */}
+  <div className="col-lg-7">
+    {/* Period Display */}
+    <div className="card mb-3" style={{ backgroundColor: '#06b6d4', border: 'none' }}>
+      <div className="card-body py-2">
+        <div className="text-center text-white fw-bold">
+          PERIOD: {calendarData.year}/{String(calendarData.month).padStart(2, '0')}/01 to {calendarData.year}/{String(calendarData.month).padStart(2, '0')}/{new Date(calendarData.year, calendarData.month, 0).getDate()}
+        </div>
+      </div>
+    </div>
+
+    {/* Month Navigation */}
+    <div className="card mb-3" style={{ backgroundColor: '#4facfe', border: 'none' }}>
+      <div className="card-body py-2">
+        <div className="d-flex justify-content-between align-items-center">
+          <button className="btn btn-light btn-sm" onClick={() => changeCalendarMonth('prev')}>
+            ← Previous Month
+          </button>
+          <h5 className="mb-0 text-white">
+            Calendar for {calendarData.monthName} {calendarData.year}
+          </h5>
+          <button className="btn btn-light btn-sm" onClick={() => changeCalendarMonth('next')}>
+            Next Month →
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {/* THE EXISTING CALENDAR GRID STAYS HERE - DO NOT CHANGE IT */}
+    {/* Keep all the calendar grid code that's already working */}
+  </div>
+
+  {/* RIGHT COLUMN - Learner Information */}
+  <div className="col-lg-5">
+    {/* Learner Photo Header */}
+    <div className="card mb-3" style={{ backgroundColor: '#1e40af', border: 'none' }}>
+      <div className="card-body text-center py-4">
+        {calendarData.profilePhotoPath ? (
+          <img 
+            src={`${API}/${calendarData.profilePhotoPath}`}
+            alt="Profile"
+            style={{
+              width: '100px',
+              height: '100px',
+              borderRadius: '50%',
+              objectFit: 'cover',
+              border: '3px solid white',
+              marginBottom: '10px'
+            }}
+          />
+        ) : (
+          <div style={{
+            width: '100px',
+            height: '100px',
+            borderRadius: '50%',
+            backgroundColor: '#0f172a',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '3px solid white',
+            fontSize: '36px',
+            marginBottom: '10px'
+          }}>
+            👤
+          </div>
+        )}
+        <h5 className="text-white mb-0">{calendarData.firstName} {calendarData.lastName}</h5>
+      </div>
+    </div>
+
+    {/* PROJECT DETAILS */}
+    <div className="card mb-3" style={{ backgroundColor: '#1e40af', border: 'none' }}>
+      <div className="card-header text-white fw-bold py-2" style={{ fontSize: '0.9rem' }}>
+        PROJECT DETAILS
+      </div>
+      <div className="card-body py-2" style={{ backgroundColor: '#1e293b', color: 'white', fontSize: '0.85rem' }}>
+        <div className="row mb-1">
+          <div className="col-5 text-muted">Pathway:</div>
+          <div className="col-7">{calendarData.pathway || 'N/A'}</div>
+        </div>
+        <div className="row mb-1">
+          <div className="col-5 text-muted">Province:</div>
+          <div className="col-7">{calendarData.province || 'N/A'}</div>
+        </div>
+        <div className="row">
+          <div className="col-5 text-muted">Project:</div>
+          <div className="col-7">{calendarData.projectName || 'N/A'}</div>
+        </div>
+      </div>
+    </div>
+
+    {/* LEARNER INFORMATION */}
+    <div className="card mb-3" style={{ backgroundColor: '#1e3a8a', border: 'none' }}>
+      <div className="card-header text-white fw-bold py-2" style={{ fontSize: '0.9rem' }}>
+        LEARNER
+      </div>
+      <div className="card-body py-2" style={{ backgroundColor: '#1e293b', color: 'white', fontSize: '0.85rem' }}>
+        <div className="row mb-1">
+          <div className="col-5 text-muted">Name:</div>
+          <div className="col-7">{calendarData.firstName}</div>
+        </div>
+        <div className="row mb-1">
+          <div className="col-5 text-muted">Surname:</div>
+          <div className="col-7">{calendarData.lastName}</div>
+        </div>
+        <div className="row mb-1">
+          <div className="col-5 text-muted">ID Number:</div>
+          <div className="col-7">{calendarData.idNumber || 'N/A'}</div>
+        </div>
+        <div className="row mb-1">
+          <div className="col-5 text-muted">Gender:</div>
+          <div className="col-7">{calendarData.gender || 'N/A'}</div>
+        </div>
+        <div className="row mb-1">
+          <div className="col-5 text-muted">Telephone:</div>
+          <div className="col-7">{calendarData.telephone || 'N/A'}</div>
+        </div>
+        <div className="row">
+          <div className="col-5 text-muted">Address:</div>
+          <div className="col-7" style={{ fontSize: '0.8rem' }}>{calendarData.address || 'N/A'}</div>
+        </div>
+      </div>
+    </div>
+
+    {/* QUALIFICATION & UNIT STANDARDS */}
+    <div className="card mb-3" style={{ backgroundColor: '#1e3a8a', border: 'none' }}>
+      <div className="card-header text-white fw-bold py-2" style={{ fontSize: '0.9rem' }}>
+        QUALIFICATION & UNIT STANDARDS
+      </div>
+      <div className="card-body py-2" style={{ backgroundColor: '#1e293b', color: 'white', fontSize: '0.85rem' }}>
+        <div className="mb-2">
+          <strong>Qualification Level:</strong>
+          <div className="mt-1">{calendarData.qualificationLevel || 'N/A'}</div>
+        </div>
+        <div>
+          <strong>Unit Standards Covered:</strong>
+          <div className="mt-1" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+            {calendarData.unitStandards && calendarData.unitStandards.length > 0 ? (
+              <ul className="mb-0 ps-3">
+                {calendarData.unitStandards.map((us: string, idx: number) => (
+                  <li key={idx} style={{ fontSize: '0.8rem', marginBottom: '5px' }}>{us}</li>
+                ))}
+              </ul>
+            ) : (
+              <div className="text-muted">No unit standards assigned</div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Attendance Statistics */}
+    <div className="card mb-3" style={{ backgroundColor: '#1e293b', border: '1px solid #334155' }}>
+      <div className="card-body py-2">
+        <div className="row g-2">
+          <div className="col-6">
+            <div className="p-2 rounded text-center" style={{ backgroundColor: '#10b981' }}>
+              <div className="h6 mb-0">{calendarData.actualAttendance || calendarData.presentDays}</div>
+              <small style={{ fontSize: '0.7rem' }}>Actual</small>
+            </div>
+          </div>
+          <div className="col-6">
+            <div className="p-2 rounded text-center" style={{ backgroundColor: '#3b82f6' }}>
+              <div className="h6 mb-0">{calendarData.expectedAttendance || 0}</div>
+              <small style={{ fontSize: '0.7rem' }}>Expected</small>
+            </div>
+          </div>
+          <div className="col-6">
+            <div className="p-2 rounded text-center" style={{ backgroundColor: '#ef4444' }}>
+              <div className="h6 mb-0">{calendarData.daysAbsent || calendarData.absentDays}</div>
+              <small style={{ fontSize: '0.7rem' }}>Absent</small>
+            </div>
+          </div>
+          <div className="col-6">
+            <div className="p-2 rounded text-center" style={{ backgroundColor: '#1e40af' }}>
+              <div className="h6 mb-0">{calendarData.attendanceRate}%</div>
+              <small style={{ fontSize: '0.7rem' }}>Rate</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Learner Signature */}
+    {calendarData.signaturePath && (
+      <div className="card" style={{ backgroundColor: '#1e293b', border: '1px solid #334155' }}>
+        <div className="card-header text-white fw-bold py-2" style={{ backgroundColor: '#0f172a', fontSize: '0.9rem' }}>
+          Learner Signature
+        </div>
+        <div className="card-body text-center py-2" style={{ backgroundColor: 'white' }}>
+          <img 
+            src={`${API}/${calendarData.signaturePath}`}
+            alt="Signature"
+            style={{
+              width: '100%',
+              maxHeight: '60px',
+              objectFit: 'contain'
+            }}
+          />
+        </div>
+        <div className="card-footer text-center py-1" style={{ fontSize: '0.75rem', backgroundColor: '#0f172a' }}>
+          Appears on all present days
+        </div>
+      </div>
+    )}
+  </div>
+</div>

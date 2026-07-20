@@ -568,7 +568,8 @@ namespace backend.Controllers
                     user = new
                     {
                         id              = learner.Id,
-                        name            = $"{learner.FirstName} {learner.LastName}",
+                        name            = learner.FirstName,
+                        surname         = learner.LastName,
                         email           = learner.Email,
                         username        = learner.Username,
                         role            = "Learner",
@@ -604,6 +605,138 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Password changed successfully" });
+        }
+
+        // ─── Learner Forgot Password ────────────────────────────────────────
+        [HttpPost("learner-forgot-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> LearnerForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            var email = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new { message = "Email is required" });
+
+            try
+            {
+                var learner = await _context.Learners
+                    .FirstOrDefaultAsync(l => l.Email != null && l.Email.ToLower() == email);
+
+                // Always return success even if learner doesn't exist (security best practice)
+                if (learner == null)
+                {
+                    _logger.LogWarning("Password reset requested for non-existent learner email: {Email}", email);
+                    return Ok(new { message = "If an account exists with that email, a reset link has been sent." });
+                }
+
+                // Generate reset token (valid for 1 hour)
+                var resetToken = Guid.NewGuid().ToString();
+                learner.PasswordResetToken = resetToken;
+                learner.PasswordResetTokenExpiry = DateTime.UtcNow.AddHours(1);
+                await _context.SaveChangesAsync();
+
+                // Send reset email
+                var resetUrl = $"{Request.Scheme}://{Request.Host}/learner-reset-password?token={resetToken}";
+                var emailBody = $@"
+                    <h2>Reset Your Learner Portal Password</h2>
+                    <p>Hello {learner.FirstName},</p>
+                    <p>You requested to reset your password for the NBSN Learner Portal.</p>
+                    <p>Click the link below to reset your password:</p>
+                    <p><a href='{resetUrl}'>Reset Password</a></p>
+                    <p>This link will expire in 1 hour.</p>
+                    <p>If you didn't request this, please ignore this email.</p>
+                    <p>Best regards,<br/>National Building Skills Network</p>
+                ";
+
+                await _emailService.SendEmailAsync(learner.Email, "Reset Your Learner Portal Password", emailBody);
+
+                _logger.LogInformation("Password reset email sent to learner: {Email}", email);
+
+                return Ok(new { message = "If an account exists with that email, a reset link has been sent." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing learner password reset for {Email}", email);
+                return StatusCode(500, new { message = "An error occurred. Please try again later." });
+            }
+        }
+
+        // ─── Learner Reset Password ─────────────────────────────────────────
+        [HttpPost("learner-reset-password")]
+        [AllowAnonymous]
+        public async Task<IActionResult> LearnerResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
+                return BadRequest(new { message = "Token and new password are required" });
+
+            try
+            {
+                var learner = await _context.Learners
+                    .FirstOrDefaultAsync(l => l.PasswordResetToken == request.Token);
+
+                if (learner == null)
+                    return BadRequest(new { message = "Invalid or expired reset token" });
+
+                if (learner.PasswordResetTokenExpiry == null || learner.PasswordResetTokenExpiry < DateTime.UtcNow)
+                    return BadRequest(new { message = "Reset token has expired. Please request a new one." });
+
+                // Update password
+                learner.PasswordHash = _passwordHashingService.HashPassword(request.NewPassword);
+                learner.PasswordResetToken = null;
+                learner.PasswordResetTokenExpiry = null;
+                learner.MustChangePassword = false;
+                learner.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                _logger.LogInformation("Password reset successful for learner: {Email}", learner.Email);
+
+                return Ok(new { message = "Password has been reset successfully. You can now login with your new password." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resetting learner password");
+                return StatusCode(500, new { message = "An error occurred. Please try again later." });
+            }
+        }
+
+        // ─── Get Learner Reset Token (for self-service without email) ──────
+        [HttpPost("get-learner-reset-token")]
+        [AllowAnonymous]
+        public async Task<IActionResult> GetLearnerResetToken([FromBody] ForgotPasswordRequest request)
+        {
+            var email = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new { message = "Email is required" });
+
+            try
+            {
+                var learner = await _context.Learners
+                    .FirstOrDefaultAsync(l => l.Email != null && l.Email.ToLower() == email);
+
+                if (learner == null)
+                    return NotFound(new { message = "No learner found with that email address" });
+
+                if (string.IsNullOrWhiteSpace(learner.PasswordResetToken))
+                    return BadRequest(new { message = "No active reset token found. Please request a password reset first via 'Forgot Password'." });
+
+                if (learner.PasswordResetTokenExpiry == null || learner.PasswordResetTokenExpiry < DateTime.UtcNow)
+                    return BadRequest(new { message = "Your reset token has expired. Please request a new one via 'Forgot Password'." });
+
+                _logger.LogInformation("Reset token retrieved for learner: {Email}", email);
+
+                return Ok(new
+                {
+                    token = learner.PasswordResetToken,
+                    expiresAt = learner.PasswordResetTokenExpiry,
+                    message = "Reset token found. Use it to set your new password."
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving learner reset token for {Email}", email);
+                return StatusCode(500, new { message = "An error occurred. Please try again later." });
+            }
         }
     }
 

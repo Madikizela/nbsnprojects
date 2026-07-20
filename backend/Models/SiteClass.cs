@@ -22,6 +22,18 @@ namespace backend.Models
         [StringLength(50)]
         public string Status { get; set; } = "Active";
         
+        // Video Conferencing fields
+        [StringLength(1000)]
+        public string? VideoConferenceLink { get; set; }
+        
+        [StringLength(50)]
+        public string? VideoConferenceType { get; set; } // Teams, Zoom, Google Meet, Other
+        
+        public DateTime? VideoConferenceStartTime { get; set; }
+        
+        [StringLength(500)]
+        public string? VideoConferenceDescription { get; set; }
+        
         [Required]
         public DateTime CreatedAt { get; set; }
         

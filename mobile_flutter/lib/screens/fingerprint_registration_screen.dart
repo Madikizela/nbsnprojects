@@ -23,24 +23,27 @@ class _FingerprintRegistrationScreenState
     extends State<FingerprintRegistrationScreen> {
   final FingerprintService _fingerprintService = FingerprintService();
   bool _loading = true;
-  bool _hasLeftThumb = false;
-  bool _hasRightThumb = false;
+  bool _hasLeftThumbFutronic = false;
+  bool _hasRightThumbFutronic = false;
+  bool _hasLeftThumbZkteco = false;
+  bool _hasRightThumbZkteco = false;
   bool _capturing = false;
   String? _currentCapture;
   bool _scannerConnected = false;
+  ScannerType _scannerType = ScannerType.none;
 
   @override
   void initState() {
     super.initState();
     _checkRegisteredFingerprints();
-    _checkScannerConnection();
+    _detectScanner();
   }
 
-  Future<void> _checkScannerConnection() async {
-    final available = await _fingerprintService.isScannerAvailable();
-    setState(() {
-      _scannerConnected = available;
-    });
+  Future<void> _detectScanner() async {
+    final type = await _fingerprintService.getScannerType();
+    if (mounted) {
+      setState(() => _scannerType = type);
+    }
   }
 
   Future<void> _checkRegisteredFingerprints() async {
@@ -48,11 +51,14 @@ class _FingerprintRegistrationScreenState
       final apiService = context.read<ApiService>();
       final response = await apiService
           .get('/api/Learners/${widget.learnerId}/fingerprints');
-
       if (response.statusCode == 200) {
         setState(() {
-          _hasLeftThumb = response.data['hasLeftThumb'] ?? false;
-          _hasRightThumb = response.data['hasRightThumb'] ?? false;
+          _hasLeftThumbFutronic =
+              response.data['hasLeftThumbFutronic'] ?? false;
+          _hasRightThumbFutronic =
+              response.data['hasRightThumbFutronic'] ?? false;
+          _hasLeftThumbZkteco = response.data['hasLeftThumbZkteco'] ?? false;
+          _hasRightThumbZkteco = response.data['hasRightThumbZkteco'] ?? false;
           _loading = false;
         });
       }
@@ -62,38 +68,38 @@ class _FingerprintRegistrationScreenState
     }
   }
 
+  String get _scannerLabel {
+    switch (_scannerType) {
+      case ScannerType.futronic:
+        return 'Futronic Scanner Connected';
+      case ScannerType.zkteco:
+        return 'ZKTeco Scanner Connected';
+      case ScannerType.none:
+        return 'No Scanner Connected';
+    }
+  }
+
+  Color get _scannerColor {
+    return _scannerType == ScannerType.none
+        ? const Color(0xFFef4444)
+        : const Color(0xFF10b981);
+  }
+
+  IconData get _scannerIcon {
+    return _scannerType == ScannerType.none ? Icons.usb_off : Icons.usb;
+  }
+
   Future<void> _captureFingerprint(String fingerprintType) async {
-    // First check if scanner is connected
-    final available = await _fingerprintService.isScannerAvailable();
-    if (!available) {
+    // Refresh scanner detection first
+    await _detectScanner();
+
+    if (_scannerType == ScannerType.none) {
       if (mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: const Color(0xFF1e293b),
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: const Row(
-              children: [
-                Icon(Icons.usb_off, color: Colors.red, size: 32),
-                SizedBox(width: 12),
-                Text('Scanner Not Connected',
-                    style: TextStyle(color: Colors.white)),
-              ],
-            ),
-            content: const Text(
-              'Please connect the Futronic USB fingerprint scanner to your device via USB cable.\n\n'
-              'Once connected, you will see a permission dialog. Click "OK" to allow access to the scanner.',
-              style: TextStyle(color: Colors.white70),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK',
-                    style: TextStyle(color: Color(0xFF0EA5E9))),
-              ),
-            ],
-          ),
+        _showErrorDialog(
+          'No Scanner Connected',
+          'Please connect a Futronic or ZKTeco USB fingerprint scanner to your device.\n\n'
+              'Once connected, tap the refresh button and try again.',
+          icon: Icons.usb_off,
         );
       }
       return;
@@ -104,90 +110,14 @@ class _FingerprintRegistrationScreenState
       _currentCapture = fingerprintType;
     });
 
-    // Show scanning dialog with fingerprint preview
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: const Color(0xFF1e293b),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Fingerprint scanner visual
-              Container(
-                width: 120,
-                height: 120,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF374151),
-                  borderRadius: BorderRadius.circular(60),
-                  border: Border.all(color: const Color(0xFF0EA5E9), width: 3),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    // Animated scanning ring
-                    Container(
-                      width: 100,
-                      height: 100,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(50),
-                        border: Border.all(
-                          color: const Color(0xFF0EA5E9).withOpacity(0.5),
-                          width: 2,
-                        ),
-                      ),
-                      child: const CircularProgressIndicator(
-                        color: Color(0xFF0EA5E9),
-                        strokeWidth: 2,
-                      ),
-                    ),
-                    // Fingerprint icon
-                    const Icon(
-                      Icons.fingerprint,
-                      size: 60,
-                      color: Color(0xFF0EA5E9),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'Registering $fingerprintType',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Place finger on scanner...',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Keep finger steady until capture is complete',
-                style: TextStyle(color: Colors.white54, fontSize: 12),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    _showScanningDialog(fingerprintType);
 
     try {
-      // Capture fingerprint - this will request permission if needed
       final template = await _fingerprintService.captureFingerprint(
         fingerType: fingerprintType,
       );
 
-      // Close scanning dialog
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context); // close scanning dialog
 
       if (template == null) {
         if (mounted) {
@@ -204,96 +134,47 @@ class _FingerprintRegistrationScreenState
         return;
       }
 
-      // Upload to backend
+      // Upload to backend — include which scanner was used so backend can tag it
+      if (!mounted) return;
       final apiService = context.read<ApiService>();
       await apiService.post(
         '/api/Learners/${widget.learnerId}/fingerprint',
         data: {
           'FingerprintType': fingerprintType,
           'TemplateData': template,
+          'ScannerType':
+              _scannerType == ScannerType.zkteco ? 'ZKTECO' : 'Futronic',
         },
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('$fingerprintType registered successfully'),
+            content: Text(
+                '$fingerprintType registered successfully (${_scannerType == ScannerType.zkteco ? "ZKTeco" : "Futronic"})'),
             backgroundColor: const Color(0xFF10b981),
           ),
         );
         _checkRegisteredFingerprints();
       }
     } on PlatformException catch (e) {
-      // Close scanning dialog if still open
-      if (mounted) Navigator.pop(context);
-
       if (mounted) {
-        String errorMessage = 'Scanner Error';
-        String detailedMessage = '';
-
-        // Handle specific error codes
-        if (e.code == 'CAPTURE_ERROR') {
-          if (e.message?.contains('87') == true) {
-            errorMessage = 'Scanner Connection Error';
-            detailedMessage =
-                'The fingerprint scanner is not responding properly. Please:\n\n'
-                '• Check USB connection\n'
-                '• Disconnect and reconnect scanner\n'
-                '• Try again';
-          } else {
-            errorMessage = 'Capture Failed';
-            detailedMessage = e.message ?? 'Unknown capture error';
-          }
-        } else if (e.code == 'NO_DEVICE') {
-          errorMessage = 'Scanner Not Found';
-          detailedMessage = 'Please connect the fingerprint scanner via USB';
-        } else if (e.code == 'USB_ERROR') {
-          errorMessage = 'USB Connection Issue';
-          detailedMessage = e.message ?? 'Scanner connection problem';
-        } else if (e.code == 'PERMISSION_DENIED') {
-          errorMessage = 'Permission Denied';
-          detailedMessage = 'Please allow USB access for the scanner';
-        } else {
-          errorMessage = 'Scanner Error';
-          detailedMessage = '${e.code}: ${e.message}';
-        }
-
-        // Show detailed error dialog
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              backgroundColor: const Color(0xFF1e293b),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16)),
-              title: Row(
-                children: [
-                  const Icon(Icons.error, color: Colors.red, size: 32),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      errorMessage,
-                      style: const TextStyle(color: Colors.white, fontSize: 18),
-                    ),
-                  ),
-                ],
-              ),
-              content: Text(
-                detailedMessage,
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK',
-                      style: TextStyle(color: Color(0xFF0EA5E9), fontSize: 16)),
-                ),
-              ],
-            );
-          },
+        try {
+          Navigator.pop(context);
+        } catch (_) {}
+      }
+      if (mounted) {
+        _showErrorDialog(
+          _mapErrorCode(e.code),
+          _mapErrorMessage(e),
         );
       }
     } catch (e) {
+      if (mounted) {
+        try {
+          Navigator.pop(context);
+        } catch (_) {}
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Registration failed: $e')),
@@ -307,11 +188,151 @@ class _FingerprintRegistrationScreenState
     }
   }
 
+  void _showScanningDialog(String fingerprintType) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1e293b),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF374151),
+                  borderRadius: BorderRadius.circular(60),
+                  border: Border.all(color: const Color(0xFF0EA5E9), width: 3),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    SizedBox(
+                      width: 100,
+                      height: 100,
+                      child: CircularProgressIndicator(
+                        color: _scannerType == ScannerType.zkteco
+                            ? const Color(0xFF8B5CF6)
+                            : const Color(0xFF0EA5E9),
+                        strokeWidth: 2,
+                      ),
+                    ),
+                    const Icon(Icons.fingerprint,
+                        size: 60, color: Color(0xFF0EA5E9)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Registering $fingerprintType',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _scannerType == ScannerType.zkteco
+                    ? 'Using ZKTeco scanner...'
+                    : 'Using Futronic scanner...',
+                style: TextStyle(
+                  color: _scannerType == ScannerType.zkteco
+                      ? const Color(0xFF8B5CF6)
+                      : const Color(0xFF0EA5E9),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Place finger on scanner and keep steady',
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _showErrorDialog(String title, String message,
+      {IconData icon = Icons.error}) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF1e293b),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(icon, color: Colors.red, size: 28),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(title,
+                    style: const TextStyle(color: Colors.white, fontSize: 17)),
+              ),
+            ],
+          ),
+          content: Text(message,
+              style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK',
+                  style: TextStyle(color: Color(0xFF0EA5E9), fontSize: 16)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _mapErrorCode(String code) {
+    switch (code) {
+      case 'NO_DEVICE':
+        return 'Scanner Not Found';
+      case 'PERMISSION_DENIED':
+        return 'Permission Denied';
+      case 'USB_ERROR':
+        return 'USB Connection Issue';
+      case 'CAPTURE_ERROR':
+        return 'Capture Failed';
+      default:
+        return 'Scanner Error';
+    }
+  }
+
+  String _mapErrorMessage(PlatformException e) {
+    if (e.code == 'CAPTURE_ERROR' && e.message?.contains('87') == true) {
+      return 'Scanner not responding. Disconnect and reconnect it, then try again.';
+    }
+    if (e.code == 'NO_DEVICE') {
+      return 'Please connect a Futronic or ZKTeco USB scanner.';
+    }
+    if (e.code == 'PERMISSION_DENIED') {
+      return 'USB access denied. When the permission dialog appears, tap OK.';
+    }
+    return e.message ?? 'Unknown error — please try again.';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Fingerprint Registration'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Re-detect scanner',
+            onPressed: _detectScanner,
+          ),
+        ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
@@ -320,7 +341,7 @@ class _FingerprintRegistrationScreenState
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Header
+                  // Learner header
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
@@ -333,30 +354,76 @@ class _FingerprintRegistrationScreenState
                         Text(
                           widget.learnerName,
                           style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         const Text(
-                          'Register fingerprints for biometric identification',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Color(0xFF94a3b8),
-                          ),
+                          'Register fingerprints for biometric attendance',
+                          style:
+                              TextStyle(fontSize: 13, color: Color(0xFF94a3b8)),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 20),
 
-                  // Instructions
+                  // Scanner status — auto-detected
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xff0ea5e920),
+                      color: _scannerType == ScannerType.none
+                          ? const Color(0xFFef4444).withValues(alpha: 0.13)
+                          : const Color(0xFF10b981).withValues(alpha: 0.13),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: _scannerColor),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(_scannerIcon, color: _scannerColor, size: 28),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _scannerLabel,
+                                style: TextStyle(
+                                    color: _scannerColor,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _scannerType == ScannerType.none
+                                    ? 'Connect a Futronic or ZKTeco USB scanner'
+                                    : _scannerType == ScannerType.zkteco
+                                        ? 'ZKTeco biometric reader detected'
+                                        : 'Futronic FS80H/FS88H detected',
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon:
+                              const Icon(Icons.refresh, color: Colors.white70),
+                          tooltip: 'Refresh',
+                          onPressed: _detectScanner,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  // Info banner
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0EA5E9).withValues(alpha: 0.13),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: const Color(0xFF0EA5E9)),
                     ),
@@ -366,7 +433,8 @@ class _FingerprintRegistrationScreenState
                         SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'Place your thumb on the scanner when prompted. Keep it steady until capture is complete.',
+                            'Both Futronic and ZKTeco scanners are supported. '
+                            'The app auto-detects which scanner is plugged in.',
                             style: TextStyle(color: Colors.white, fontSize: 13),
                           ),
                         ),
@@ -374,92 +442,33 @@ class _FingerprintRegistrationScreenState
                     ),
                   ),
 
-                  const SizedBox(height: 20),
-
-                  // Scanner Status
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: _scannerConnected
-                          ? const Color(0xff10b98120)
-                          : const Color(0xffef444420),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: _scannerConnected
-                            ? const Color(0xFF10b981)
-                            : const Color(0xFFef4444),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          _scannerConnected ? Icons.usb : Icons.usb_off,
-                          color: _scannerConnected
-                              ? const Color(0xFF10b981)
-                              : const Color(0xFFef4444),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                _scannerConnected
-                                    ? 'Scanner Connected'
-                                    : 'Scanner Not Connected',
-                                style: TextStyle(
-                                  color: _scannerConnected
-                                      ? const Color(0xFF10b981)
-                                      : const Color(0xFFef4444),
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _scannerConnected
-                                    ? 'Ready to capture fingerprints'
-                                    : 'Please connect USB fingerprint scanner',
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.refresh, color: Colors.white),
-                          onPressed: _checkScannerConnection,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
 
                   // Left Thumb
                   _buildFingerprintCard(
                     title: 'Left Thumb',
-                    icon: Icons.fingerprint,
-                    isRegistered: _hasLeftThumb,
+                    isRegistered: _scannerType == ScannerType.zkteco
+                        ? _hasLeftThumbZkteco
+                        : _hasLeftThumbFutronic,
                     isCapturing: _capturing && _currentCapture == 'LeftThumb',
                     onCapture: () => _captureFingerprint('LeftThumb'),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
                   // Right Thumb
                   _buildFingerprintCard(
                     title: 'Right Thumb',
-                    icon: Icons.fingerprint,
-                    isRegistered: _hasRightThumb,
+                    isRegistered: _scannerType == ScannerType.zkteco
+                        ? _hasRightThumbZkteco
+                        : _hasRightThumbFutronic,
                     isCapturing: _capturing && _currentCapture == 'RightThumb',
                     onCapture: () => _captureFingerprint('RightThumb'),
                   ),
 
-                  const SizedBox(height: 30),
+                  const SizedBox(height: 24),
 
-                  // Status Summary
+                  // Status summary
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -471,16 +480,19 @@ class _FingerprintRegistrationScreenState
                       children: [
                         _buildStatusItem(
                           'Left Thumb',
-                          _hasLeftThumb,
+                          _scannerType == ScannerType.zkteco
+                              ? _hasLeftThumbZkteco
+                              : _hasLeftThumbFutronic,
                         ),
                         Container(
-                          width: 1,
-                          height: 40,
-                          color: const Color(0xFF334155),
-                        ),
+                            width: 1,
+                            height: 40,
+                            color: const Color(0xFF334155)),
                         _buildStatusItem(
                           'Right Thumb',
-                          _hasRightThumb,
+                          _scannerType == ScannerType.zkteco
+                              ? _hasRightThumbZkteco
+                              : _hasRightThumbFutronic,
                         ),
                       ],
                     ),
@@ -493,7 +505,6 @@ class _FingerprintRegistrationScreenState
 
   Widget _buildFingerprintCard({
     required String title,
-    required IconData icon,
     required bool isRegistered,
     required bool isCapturing,
     required VoidCallback onCapture,
@@ -514,15 +525,15 @@ class _FingerprintRegistrationScreenState
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: isRegistered
-                      ? const Color(0xff10b98120)
+                      ? const Color(0xFF10b981).withValues(alpha: 0.13)
                       : const Color(0xFF334155),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
-                  icon,
+                  Icons.fingerprint,
                   size: 40,
                   color: isRegistered ? const Color(0xFF10b981) : Colors.white,
                 ),
@@ -532,14 +543,11 @@ class _FingerprintRegistrationScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
+                    Text(title,
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white)),
                     const SizedBox(height: 4),
                     Text(
                       isRegistered ? 'Registered ✓' : 'Not registered',
@@ -555,21 +563,21 @@ class _FingerprintRegistrationScreenState
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: isCapturing ? null : onCapture,
+              onPressed: (_capturing || _scannerType == ScannerType.none)
+                  ? null
+                  : onCapture,
               icon: isCapturing
                   ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                          strokeWidth: 2, color: Colors.white),
                     )
-                  : Icon(isRegistered ? Icons.refresh : Icons.fingerprint),
+                  : const Icon(Icons.fingerprint),
               label: Text(
                 isCapturing
                     ? 'Capturing...'
@@ -578,8 +586,11 @@ class _FingerprintRegistrationScreenState
                         : 'Register',
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0EA5E9),
-                padding: const EdgeInsets.all(16),
+                backgroundColor: _scannerType == ScannerType.zkteco
+                    ? const Color(0xFF8B5CF6)
+                    : const Color(0xFF0EA5E9),
+                disabledBackgroundColor: const Color(0xFF334155),
+                padding: const EdgeInsets.all(14),
               ),
             ),
           ),
@@ -597,14 +608,9 @@ class _FingerprintRegistrationScreenState
               isRegistered ? const Color(0xFF10b981) : const Color(0xFF64748b),
           size: 32,
         ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF94a3b8),
-          ),
-        ),
+        const SizedBox(height: 6),
+        Text(label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF94a3b8))),
       ],
     );
   }

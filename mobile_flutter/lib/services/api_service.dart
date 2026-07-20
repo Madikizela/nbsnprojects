@@ -186,4 +186,25 @@ class ApiService {
       'longitude': longitude,
     });
   }
+
+  Future<Response?> downloadLearningMaterial({
+    required int id,
+    Function(double)? onProgress,
+  }) async {
+    try {
+      return await _dio.get(
+        '/api/LearningMaterials/$id/download',
+        options: Options(
+          responseType: ResponseType.bytes,
+        ),
+        onReceiveProgress: (received, total) {
+          if (total > 0 && onProgress != null) {
+            onProgress(received / total);
+          }
+        },
+      );
+    } catch (e) {
+      rethrow;
+    }
+  }
 }

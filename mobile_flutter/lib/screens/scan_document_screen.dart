@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cunning_document_scanner/cunning_document_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 import '../services/api_service.dart';
 
 class ScanDocumentScreen extends StatefulWidget {
@@ -108,13 +107,15 @@ class _ScanDocumentScreenState extends State<ScanDocumentScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: availableTypes.map((type) {
-              return RadioListTile<String>(
-                title: Text(type),
-                value: type,
+              return RadioGroup<String>(
                 groupValue: selectedType,
                 onChanged: (value) {
                   setDialogState(() => selectedType = value);
                 },
+                child: RadioListTile<String>(
+                  title: Text(type),
+                  value: type,
+                ),
               );
             }).toList(),
           ),
@@ -284,8 +285,10 @@ class _ScanDocumentScreenState extends State<ScanDocumentScreen> {
                                   fontSize: 12, color: Colors.white),
                             ),
                             backgroundColor: isUploaded
-                                ? const Color(0xff10b98120)
-                                : const Color(0xff64748b20),
+                                ? const Color(0xFF10b981)
+                                    .withValues(alpha: 0.13)
+                                : const Color(0xFF64748b)
+                                    .withValues(alpha: 0.13),
                           );
                         }).toList(),
                       ),

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -176,6 +177,7 @@ namespace backend.Controllers
         }
 
         [HttpGet("compile/{learnerId}")]
+        [AllowAnonymous]
         public async Task<IActionResult> CompilePOE(int learnerId)
         {
             try

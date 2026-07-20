@@ -62,6 +62,9 @@ dependencies:
   
   # Signature Capture
   signature: ^6.3.0
+  
+  # URL Launcher
+  url_launcher: ^6.2.0
 
 dev_dependencies:
   flutter_test:

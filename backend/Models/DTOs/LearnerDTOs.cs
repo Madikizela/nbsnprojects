@@ -242,8 +242,10 @@ namespace backend.Models.DTOs
         public DateTime? CompletionDate { get; set; }
         
         // Fingerprint Information
-        public string? LeftThumbTemplate { get; set; }
-        public string? RightThumbTemplate { get; set; }
+        public string? LeftThumbTemplate { get; set; } // Futronic
+        public string? RightThumbTemplate { get; set; } // Futronic
+        public string? LeftThumbTemplateZk { get; set; } // ZKTECO
+        public string? RightThumbTemplateZk { get; set; } // ZKTECO
 
         // Signature
         public string? SignaturePath { get; set; }

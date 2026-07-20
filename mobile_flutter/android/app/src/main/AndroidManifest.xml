@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     
+    <!-- Internet permission for API calls and URL launching -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    
     <!-- USB Permissions for Fingerprint Scanner -->
     <uses-permission android:name="android.permission.USB_PERMISSION" />
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
@@ -35,12 +38,15 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            
-            <!-- USB device attached intent filter -->
+
+            <!-- USB device attached intent-filter: makes this app appear in the
+                 Android chooser when the ZKTeco/Futronic scanner is plugged in.
+                 Tap "Always" once to stop the other app from launching. -->
             <intent-filter>
-                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"/>
             </intent-filter>
-            
+
+            <!-- USB device filter for silent permission grant when app is already open -->
             <meta-data
                 android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
                 android:resource="@xml/device_filter" />
@@ -61,7 +67,16 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
-        <!-- Allow querying Futronic fingerprint scanner app -->
-        <package android:name="com.futronictech.ftrAnsiSDKDemo" />
+        <!-- Allow opening URLs with browsers -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="http" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
+        </intent>
     </queries>
 </manifest>

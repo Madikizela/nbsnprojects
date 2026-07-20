@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const API = 'http://localhost:5213';
+const API = 'http://192.168.0.53:5213';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 function authHeaders(token: string) {
@@ -99,7 +99,7 @@ export default function LearnerPortal() {
 
           {/* Desktop Menu */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }} className="desktop-menu">
-            {['dashboard', 'profile', 'documents', 'assessments', 'remedial', 'notices'].map(s => (
+            {['dashboard', 'profile', 'documents', 'materials', 'assessments', 'remedial', 'notices', 'attendance'].map(s => (
               <button key={s} onClick={() => setSection(s)}
                 style={{ 
                   background: section === s ? '#0EA5E9' : 'transparent', 
@@ -112,7 +112,7 @@ export default function LearnerPortal() {
                   textTransform: 'capitalize',
                   whiteSpace: 'nowrap'
                 }}>
-                {s}
+                {s === 'materials' ? 'Study Materials' : s === 'attendance' ? '📅 Attendance' : s}
               </button>
             ))}
             <button onClick={handleLogout}
@@ -159,7 +159,7 @@ export default function LearnerPortal() {
             paddingTop: 12,
             borderTop: '1px solid #334155'
           }}>
-            {['dashboard', 'profile', 'documents', 'assessments', 'remedial', 'notices'].map(s => (
+            {['dashboard', 'profile', 'documents', 'materials', 'assessments', 'remedial', 'notices', 'attendance'].map(s => (
               <button key={s} onClick={() => navigateToSection(s)}
                 style={{ 
                   background: section === s ? '#0EA5E9' : 'transparent', 
@@ -173,7 +173,7 @@ export default function LearnerPortal() {
                   textAlign: 'left',
                   width: '100%'
                 }}>
-                {s}
+                {s === 'materials' ? 'Study Materials' : s === 'attendance' ? '📅 Attendance' : s}
               </button>
             ))}
             <button onClick={handleLogout}
@@ -213,9 +213,11 @@ export default function LearnerPortal() {
         {section === 'dashboard'         && <LearnerDashboard token={token} user={user} setSection={setSection} />}
         {section === 'profile'           && <LearnerProfile   token={token} user={user} setUser={setUser} />}
         {section === 'documents'         && <LearnerDocuments token={token} user={user} />}
+        {section === 'materials'         && <LearnerMaterials token={token} user={user} />}
         {section === 'assessments'       && <LearnerAssessments token={token} user={user} />}
         {section === 'remedial'          && <LearnerRemedial    token={token} user={user} />}
         {section === 'notices'           && <LearnerNotices     token={token} user={user} />}
+        {section === 'attendance'        && <LearnerAttendance  token={token} user={user} />}
         {section === 'change-password'   && <ChangePassword token={token} user={user} setUser={setUser} onDone={() => setSection('dashboard')} />}
       </div>
     </div>
@@ -228,6 +230,7 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -246,6 +249,10 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
     } finally { setLoading(false); }
   }
 
+  if (showForgotPassword) {
+    return <LearnerForgotPassword onBack={() => setShowForgotPassword(false)} />;
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, width: 380, boxShadow: '0 20px 40px rgba(0,0,0,.4)' }}>
@@ -255,8 +262,8 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
           <p style={{ color: '#94a3b8', margin: '4px 0 0', fontSize: 14 }}>National Building Skills Network</p>
         </div>
         <form onSubmit={submit}>
-          <label style={labelStyle}>Username or Email</label>
-          <input style={inputStyle} value={login} onChange={e => setLogin(e.target.value)} required placeholder="e.g. john.doe or john@email.com" />
+          <label style={labelStyle}>Email Address</label>
+          <input style={inputStyle} type="email" value={login} onChange={e => setLogin(e.target.value)} required placeholder="your.email@example.com" />
           <label style={labelStyle}>Password</label>
           <input style={inputStyle} type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Your password" />
           {error && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{error}</p>}
@@ -264,6 +271,15 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
             style={{ width: '100%', background: '#0EA5E9', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 0', fontWeight: 700, fontSize: 16, cursor: 'pointer', marginTop: 8 }}>
             {loading ? 'Logging in…' : 'Login →'}
           </button>
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <button 
+              type="button"
+              onClick={() => setShowForgotPassword(true)}
+              style={{ background: 'transparent', border: 'none', color: '#0EA5E9', fontSize: 14, cursor: 'pointer', textDecoration: 'underline' }}
+            >
+              Forgot Password?
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -318,6 +334,101 @@ function ChangePassword({ token, user, setUser, onDone }: { token: string; user:
   );
 }
 
+// ─── Forgot Password ─────────────────────────────────────────────────────────
+function LearnerForgotPassword({ onBack }: { onBack: () => void }) {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true); setError('');
+    try {
+      const res = await fetch(`${API}/api/Auth/learner-forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setSent(true);
+      } else {
+        const data = await res.json();
+        setError(data.message || 'Failed to send reset link. Please check your email and try again.');
+      }
+    } catch {
+      setError('Cannot reach server. Check your connection.');
+    } finally { setLoading(false); }
+  }
+
+  if (sent) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, width: 380, boxShadow: '0 20px 40px rgba(0,0,0,.4)', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+          <h3 style={{ color: '#10b981', margin: '0 0 12px' }}>Check Your Email</h3>
+          <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 24 }}>
+            We've sent a password reset link to <strong style={{ color: '#fff' }}>{email}</strong>.
+            Please check your inbox and spam folder.
+          </p>
+          <div style={{ marginBottom: 24, padding: 16, background: '#0f172a', borderRadius: 8, border: '1px solid #334155' }}>
+            <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 12px', lineHeight: 1.6 }}>
+              <strong style={{ color: '#fff' }}>Can't access email?</strong><br />
+              You can reset your password without email by visiting our self-service reset page.
+            </p>
+            <a
+              href="/learner-reset-password"
+              style={{
+                display: 'inline-block',
+                background: '#334155',
+                color: '#fff',
+                textDecoration: 'none',
+                borderRadius: 6,
+                padding: '8px 16px',
+                fontSize: 13,
+                fontWeight: 600,
+              }}
+            >
+              Self-Service Reset →
+            </a>
+          </div>
+          <button onClick={onBack}
+            style={{ width: '100%', background: '#0EA5E9', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 0', fontWeight: 700, fontSize: 16, cursor: 'pointer' }}>
+            ← Back to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, width: 380, boxShadow: '0 20px 40px rgba(0,0,0,.4)' }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
+          <div style={{ background: '#f59e0b', borderRadius: '50%', width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, margin: '0 auto 12px' }}>🔒</div>
+          <h2 style={{ color: '#fff', margin: 0 }}>Reset Password</h2>
+          <p style={{ color: '#94a3b8', margin: '4px 0 0', fontSize: 14 }}>Enter your email to receive a password reset link</p>
+        </div>
+        <form onSubmit={submit}>
+          <label style={labelStyle}>Email Address</label>
+          <input style={inputStyle} type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="your.email@example.com" />
+          {error && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{error}</p>}
+          <button type="submit" disabled={loading}
+            style={{ width: '100%', background: '#0EA5E9', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 0', fontWeight: 700, fontSize: 16, cursor: 'pointer', marginTop: 8 }}>
+            {loading ? 'Sending…' : 'Send Reset Link'}
+          </button>
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <button type="button" onClick={onBack}
+              style={{ background: 'transparent', border: 'none', color: '#64748b', fontSize: 14, cursor: 'pointer' }}>
+              ← Back to Login
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 function LearnerDashboard({ token, user, setSection }: { token: string; user: LearnerUser; setSection: (s: string) => void }) {
   const [stats, setStats] = useState<any>(null);
@@ -332,10 +443,11 @@ function LearnerDashboard({ token, user, setSection }: { token: string; user: Le
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 32 }}>
         {[
           { icon: '📄', label: 'My Documents', section: 'documents', color: '#0EA5E9' },
+          { icon: '📚', label: 'Study Materials', section: 'materials', color: '#8b5cf6' },
           { icon: '📝', label: 'My Assessments', section: 'assessments', color: '#10b981' },
           {icon: '📢', label: 'Notices', section: 'notices', color: '#ec4899'},
           {icon: '🔁', label: 'Remedial', section: 'remedial', color: '#f59e0b'},
-          { icon: '👤', label: 'My Profile', section: 'profile', color: '#8b5cf6' },
+          { icon: '👤', label: 'My Profile', section: 'profile', color: '#06b6d4' },
         ].map(c => (
           <button key={c.section} onClick={() => setSection(c.section)}
             style={{ background: '#1e293b', border: `1px solid ${c.color}33`, borderRadius: 12, padding: 24, cursor: 'pointer', textAlign: 'left', color: '#fff' }}>
@@ -583,6 +695,190 @@ function LearnerDocuments({ token, user }: { token: string; user: LearnerUser })
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Learning Materials ──────────────────────────────────────────────────────
+function LearnerMaterials({ token, user }: { token: string; user: LearnerUser }) {
+  const [materials, setMaterials] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    loadMaterials();
+  }, [user.id]);
+
+  async function loadMaterials() {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await apiFetch(`/api/LearningMaterials/learner/${user.id}/materials`, token);
+      if (res.ok) {
+        const data = await res.json();
+        setMaterials(data);
+      } else {
+        setError('Failed to load materials');
+      }
+    } catch {
+      setError('Cannot reach server');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDownload(materialId: number, fileName: string) {
+    try {
+      const res = await fetch(`${API}/api/LearningMaterials/${materialId}/download`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    } catch {
+      alert('Failed to download file');
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (!bytes) return '—';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const materialTypeIcon = (type: string) => {
+    switch (type) {
+      case 'StudyGuide': return '📖';
+      case 'LearningMaterial': return '📚';
+      case 'Video': return '🎬';
+      case 'Presentation': return '📊';
+      case 'Worksheet': return '📝';
+      default: return '📄';
+    }
+  };
+
+  const mimeIcon = (mime: string) => {
+    if (!mime) return '📄';
+    if (mime.includes('pdf')) return '📕';
+    if (mime.includes('word') || mime.includes('document')) return '📘';
+    if (mime.includes('presentation') || mime.includes('powerpoint')) return '📊';
+    if (mime.includes('video')) return '🎬';
+    if (mime.includes('image')) return '🖼️';
+    return '📄';
+  };
+
+  return (
+    <div>
+      <h2 style={{ color: '#fff', marginTop: 0 }}>📚 Study Materials</h2>
+      <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 24 }}>
+        Learning materials uploaded by your instructors for your qualification
+      </p>
+
+      {loading ? (
+        <div style={cardStyle}>
+          <p style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>Loading materials...</p>
+        </div>
+      ) : error ? (
+        <div style={cardStyle}>
+          <p style={{ color: '#f87171', textAlign: 'center', padding: 20 }}>{error}</p>
+        </div>
+      ) : materials.length === 0 ? (
+        <div style={cardStyle}>
+          <div style={{ textAlign: 'center', padding: 40 }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
+            <h4 style={{ color: '#94a3b8', margin: '0 0 8px' }}>No Study Materials Yet</h4>
+            <p style={{ color: '#64748b', fontSize: 14, margin: 0 }}>
+              Your instructors haven't uploaded any materials yet. Check back later!
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gap: 12 }}>
+          {materials.map((material: any) => (
+            <div
+              key={material.id}
+              style={{
+                ...cardStyle,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'start',
+                gap: 16,
+              }}
+            >
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <span style={{ fontSize: 24 }}>{materialTypeIcon(material.materialType)}</span>
+                  <h4 style={{ margin: 0, color: '#fff', fontSize: 16 }}>{material.title}</h4>
+                </div>
+                {material.description && (
+                  <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 8px', lineHeight: 1.5 }}>
+                    {material.description}
+                  </p>
+                )}
+                <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
+                  {material.qualificationName && (
+                    <span>🎓 {material.qualificationName}</span>
+                  )}
+                  {material.unitStandardName && (
+                    <span>📋 {material.unitStandardName}</span>
+                  )}
+                  {material.fileName && (
+                    <span>
+                      {mimeIcon(material.mimeType)} {material.fileName}
+                    </span>
+                  )}
+                  {material.fileSize && <span>📦 {formatFileSize(material.fileSize)}</span>}
+                </div>
+                <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>
+                  <span className="badge" style={{ background: '#334155', color: '#94a3b8', padding: '2px 8px', borderRadius: 4 }}>
+                    {material.materialType}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => handleDownload(material.id, material.fileName)}
+                style={{
+                  background: '#0EA5E9',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '10px 20px',
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0,
+                }}
+              >
+                ⬇️ Download
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {materials.length > 0 && (
+        <div
+          style={{
+            ...cardStyle,
+            marginTop: 16,
+            background: '#0f172a',
+            borderLeft: '3px solid #0EA5E9',
+          }}
+        >
+          <p style={{ color: '#94a3b8', fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+            <strong style={{ color: '#fff' }}>💡 Tip:</strong> Download these materials to study offline. 
+            They contain important information for your assessments.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1270,3 +1566,168 @@ const btnBack: React.CSSProperties = {
   background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: 8,
   padding: '6px 14px', cursor: 'pointer', marginBottom: 16, fontSize: 14,
 };
+
+// ─── Learner Attendance History ──────────────────────────────────────────────
+const MONTHS_ATT = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function LearnerAttendance({ token, user }: { token: string; user: LearnerUser }) {
+  const now = new Date();
+  const [year, setYear] = React.useState(now.getFullYear());
+  const [month, setMonth] = React.useState(now.getMonth() + 1);
+  const [data, setData] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => { loadData(); }, [year, month]);
+
+  async function loadData() {
+    setLoading(true); setError('');
+    try {
+      const res = await apiFetch(`/api/AttendanceTracking/learner/${user.id}/calendar?year=${year}&month=${month}`, token);
+      if (res.ok) setData(await res.json());
+      else setError('No attendance data found for this period.');
+    } catch { setError('Failed to load attendance data.'); }
+    setLoading(false);
+  }
+
+  async function downloadPdf() {
+    const res = await apiFetch(`/api/AttendanceTracking/learner/${user.id}/calendar/pdf?year=${year}&month=${month}`, token);
+    if (res.ok) {
+      const blob = await res.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Attendance_${year}_${String(month).padStart(2,'0')}.pdf`;
+      a.click();
+    } else { alert('Failed to generate PDF'); }
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20, flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ color:'#e2e8f0', margin:0, fontSize:22 }}>📅 Attendance History</h2>
+          <p style={{ color:'#94a3b8', margin:'4px 0 0', fontSize:14 }}>View your attendance record by month</p>
+        </div>
+        <div style={{ display:'flex', gap:10, alignItems:'center', flexWrap:'wrap' }}>
+          <select value={month} onChange={e=>setMonth(+e.target.value)}
+            style={{ backgroundColor:'#1e293b',color:'white',border:'1px solid #334155',borderRadius:6,padding:'6px 10px',fontSize:14 }}>
+            {MONTHS_ATT.map((m,i)=><option key={i} value={i+1}>{m}</option>)}
+          </select>
+          <select value={year} onChange={e=>setYear(+e.target.value)}
+            style={{ backgroundColor:'#1e293b',color:'white',border:'1px solid #334155',borderRadius:6,padding:'6px 10px',fontSize:14 }}>
+            {Array.from({length:5},(_,i)=>now.getFullYear()-2+i).map(y=><option key={y} value={y}>{y}</option>)}
+          </select>
+          <button onClick={downloadPdf} disabled={!data}
+            style={{ backgroundColor:'#0EA5E9',color:'white',border:'none',borderRadius:6,padding:'7px 16px',cursor:'pointer',fontSize:14,opacity:data?1:0.5 }}>
+            ⬇ Download PDF
+          </button>
+        </div>
+      </div>
+
+      {loading && <div style={{ textAlign:'center', padding:40, color:'#94a3b8' }}><div className="spinner-border text-primary"></div><p>Loading...</p></div>}
+      {error && <div style={{ textAlign:'center', padding:40, color:'#ef4444' }}>{error}</div>}
+
+      {data && !loading && (
+        <>
+          {/* Stats cards */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:12, marginBottom:20 }}>
+            {[
+              { label:'Expected', value:data.expectedAttendance, color:'#06b6d4', icon:'📋' },
+              { label:'Present', value:data.actualAttendance, color:'#10b981', icon:'✅' },
+              { label:'Absent', value:data.daysAbsent, color:'#ef4444', icon:'❌' },
+              { label:'Late', value:data.lateDays, color:'#f59e0b', icon:'⏰' },
+              { label:'Attendance Rate', value:`${data.attendanceRate?.toFixed(1)}%`, color:'#3b82f6', icon:'📊' },
+              { label:'Contact Hours', value:`${data.totalContactHours?.toFixed(1)}h`, color:'#8b5cf6', icon:'⏱️' },
+            ].map(({ label, value, color, icon }) => (
+              <div key={label} style={{ backgroundColor:'#1e293b', borderRadius:10, padding:'14px 16px', borderLeft:`4px solid ${color}` }}>
+                <div style={{ fontSize:20, marginBottom:4 }}>{icon}</div>
+                <div style={{ fontWeight:700, fontSize:22, color }}>{value}</div>
+                <div style={{ color:'#94a3b8', fontSize:12 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div style={{ backgroundColor:'#1e293b', borderRadius:10, padding:16, marginBottom:20 }}>
+            <div style={{ fontWeight:700, color:'#e2e8f0', marginBottom:12, fontSize:16 }}>
+              {MONTHS_ATT[data.month-1]} {data.year}
+            </div>
+            {/* Day headers */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4, marginBottom:4 }}>
+              {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d=>(
+                <div key={d} style={{ backgroundColor:'#0EA5E9', color:'white', textAlign:'center', padding:'6px 4px', borderRadius:5, fontSize:12, fontWeight:700 }}>{d}</div>
+              ))}
+            </div>
+            {/* Calendar weeks */}
+            {(() => {
+              const firstDay = new Date(data.year, data.month-1, 1);
+              let off = firstDay.getDay(); off = off===0?6:off-1;
+              const cells: any[] = [...Array(off).fill(null), ...data.calendarDays];
+              while (cells.length % 7 !== 0) cells.push(null);
+              const weeks: any[][] = [];
+              for (let i=0; i<cells.length; i+=7) weeks.push(cells.slice(i,i+7));
+              return weeks.map((wk,wi) => (
+                <div key={wi} style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:4, marginBottom:4 }}>
+                  {wk.map((day,di) => {
+                    if (!day) return <div key={`e${wi}${di}`} style={{ minHeight:70, backgroundColor:'#0f172a', borderRadius:5 }}/>;
+                    const dt = new Date(data.year, data.month-1, day.day);
+                    const fut = dt > today;
+                    const absent = day.status==='Absent'||(day.status==='No Record'&&!fut&&!day.isWeekend);
+                    let bg='#0f172a', border='#334155', tc='#64748b', lbl='';
+                    if (day.isWeekend) { bg='#0a0f1a'; border='#1e293b'; tc='#475569'; lbl='WKD'; }
+                    else if (day.status==='Present') { bg='#064e3b'; border='#10b981'; tc='#6ee7b7'; lbl='✅ Present'; }
+                    else if (absent) { bg='#7f1d1d'; border='#ef4444'; tc='#fca5a5'; lbl='❌ Absent'; }
+                    else if (day.status==='Late') { bg='#78350f'; border='#f59e0b'; tc='#fcd34d'; lbl='⏰ Late'; }
+                    else if (fut) { tc='#64748b'; lbl='Upcoming'; }
+                    return (
+                      <div key={day.date} style={{ backgroundColor:bg, border:`1px solid ${border}`, borderRadius:5, minHeight:70, padding:6 }}>
+                        <div style={{ fontWeight:700, fontSize:13, color:'white', marginBottom:3 }}>{day.day}</div>
+                        <div style={{ fontSize:10, color:tc, fontWeight:600 }}>{lbl}</div>
+                        {(day.status==='Present'||day.status==='Late') && day.clockInTime && day.clockOutTime && (
+                          <div style={{ fontSize:9, color:tc, marginTop:2, lineHeight:1.4 }}>
+                            {new Date(day.clockInTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+                            {' - '}
+                            {new Date(day.clockOutTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+                            {day.contactHours > 0 && <div style={{ color:'#93c5fd' }}>{day.contactHours}h</div>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ));
+            })()}
+          </div>
+
+          {/* Legend */}
+          <div style={{ display:'flex', gap:16, flexWrap:'wrap', marginBottom:20, fontSize:12, color:'#94a3b8' }}>
+            {[['#064e3b','#10b981','Present'],['#7f1d1d','#ef4444','Absent'],['#78350f','#f59e0b','Late'],['#0f172a','#334155','Upcoming'],['#0a0f1a','#1e293b','Weekend']].map(([bg,br,lb])=>(
+              <div key={lb} style={{ display:'flex', alignItems:'center', gap:5 }}>
+                <div style={{ width:14, height:14, backgroundColor:bg, border:`1px solid ${br}`, borderRadius:3 }}></div>
+                <span>{lb}</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Project info */}
+          {data.projectName && (
+            <div style={{ backgroundColor:'#1e293b', borderRadius:10, padding:16, border:'1px solid #334155' }}>
+              <div style={{ fontWeight:700, color:'#0EA5E9', marginBottom:10, fontSize:14 }}>📁 Project Information</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:10, fontSize:13 }}>
+                {[['Project',data.projectName],['Site',data.siteName],['Class',data.className],['Facilitator',data.teacherName],['Province',data.province],['Pathway',data.pathway]].filter(([,v])=>v).map(([l,v])=>(
+                  <div key={String(l)}>
+                    <span style={{ color:'#94a3b8' }}>{l}: </span>
+                    <span style={{ color:'white', fontWeight:600 }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

@@ -14,9 +14,11 @@ export default defineConfig(({ mode }) => {
       proxy: {
         // Local dev: proxy /api calls to local backend
         '/api': {
-          target: env.VITE_API_URL || 'http://127.0.0.1:5213',
+          target: env.VITE_API_URL || 'http://localhost:5213',
           changeOrigin: true,
           secure: false,
+          proxyTimeout: 600000, // 10 minutes
+          timeout: 600000, // 10 minutes
         },
       },
     },

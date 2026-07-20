@@ -37,7 +37,11 @@ namespace backend.Controllers
                     Status = c.Status,
                     CreatedAt = c.CreatedAt,
                     UpdatedAt = c.UpdatedAt,
-                    CreatedByUserName = c.CreatedByUser != null ? (c.CreatedByUser.FirstName + " " + c.CreatedByUser.LastName) : null
+                    CreatedByUserName = c.CreatedByUser != null ? (c.CreatedByUser.FirstName + " " + c.CreatedByUser.LastName) : null,
+                    VideoConferenceLink = c.VideoConferenceLink,
+                    VideoConferenceType = c.VideoConferenceType,
+                    VideoConferenceStartTime = c.VideoConferenceStartTime,
+                    VideoConferenceDescription = c.VideoConferenceDescription
                 })
                 .ToListAsync();
 
@@ -63,7 +67,11 @@ namespace backend.Controllers
                     Status = c.Status,
                     CreatedAt = c.CreatedAt,
                     UpdatedAt = c.UpdatedAt,
-                    CreatedByUserName = c.CreatedByUser != null ? (c.CreatedByUser.FirstName + " " + c.CreatedByUser.LastName) : null
+                    CreatedByUserName = c.CreatedByUser != null ? (c.CreatedByUser.FirstName + " " + c.CreatedByUser.LastName) : null,
+                    VideoConferenceLink = c.VideoConferenceLink,
+                    VideoConferenceType = c.VideoConferenceType,
+                    VideoConferenceStartTime = c.VideoConferenceStartTime,
+                    VideoConferenceDescription = c.VideoConferenceDescription
                 })
                 .FirstOrDefaultAsync();
 
@@ -109,7 +117,7 @@ namespace backend.Controllers
                 .Select(c => new SiteClassResponseDto
                 {
                     Id = c.Id,
-                    ProjectSiteId = c.ProjectSiteId,
+ ProjectSiteId = c.ProjectSiteId,
                     SiteName = c.ProjectSite != null ? c.ProjectSite.SiteName : "",
                     ClassName = c.ClassName,
                     MaxLearners = c.MaxLearners,
@@ -117,7 +125,11 @@ namespace backend.Controllers
                     Status = c.Status,
                     CreatedAt = c.CreatedAt,
                     UpdatedAt = c.UpdatedAt,
-                    CreatedByUserName = c.CreatedByUser != null ? (c.CreatedByUser.FirstName + " " + c.CreatedByUser.LastName) : null
+                    CreatedByUserName = c.CreatedByUser != null ? (c.CreatedByUser.FirstName + " " + c.CreatedByUser.LastName) : null,
+                    VideoConferenceLink = c.VideoConferenceLink,
+                    VideoConferenceType = c.VideoConferenceType,
+                    VideoConferenceStartTime = c.VideoConferenceStartTime,
+                    VideoConferenceDescription = c.VideoConferenceDescription
                 })
                 .FirstOrDefaultAsync();
 
@@ -142,6 +154,59 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
 
             return NoContent();
+        }
+
+        // PUT: api/SiteClasses/{id}/video-conference
+        [HttpPut("{id}/video-conference")]
+        public async Task<IActionResult> UpdateVideoConference(int id, UpdateVideoConferenceDto dto)
+        {
+            var siteClass = await _context.SiteClasses.FindAsync(id);
+            if (siteClass == null)
+            {
+                return NotFound();
+            }
+            
+            // Get user ID from claims
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            int? userId = null;
+            if (int.TryParse(userIdClaim, out int parsedUserId))
+            {
+                userId = parsedUserId;
+            }
+
+            // Update video conference details
+            siteClass.VideoConferenceLink = dto.VideoConferenceLink;
+            siteClass.VideoConferenceType = dto.VideoConferenceType;
+            siteClass.VideoConferenceStartTime = dto.VideoConferenceStartTime;
+            siteClass.VideoConferenceDescription = dto.VideoConferenceDescription;
+            siteClass.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+
+            await _context.SaveChangesAsync();
+            
+            // Create announcement if requested
+            if (dto.SendAnnouncement && !string.IsNullOrEmpty(dto.VideoConferenceLink))
+            {
+                var user = await _context.Users.FindAsync(userId);
+                var announcement = new Announcement
+                {
+                    ClassId = id,
+                    CreatedByUserId = userId ?? 0,
+                    Title = "New Online Class Link Available",
+                    Message = $"A new video conference link has been shared for {siteClass.ClassName}!\n\n" +
+                             $"Type: {dto.VideoConferenceType}\n" +
+                             $"Description: {dto.VideoConferenceDescription}\n" +
+                             $"Join here: {dto.VideoConferenceLink}\n" +
+                             (dto.VideoConferenceStartTime.HasValue ? $"Start Time: {dto.VideoConferenceStartTime.Value:g}" : ""),
+                    Priority = "Important",
+                    CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc),
+                    UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc)
+                };
+                
+                _context.Announcements.Add(announcement);
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok();
         }
 
         // DELETE: api/SiteClasses/{id}

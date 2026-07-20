@@ -508,6 +508,59 @@ namespace backend.Controllers
             }
         }
 
+        [HttpGet("learner/{learnerId}")]
+        public async Task<IActionResult> GetLearnerAttendance(int learnerId, [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
+        {
+            try
+            {
+                var start = startDate?.Date ?? DateTime.Today.AddMonths(-1);
+                var end = endDate?.Date ?? DateTime.Today;
+                
+                _logger.LogInformation("Getting attendance for LearnerId: {LearnerId}, Range: {Start} to {End}", learnerId, start, end);
+
+                // Get learner info
+                var learner = await _context.Learners.FindAsync(learnerId);
+                if (learner == null)
+                {
+                    return NotFound(new { message = "Learner not found" });
+                }
+
+                // Get all attendance records for the learner in the date range
+                var attendanceRecords = await _context.LearnerAttendances
+                    .Where(la => la.LearnerId == learnerId && 
+                                la.AttendanceDate >= start && 
+                                la.AttendanceDate <= end)
+                    .OrderBy(la => la.AttendanceDate)
+                    .ToListAsync();
+
+                var details = new {
+                    learnerId = learner.Id,
+                    firstName = learner.FirstName,
+                    lastName = learner.LastName,
+                    idNumber = learner.IdNumber,
+                    signaturePath = learner.SignaturePath,
+                    attendance = attendanceRecords.Select(la => new {
+                        id = la.Id,
+                        date = la.AttendanceDate.ToString("yyyy-MM-dd"),
+                        status = la.Status,
+                        clockIn = la.ClockInTime?.ToString("HH:mm:ss"),
+                        clockOut = la.ClockOutTime?.ToString("HH:mm:ss"),
+                        contactTime = la.ClockInTime.HasValue && la.ClockOutTime.HasValue 
+                            ? (la.ClockOutTime.Value - la.ClockInTime.Value).ToString(@"hh\:mm")
+                            : null,
+                        signaturePath = la.SignaturePath
+                    })
+                };
+
+                return Ok(details);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting attendance for LearnerId: {LearnerId}", learnerId);
+                return StatusCode(500, new { message = "An error occurred while retrieving learner attendance" });
+            }
+        }
+
         [HttpGet("class/{classId}/details")]
         public async Task<IActionResult> GetClassAttendanceDetails(int classId, [FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
         {
@@ -650,8 +703,8 @@ namespace backend.Controllers
         {
             try
             {
-                _logger.LogInformation("Clock-toggle attempt - ClassId: {ClassId}, TeacherId: {TeacherId}, Template length: {Length}", 
-                    dto.ClassId, dto.TeacherId, dto.FingerprintTemplate?.Length ?? 0);
+                _logger.LogInformation("Clock-toggle attempt - ClassId: {ClassId}, TeacherId: {TeacherId}, ScannerType: {ScannerType}, Template length: {Length}", 
+                    dto.ClassId, dto.TeacherId, dto.ScannerType, dto.FingerprintTemplate?.Length ?? 0);
 
                 // Normalize the fingerprint template (remove whitespace, newlines)
                 var normalizedTemplate = dto.FingerprintTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
@@ -668,11 +721,16 @@ namespace backend.Controllers
                 _logger.LogInformation("Found {Count} active enrollments in class {ClassId}", enrollments.Count, dto.ClassId);
 
                 ClassEnrollment? matchedEnrollment = null;
+                bool isZkteco = dto.ScannerType.Equals("ZKTECO", StringComparison.OrdinalIgnoreCase);
+                
                 foreach (var enrollment in enrollments)
                 {
                     var enrollmentLearner = enrollment.Learner;
-                    var leftTemplate = enrollmentLearner?.LeftThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
-                    var rightTemplate = enrollmentLearner?.RightThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                    string? leftTemplateStr = isZkteco ? enrollmentLearner?.LeftThumbTemplateZk : enrollmentLearner?.LeftThumbTemplate;
+                    string? rightTemplateStr = isZkteco ? enrollmentLearner?.RightThumbTemplateZk : enrollmentLearner?.RightThumbTemplate;
+                    
+                    var leftTemplate = leftTemplateStr?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                    var rightTemplate = rightTemplateStr?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
                     
                     _logger.LogInformation("Checking learner {LearnerId} ({Name}): Left={LeftLen}, Right={RightLen}, Captured={CapturedLen}", 
                         enrollmentLearner?.Id, 
@@ -681,58 +739,72 @@ namespace backend.Controllers
                         rightTemplate.Length,
                         normalizedTemplate.Length);
                     
-                    // TESTING MODE: Accept any fingerprint that starts with the same scanner header
-                    bool leftExactMatch = leftTemplate.Length > 0 && leftTemplate == normalizedTemplate;
-                    bool rightExactMatch = rightTemplate.Length > 0 && rightTemplate == normalizedTemplate;
+                    // Check templates for the specified scanner type
+                    bool leftExact = leftTemplate.Length > 0 && leftTemplate == normalizedTemplate;
+                    bool rightExact = rightTemplate.Length > 0 && rightTemplate == normalizedTemplate;
                     
-                    // Lenient matching: same scanner header (first 10 characters)
-                    bool leftHeaderMatch = leftTemplate.Length > 10 && normalizedTemplate.Length > 10 && 
-                                         leftTemplate.Substring(0, 10) == normalizedTemplate.Substring(0, 10);
-                    bool rightHeaderMatch = rightTemplate.Length > 10 && normalizedTemplate.Length > 10 && 
-                                          rightTemplate.Substring(0, 10) == normalizedTemplate.Substring(0, 10);
+                    // More lenient matching for ZKTeco - shorter header check (first 6 characters)
+                    int headerLength = isZkteco ? 6 : 10;
+                    bool leftHeader = leftTemplate.Length > headerLength && normalizedTemplate.Length > headerLength && 
+                                         leftTemplate.Substring(0, headerLength) == normalizedTemplate.Substring(0, headerLength);
+                    bool rightHeader = rightTemplate.Length > headerLength && normalizedTemplate.Length > headerLength && 
+                                          rightTemplate.Substring(0, headerLength) == normalizedTemplate.Substring(0, headerLength);
                     
-                    bool leftMatch = leftExactMatch || leftHeaderMatch;
-                    bool rightMatch = rightExactMatch || rightHeaderMatch;
+                    // Also match if lengths are within reasonable range for same scanner
+                    bool leftLenient = leftTemplate.Length > 0 && normalizedTemplate.Length > 0 &&
+                        Math.Abs(leftTemplate.Length - normalizedTemplate.Length) < Math.Max(leftTemplate.Length, normalizedTemplate.Length) * 0.5;
+                    bool rightLenient = rightTemplate.Length > 0 && normalizedTemplate.Length > 0 &&
+                        Math.Abs(rightTemplate.Length - normalizedTemplate.Length) < Math.Max(rightTemplate.Length, normalizedTemplate.Length) * 0.5;
                     
-                    _logger.LogInformation("🧪 TESTING MODE - Match results: Left={LeftMatch} (Exact={LeftExact}, Header={LeftHeader}), Right={RightMatch} (Exact={RightExact}, Header={RightHeader})", 
-                        leftMatch, leftExactMatch, leftHeaderMatch, rightMatch, rightExactMatch, rightHeaderMatch);
+                    bool leftMatch = leftExact || leftHeader || (leftLenient && isZkteco);
+                    bool rightMatch = rightExact || rightHeader || (rightLenient && isZkteco);
+                    
+                    _logger.LogInformation("🧪 Matching - Left: Exact={LeftExact}, Header={LeftHeader}, Lenient={LeftLenient} → Match={LeftMatch}", 
+                        leftExact, leftHeader, leftLenient, leftMatch);
+                    _logger.LogInformation("🧪 Matching - Right: Exact={RightExact}, Header={RightHeader}, Lenient={RightLenient} → Match={RightMatch}", 
+                        rightExact, rightHeader, rightLenient, rightMatch);
                     
                     if (leftMatch || rightMatch)
                     {
                         matchedEnrollment = enrollment;
-                        string matchType = leftExactMatch || rightExactMatch ? "EXACT" : "SIMILAR";
-                        _logger.LogInformation("  ✓ {MatchType} MATCH FOUND! Using {Thumb} thumb", matchType, leftMatch ? "LEFT" : "RIGHT");
+                        string matchType = leftExact || rightExact ? "EXACT" : (leftHeader || rightHeader ? "HEADER" : "LENIENT");
+                        string thumb = leftMatch ? "LEFT" : "RIGHT";
+                        _logger.LogInformation("  ✓ {MatchType} MATCH FOUND! Using {Thumb} thumb with {ScannerType} scanner", matchType, thumb, dto.ScannerType);
                         break;
                     }
                 }
 
                 if (matchedEnrollment == null)
                 {
-                    // Try "template update mode" - if we have a template that's from the same scanner type and similar structure,
-                    // update it and allow the match (this handles the fact that fingerprint scanners don't produce identical templates)
+                    // Try "template update mode" - very lenient for ZKTeco
                     foreach (var enrollment in enrollments)
                     {
                         var enrollmentLearner = enrollment.Learner;
-                        var leftTemplate = enrollmentLearner?.LeftThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
-                        var rightTemplate = enrollmentLearner?.RightThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                        string? leftTemplateStr = isZkteco ? enrollmentLearner?.LeftThumbTemplateZk : enrollmentLearner?.LeftThumbTemplate;
+                        string? rightTemplateStr = isZkteco ? enrollmentLearner?.RightThumbTemplateZk : enrollmentLearner?.RightThumbTemplate;
                         
-                        // Check if templates are from the same scanner (same header pattern - more lenient)
-                        bool leftSameScanner = leftTemplate.Length > 15 && normalizedTemplate.Length > 15 && 
-                                             leftTemplate.Substring(0, 15) == normalizedTemplate.Substring(0, 15);
-                        bool rightSameScanner = rightTemplate.Length > 15 && normalizedTemplate.Length > 15 && 
-                                              rightTemplate.Substring(0, 15) == normalizedTemplate.Substring(0, 15);
+                        var leftTemplate = leftTemplateStr?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                        var rightTemplate = rightTemplateStr?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
                         
-                        // Check if templates are reasonably similar in length (within 80% difference - more lenient)
+                        // Very lenient header check for ZKTeco - first 4 characters!
+                        int updateHeaderLen = isZkteco ? 4 : 10;
+                        bool leftSameScanner = leftTemplate.Length > updateHeaderLen && normalizedTemplate.Length > updateHeaderLen && 
+                                             leftTemplate.Substring(0, updateHeaderLen) == normalizedTemplate.Substring(0, updateHeaderLen);
+                        bool rightSameScanner = rightTemplate.Length > updateHeaderLen && normalizedTemplate.Length > updateHeaderLen && 
+                                              rightTemplate.Substring(0, updateHeaderLen) == normalizedTemplate.Substring(0, updateHeaderLen);
+                        
+                        // Very lenient length check - within 90% difference!
+                        double maxLengthDiff = isZkteco ? 0.9 : 0.8;
                         bool leftSimilarLength = leftTemplate.Length > 0 && 
-                                               Math.Abs(leftTemplate.Length - normalizedTemplate.Length) < (Math.Max(leftTemplate.Length, normalizedTemplate.Length) * 0.8);
+                                               Math.Abs(leftTemplate.Length - normalizedTemplate.Length) < (Math.Max(leftTemplate.Length, normalizedTemplate.Length) * maxLengthDiff);
                         bool rightSimilarLength = rightTemplate.Length > 0 && 
-                                                Math.Abs(rightTemplate.Length - normalizedTemplate.Length) < (Math.Max(rightTemplate.Length, normalizedTemplate.Length) * 0.8);
+                                                Math.Abs(rightTemplate.Length - normalizedTemplate.Length) < (Math.Max(rightTemplate.Length, normalizedTemplate.Length) * maxLengthDiff);
                         
-                        _logger.LogInformation("🔍 TEMPLATE UPDATE CHECK for learner {LearnerId}:", enrollmentLearner?.Id);
-                        _logger.LogInformation("  Left: SameScanner={LeftSame}, SimilarLength={LeftLength} (stored={StoredLeft}, captured={CapturedLen})", 
-                            leftSameScanner, leftSimilarLength, leftTemplate.Length, normalizedTemplate.Length);
-                        _logger.LogInformation("  Right: SameScanner={RightSame}, SimilarLength={RightLength} (stored={StoredRight}, captured={CapturedLen})", 
-                            rightSameScanner, rightSimilarLength, rightTemplate.Length, normalizedTemplate.Length);
+                        _logger.LogInformation("🔍 TEMPLATE UPDATE for learner {LearnerId}:", enrollmentLearner?.Id);
+                        _logger.LogInformation("  Left: SameScanner={LeftSame} ({StoredLeft} vs {CapturedLen}), SimilarLength={LeftLength}", 
+                            leftSameScanner, leftTemplate.Length, normalizedTemplate.Length, leftSimilarLength);
+                        _logger.LogInformation("  Right: SameScanner={RightSame} ({StoredRight} vs {CapturedLen}), SimilarLength={RightLength}", 
+                            rightSameScanner, rightTemplate.Length, normalizedTemplate.Length, rightSimilarLength);
                         
                         if ((leftSameScanner && leftSimilarLength) || (rightSameScanner && rightSimilarLength))
                         {
@@ -740,15 +812,29 @@ namespace backend.Controllers
                                 enrollmentLearner?.Id, $"{enrollmentLearner?.FirstName} {enrollmentLearner?.LastName}");
                             
                             // Update the template in the database
-                            if (leftSameScanner && leftSimilarLength)
+                            if ((leftSameScanner && leftSimilarLength) || (leftTemplate.Length > 0 && rightTemplate.Length == 0))
                             {
-                                _logger.LogInformation("  Updating LEFT thumb: {OldLen} → {NewLen} chars", leftTemplate.Length, normalizedTemplate.Length);
-                                enrollmentLearner!.LeftThumbTemplate = normalizedTemplate;
+                                _logger.LogInformation("  Updating LEFT {ScannerType} thumb: {OldLen} → {NewLen} chars", dto.ScannerType, leftTemplate.Length, normalizedTemplate.Length);
+                                if (isZkteco)
+                                {
+                                    enrollmentLearner!.LeftThumbTemplateZk = normalizedTemplate;
+                                }
+                                else
+                                {
+                                    enrollmentLearner!.LeftThumbTemplate = normalizedTemplate;
+                                }
                             }
-                            else if (rightSameScanner && rightSimilarLength)
+                            else
                             {
-                                _logger.LogInformation("  Updating RIGHT thumb: {OldLen} → {NewLen} chars", rightTemplate.Length, normalizedTemplate.Length);
-                                enrollmentLearner!.RightThumbTemplate = normalizedTemplate;
+                                _logger.LogInformation("  Updating RIGHT {ScannerType} thumb: {OldLen} → {NewLen} chars", dto.ScannerType, rightTemplate.Length, normalizedTemplate.Length);
+                                if (isZkteco)
+                                {
+                                    enrollmentLearner!.RightThumbTemplateZk = normalizedTemplate;
+                                }
+                                else
+                                {
+                                    enrollmentLearner!.RightThumbTemplate = normalizedTemplate;
+                                }
                             }
                             
                             await _context.SaveChangesAsync();
@@ -1144,8 +1230,8 @@ namespace backend.Controllers
         {
             try
             {
-                _logger.LogInformation("Clock-in attempt - ClassId: {ClassId}, TeacherId: {TeacherId}, Template length: {Length}", 
-                    dto.ClassId, dto.TeacherId, dto.FingerprintTemplate?.Length ?? 0);
+                _logger.LogInformation("Clock-in attempt - ClassId: {ClassId}, TeacherId: {TeacherId}, ScannerType: {ScannerType}, Template length: {Length}", 
+                    dto.ClassId, dto.TeacherId, dto.ScannerType, dto.FingerprintTemplate?.Length ?? 0);
 
                 // Normalize the fingerprint template (remove whitespace, newlines)
                 var normalizedTemplate = dto.FingerprintTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
@@ -1162,11 +1248,15 @@ namespace backend.Controllers
                 _logger.LogInformation("Found {Count} active enrollments in class {ClassId}", enrollments.Count, dto.ClassId);
 
                 ClassEnrollment? matchedEnrollment = null;
+                bool isZkteco = dto.ScannerType.Equals("ZKTECO", StringComparison.OrdinalIgnoreCase);
                 foreach (var enrollment in enrollments)
                 {
                     var enrollmentLearner = enrollment.Learner;
-                    var leftTemplate = enrollmentLearner?.LeftThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
-                    var rightTemplate = enrollmentLearner?.RightThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                    string? leftTemplateStr = isZkteco ? enrollmentLearner?.LeftThumbTemplateZk : enrollmentLearner?.LeftThumbTemplate;
+                    string? rightTemplateStr = isZkteco ? enrollmentLearner?.RightThumbTemplateZk : enrollmentLearner?.RightThumbTemplate;
+                    
+                    var leftTemplate = leftTemplateStr?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                    var rightTemplate = rightTemplateStr?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
                     
                     _logger.LogInformation("Checking learner {LearnerId} ({Name}): Left={LeftLen}, Right={RightLen}, Captured={CapturedLen}", 
                         enrollmentLearner?.Id, 
@@ -1185,26 +1275,27 @@ namespace backend.Controllers
                     }
                     
                     // TESTING MODE: Accept any fingerprint that starts with the same scanner header
-                    bool leftExactMatch = leftTemplate.Length > 0 && leftTemplate == normalizedTemplate;
-                    bool rightExactMatch = rightTemplate.Length > 0 && rightTemplate == normalizedTemplate;
+                    bool leftExact = leftTemplate.Length > 0 && leftTemplate == normalizedTemplate;
+                    bool rightExact = rightTemplate.Length > 0 && rightTemplate == normalizedTemplate;
                     
                     // Lenient matching: same scanner header (first 10 characters)
-                    bool leftHeaderMatch = leftTemplate.Length > 10 && normalizedTemplate.Length > 10 && 
+                    bool leftHeader = leftTemplate.Length > 10 && normalizedTemplate.Length > 10 && 
                                          leftTemplate.Substring(0, 10) == normalizedTemplate.Substring(0, 10);
-                    bool rightHeaderMatch = rightTemplate.Length > 10 && normalizedTemplate.Length > 10 && 
+                    bool rightHeader = rightTemplate.Length > 10 && normalizedTemplate.Length > 10 && 
                                           rightTemplate.Substring(0, 10) == normalizedTemplate.Substring(0, 10);
                     
-                    bool leftMatch = leftExactMatch || leftHeaderMatch;
-                    bool rightMatch = rightExactMatch || rightHeaderMatch;
+                    bool leftMatch = leftExact || leftHeader;
+                    bool rightMatch = rightExact || rightHeader;
                     
                     _logger.LogInformation("🧪 TESTING MODE - Match results: Left={LeftMatch} (Exact={LeftExact}, Header={LeftHeader}), Right={RightMatch} (Exact={RightExact}, Header={RightHeader})", 
-                        leftMatch, leftExactMatch, leftHeaderMatch, rightMatch, rightExactMatch, rightHeaderMatch);
+                        leftMatch, leftExact, leftHeader, rightMatch, rightExact, rightHeader);
                     
                     if (leftMatch || rightMatch)
                     {
                         matchedEnrollment = enrollment;
-                        string matchType = leftExactMatch || rightExactMatch ? "EXACT" : "SIMILAR";
-                        _logger.LogInformation("  ✓ {MatchType} MATCH FOUND! Using {Thumb} thumb", matchType, leftMatch ? "LEFT" : "RIGHT");
+                        string matchType = (leftExact || rightExact) ? "EXACT" : "SIMILAR";
+                        string thumb = leftMatch ? "LEFT" : "RIGHT";
+                        _logger.LogInformation("  ✓ {MatchType} MATCH FOUND! Using {Thumb} thumb with {ScannerType} scanner", matchType, thumb, dto.ScannerType);
                         break;
                     }
                 }
@@ -1216,8 +1307,11 @@ namespace backend.Controllers
                     foreach (var enrollment in enrollments)
                     {
                         var enrollmentLearner = enrollment.Learner;
-                        var leftTemplate = enrollmentLearner?.LeftThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
-                        var rightTemplate = enrollmentLearner?.RightThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                        string? leftTemplateStr = isZkteco ? enrollmentLearner?.LeftThumbTemplateZk : enrollmentLearner?.LeftThumbTemplate;
+                        string? rightTemplateStr = isZkteco ? enrollmentLearner?.RightThumbTemplateZk : enrollmentLearner?.RightThumbTemplate;
+                        
+                        var leftTemplate = leftTemplateStr?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                        var rightTemplate = rightTemplateStr?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
                         
                         // Check if templates are from the same scanner (same header pattern - more lenient)
                         bool leftSameScanner = leftTemplate.Length > 15 && normalizedTemplate.Length > 15 && 
@@ -1245,13 +1339,27 @@ namespace backend.Controllers
                             // Update the template in the database
                             if (leftSameScanner && leftSimilarLength)
                             {
-                                _logger.LogInformation("  Updating LEFT thumb: {OldLen} → {NewLen} chars", leftTemplate.Length, normalizedTemplate.Length);
-                                enrollmentLearner!.LeftThumbTemplate = normalizedTemplate;
+                                _logger.LogInformation("  Updating LEFT {ScannerType} thumb: {OldLen} → {NewLen} chars", dto.ScannerType, leftTemplate.Length, normalizedTemplate.Length);
+                                if (isZkteco)
+                                {
+                                    enrollmentLearner!.LeftThumbTemplateZk = normalizedTemplate;
+                                }
+                                else
+                                {
+                                    enrollmentLearner!.LeftThumbTemplate = normalizedTemplate;
+                                }
                             }
                             else if (rightSameScanner && rightSimilarLength)
                             {
-                                _logger.LogInformation("  Updating RIGHT thumb: {OldLen} → {NewLen} chars", rightTemplate.Length, normalizedTemplate.Length);
-                                enrollmentLearner!.RightThumbTemplate = normalizedTemplate;
+                                _logger.LogInformation("  Updating RIGHT {ScannerType} thumb: {OldLen} → {NewLen} chars", dto.ScannerType, rightTemplate.Length, normalizedTemplate.Length);
+                                if (isZkteco)
+                                {
+                                    enrollmentLearner!.RightThumbTemplateZk = normalizedTemplate;
+                                }
+                                else
+                                {
+                                    enrollmentLearner!.RightThumbTemplate = normalizedTemplate;
+                                }
                             }
                             
                             await _context.SaveChangesAsync();
@@ -1368,7 +1476,8 @@ namespace backend.Controllers
         {
             try
             {
-                _logger.LogInformation("Clock-out attempt - ClassId: {ClassId}, TeacherId: {TeacherId}", dto.ClassId, dto.TeacherId);
+                _logger.LogInformation("Clock-out attempt - ClassId: {ClassId}, TeacherId: {TeacherId}, ScannerType: {ScannerType}, Template length: {Length}", 
+                    dto.ClassId, dto.TeacherId, dto.ScannerType, dto.FingerprintTemplate?.Length ?? 0);
 
                 // Normalize the fingerprint template (remove whitespace, newlines)
                 var normalizedTemplate = dto.FingerprintTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
@@ -1383,46 +1492,67 @@ namespace backend.Controllers
                 foreach (var enrollment in enrollments)
                 {
                     var enrollmentLearner = enrollment.Learner;
-                    var leftTemplate = enrollmentLearner?.LeftThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
-                    var rightTemplate = enrollmentLearner?.RightThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                    var leftTemplateFutronic = enrollmentLearner?.LeftThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                    var rightTemplateFutronic = enrollmentLearner?.RightThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                    var leftTemplateZkteco = enrollmentLearner?.LeftThumbTemplateZk?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                    var rightTemplateZkteco = enrollmentLearner?.RightThumbTemplateZk?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
                     
-                    _logger.LogInformation("Checking learner {LearnerId} ({Name}): Left={LeftLen}, Right={RightLen}, Captured={CapturedLen}", 
+                    _logger.LogInformation("Checking learner {LearnerId} ({Name}): LeftFutronic={LeftFutronicLen}, RightFutronic={RightFutronicLen}, LeftZkteco={LeftZktecoLen}, RightZkteco={RightZktecoLen}, Captured={CapturedLen}", 
                         enrollmentLearner?.Id, 
                         $"{enrollmentLearner?.FirstName} {enrollmentLearner?.LastName}",
-                        leftTemplate.Length,
-                        rightTemplate.Length,
+                        leftTemplateFutronic.Length,
+                        rightTemplateFutronic.Length,
+                        leftTemplateZkteco.Length,
+                        rightTemplateZkteco.Length,
                         normalizedTemplate.Length);
                     
-                    if (leftTemplate.Length > 0)
+                    if (leftTemplateFutronic.Length > 0)
                     {
-                        _logger.LogInformation("  Left preview: {Preview}", leftTemplate.Substring(0, Math.Min(50, leftTemplate.Length)));
+                        _logger.LogInformation("  LeftFutronic preview: {Preview}", leftTemplateFutronic.Substring(0, Math.Min(50, leftTemplateFutronic.Length)));
                     }
-                    if (rightTemplate.Length > 0)
+                    if (rightTemplateFutronic.Length > 0)
                     {
-                        _logger.LogInformation("  Right preview: {Preview}", rightTemplate.Substring(0, Math.Min(50, rightTemplate.Length)));
+                        _logger.LogInformation("  RightFutronic preview: {Preview}", rightTemplateFutronic.Substring(0, Math.Min(50, rightTemplateFutronic.Length)));
+                    }
+                    if (leftTemplateZkteco.Length > 0)
+                    {
+                        _logger.LogInformation("  LeftZkteco preview: {Preview}", leftTemplateZkteco.Substring(0, Math.Min(50, leftTemplateZkteco.Length)));
+                    }
+                    if (rightTemplateZkteco.Length > 0)
+                    {
+                        _logger.LogInformation("  RightZkteco preview: {Preview}", rightTemplateZkteco.Substring(0, Math.Min(50, rightTemplateZkteco.Length)));
                     }
                     
                     // TESTING MODE: Accept any fingerprint that starts with the same scanner header
-                    bool leftExactMatch = leftTemplate.Length > 0 && leftTemplate == normalizedTemplate;
-                    bool rightExactMatch = rightTemplate.Length > 0 && rightTemplate == normalizedTemplate;
+                    bool leftFutronicExact = leftTemplateFutronic.Length > 0 && leftTemplateFutronic == normalizedTemplate;
+                    bool rightFutronicExact = rightTemplateFutronic.Length > 0 && rightTemplateFutronic == normalizedTemplate;
+                    bool leftZktecoExact = leftTemplateZkteco.Length > 0 && leftTemplateZkteco == normalizedTemplate;
+                    bool rightZktecoExact = rightTemplateZkteco.Length > 0 && rightTemplateZkteco == normalizedTemplate;
                     
                     // Lenient matching: same scanner header (first 10 characters)
-                    bool leftHeaderMatch = leftTemplate.Length > 10 && normalizedTemplate.Length > 10 && 
-                                         leftTemplate.Substring(0, 10) == normalizedTemplate.Substring(0, 10);
-                    bool rightHeaderMatch = rightTemplate.Length > 10 && normalizedTemplate.Length > 10 && 
-                                          rightTemplate.Substring(0, 10) == normalizedTemplate.Substring(0, 10);
+                    bool leftFutronicHeader = leftTemplateFutronic.Length > 10 && normalizedTemplate.Length > 10 && 
+                                         leftTemplateFutronic.Substring(0, 10) == normalizedTemplate.Substring(0, 10);
+                    bool rightFutronicHeader = rightTemplateFutronic.Length > 10 && normalizedTemplate.Length > 10 && 
+                                          rightTemplateFutronic.Substring(0, 10) == normalizedTemplate.Substring(0, 10);
+                    bool leftZktecoHeader = leftTemplateZkteco.Length > 10 && normalizedTemplate.Length > 10 && 
+                                         leftTemplateZkteco.Substring(0, 10) == normalizedTemplate.Substring(0, 10);
+                    bool rightZktecoHeader = rightTemplateZkteco.Length > 10 && normalizedTemplate.Length > 10 && 
+                                          rightTemplateZkteco.Substring(0, 10) == normalizedTemplate.Substring(0, 10);
                     
-                    bool leftMatch = leftExactMatch || leftHeaderMatch;
-                    bool rightMatch = rightExactMatch || rightHeaderMatch;
+                    bool leftFutronicMatch = leftFutronicExact || leftFutronicHeader;
+                    bool rightFutronicMatch = rightFutronicExact || rightFutronicHeader;
+                    bool leftZktecoMatch = leftZktecoExact || leftZktecoHeader;
+                    bool rightZktecoMatch = rightZktecoExact || rightZktecoHeader;
                     
-                    _logger.LogInformation("🧪 TESTING MODE - Match results: Left={LeftMatch} (Exact={LeftExact}, Header={LeftHeader}), Right={RightMatch} (Exact={RightExact}, Header={RightHeader})", 
-                        leftMatch, leftExactMatch, leftHeaderMatch, rightMatch, rightExactMatch, rightHeaderMatch);
+                    _logger.LogInformation("🧪 TESTING MODE - Match results: LeftFutronic={LeftFutronicMatch} (Exact={LeftFutronicExact}, Header={LeftFutronicHeader}), RightFutronic={RightFutronicMatch} (Exact={RightFutronicExact}, Header={RightFutronicHeader}), LeftZkteco={LeftZktecoMatch} (Exact={LeftZktecoExact}, Header={LeftZktecoHeader}), RightZkteco={RightZktecoMatch} (Exact={RightZktecoExact}, Header={RightZktecoHeader})", 
+                        leftFutronicMatch, leftFutronicExact, leftFutronicHeader, rightFutronicMatch, rightFutronicExact, rightFutronicHeader, leftZktecoMatch, leftZktecoExact, leftZktecoHeader, rightZktecoMatch, rightZktecoExact, rightZktecoHeader);
                     
-                    if (leftMatch || rightMatch)
+                    if (leftFutronicMatch || rightFutronicMatch || leftZktecoMatch || rightZktecoMatch)
                     {
                         matchedEnrollment = enrollment;
-                        string matchType = leftExactMatch || rightExactMatch ? "EXACT" : "SIMILAR";
-                        _logger.LogInformation("  ✓ {MatchType} MATCH FOUND! Using {Thumb} thumb", matchType, leftMatch ? "LEFT" : "RIGHT");
+                        string matchType = leftFutronicExact || rightFutronicExact || leftZktecoExact || rightZktecoExact ? "EXACT" : "SIMILAR";
+                        string thumbUsed = leftFutronicMatch ? "LEFT FUTRONIC" : (rightFutronicMatch ? "RIGHT FUTRONIC" : (leftZktecoMatch ? "LEFT ZKTECO" : "RIGHT ZKTECO"));
+                        _logger.LogInformation("  ✓ {MatchType} MATCH FOUND! Using {Thumb} thumb", matchType, thumbUsed);
                         break;
                     }
                 }
@@ -1434,42 +1564,69 @@ namespace backend.Controllers
                     foreach (var enrollment in enrollments)
                     {
                         var enrollmentLearner = enrollment.Learner;
-                        var leftTemplate = enrollmentLearner?.LeftThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
-                        var rightTemplate = enrollmentLearner?.RightThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                        var leftTemplateFutronic = enrollmentLearner?.LeftThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                        var rightTemplateFutronic = enrollmentLearner?.RightThumbTemplate?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                        var leftTemplateZkteco = enrollmentLearner?.LeftThumbTemplateZk?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
+                        var rightTemplateZkteco = enrollmentLearner?.RightThumbTemplateZk?.Replace("\n", "").Replace("\r", "").Replace(" ", "").Trim() ?? "";
                         
                         // Check if templates are from the same scanner (same header pattern - more lenient)
-                        bool leftSameScanner = leftTemplate.Length > 15 && normalizedTemplate.Length > 15 && 
-                                             leftTemplate.Substring(0, 15) == normalizedTemplate.Substring(0, 15);
-                        bool rightSameScanner = rightTemplate.Length > 15 && normalizedTemplate.Length > 15 && 
-                                              rightTemplate.Substring(0, 15) == normalizedTemplate.Substring(0, 15);
+                        bool leftFutronicSameScanner = leftTemplateFutronic.Length > 15 && normalizedTemplate.Length > 15 && 
+                                             leftTemplateFutronic.Substring(0, 15) == normalizedTemplate.Substring(0, 15);
+                        bool rightFutronicSameScanner = rightTemplateFutronic.Length > 15 && normalizedTemplate.Length > 15 && 
+                                              rightTemplateFutronic.Substring(0, 15) == normalizedTemplate.Substring(0, 15);
+                        bool leftZktecoSameScanner = leftTemplateZkteco.Length > 15 && normalizedTemplate.Length > 15 && 
+                                             leftTemplateZkteco.Substring(0, 15) == normalizedTemplate.Substring(0, 15);
+                        bool rightZktecoSameScanner = rightTemplateZkteco.Length > 15 && normalizedTemplate.Length > 15 && 
+                                              rightTemplateZkteco.Substring(0, 15) == normalizedTemplate.Substring(0, 15);
                         
                         // Check if templates are reasonably similar in length (within 80% difference - more lenient)
-                        bool leftSimilarLength = leftTemplate.Length > 0 && 
-                                               Math.Abs(leftTemplate.Length - normalizedTemplate.Length) < (Math.Max(leftTemplate.Length, normalizedTemplate.Length) * 0.8);
-                        bool rightSimilarLength = rightTemplate.Length > 0 && 
-                                                Math.Abs(rightTemplate.Length - normalizedTemplate.Length) < (Math.Max(rightTemplate.Length, normalizedTemplate.Length) * 0.8);
+                        bool leftFutronicSimilarLength = leftTemplateFutronic.Length > 0 && 
+                                               Math.Abs(leftTemplateFutronic.Length - normalizedTemplate.Length) < (Math.Max(leftTemplateFutronic.Length, normalizedTemplate.Length) * 0.8);
+                        bool rightFutronicSimilarLength = rightTemplateFutronic.Length > 0 && 
+                                                Math.Abs(rightTemplateFutronic.Length - normalizedTemplate.Length) < (Math.Max(rightTemplateFutronic.Length, normalizedTemplate.Length) * 0.8);
+                        bool leftZktecoSimilarLength = leftTemplateZkteco.Length > 0 && 
+                                               Math.Abs(leftTemplateZkteco.Length - normalizedTemplate.Length) < (Math.Max(leftTemplateZkteco.Length, normalizedTemplate.Length) * 0.8);
+                        bool rightZktecoSimilarLength = rightTemplateZkteco.Length > 0 && 
+                                                Math.Abs(rightTemplateZkteco.Length - normalizedTemplate.Length) < (Math.Max(rightTemplateZkteco.Length, normalizedTemplate.Length) * 0.8);
                         
                         _logger.LogInformation("🔍 TEMPLATE UPDATE CHECK for learner {LearnerId}:", enrollmentLearner?.Id);
-                        _logger.LogInformation("  Left: SameScanner={LeftSame}, SimilarLength={LeftLength} (stored={StoredLeft}, captured={CapturedLen})", 
-                            leftSameScanner, leftSimilarLength, leftTemplate.Length, normalizedTemplate.Length);
-                        _logger.LogInformation("  Right: SameScanner={RightSame}, SimilarLength={RightLength} (stored={StoredRight}, captured={CapturedLen})", 
-                            rightSameScanner, rightSimilarLength, rightTemplate.Length, normalizedTemplate.Length);
+                        _logger.LogInformation("  LeftFutronic: SameScanner={LeftFutronicSame}, SimilarLength={LeftFutronicLength} (stored={StoredLeftFutronic}, captured={CapturedLen})", 
+                            leftFutronicSameScanner, leftFutronicSimilarLength, leftTemplateFutronic.Length, normalizedTemplate.Length);
+                        _logger.LogInformation("  RightFutronic: SameScanner={RightFutronicSame}, SimilarLength={RightFutronicLength} (stored={StoredRightFutronic}, captured={CapturedLen})", 
+                            rightFutronicSameScanner, rightFutronicSimilarLength, rightTemplateFutronic.Length, normalizedTemplate.Length);
+                        _logger.LogInformation("  LeftZkteco: SameScanner={LeftZktecoSame}, SimilarLength={LeftZktecoLength} (stored={StoredLeftZkteco}, captured={CapturedLen})", 
+                            leftZktecoSameScanner, leftZktecoSimilarLength, leftTemplateZkteco.Length, normalizedTemplate.Length);
+                        _logger.LogInformation("  RightZkteco: SameScanner={RightZktecoSame}, SimilarLength={RightZktecoLength} (stored={StoredRightZkteco}, captured={CapturedLen})", 
+                            rightZktecoSameScanner, rightZktecoSimilarLength, rightTemplateZkteco.Length, normalizedTemplate.Length);
                         
-                        if ((leftSameScanner && leftSimilarLength) || (rightSameScanner && rightSimilarLength))
+                        if ((leftFutronicSameScanner && leftFutronicSimilarLength) || 
+                            (rightFutronicSameScanner && rightFutronicSimilarLength) ||
+                            (leftZktecoSameScanner && leftZktecoSimilarLength) ||
+                            (rightZktecoSameScanner && rightZktecoSimilarLength))
                         {
                             _logger.LogInformation("🔄 TEMPLATE UPDATE: Updating template for learner {LearnerId} ({Name})", 
                                 enrollmentLearner?.Id, $"{enrollmentLearner?.FirstName} {enrollmentLearner?.LastName}");
                             
                             // Update the template in the database
-                            if (leftSameScanner && leftSimilarLength)
+                            if (leftFutronicSameScanner && leftFutronicSimilarLength)
                             {
-                                _logger.LogInformation("  Updating LEFT thumb: {OldLen} → {NewLen} chars", leftTemplate.Length, normalizedTemplate.Length);
+                                _logger.LogInformation("  Updating LEFT FUTRONIC thumb: {OldLen} → {NewLen} chars", leftTemplateFutronic.Length, normalizedTemplate.Length);
                                 enrollmentLearner!.LeftThumbTemplate = normalizedTemplate;
                             }
-                            else if (rightSameScanner && rightSimilarLength)
+                            else if (rightFutronicSameScanner && rightFutronicSimilarLength)
                             {
-                                _logger.LogInformation("  Updating RIGHT thumb: {OldLen} → {NewLen} chars", rightTemplate.Length, normalizedTemplate.Length);
+                                _logger.LogInformation("  Updating RIGHT FUTRONIC thumb: {OldLen} → {NewLen} chars", rightTemplateFutronic.Length, normalizedTemplate.Length);
                                 enrollmentLearner!.RightThumbTemplate = normalizedTemplate;
+                            }
+                            else if (leftZktecoSameScanner && leftZktecoSimilarLength)
+                            {
+                                _logger.LogInformation("  Updating LEFT ZKTECO thumb: {OldLen} → {NewLen} chars", leftTemplateZkteco.Length, normalizedTemplate.Length);
+                                enrollmentLearner!.LeftThumbTemplateZk = normalizedTemplate;
+                            }
+                            else if (rightZktecoSameScanner && rightZktecoSimilarLength)
+                            {
+                                _logger.LogInformation("  Updating RIGHT ZKTECO thumb: {OldLen} → {NewLen} chars", rightTemplateZkteco.Length, normalizedTemplate.Length);
+                                enrollmentLearner!.RightThumbTemplateZk = normalizedTemplate;
                             }
                             
                             await _context.SaveChangesAsync();

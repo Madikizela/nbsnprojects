@@ -130,6 +130,7 @@ class _LearnerDetailScreenState extends State<LearnerDetailScreen> {
   }
 
   Future<void> _registerFace() async {
+    final apiService = context.read<ApiService>();
     final result = await Navigator.push(
       context,
       MaterialPageRoute(
@@ -143,7 +144,6 @@ class _LearnerDetailScreenState extends State<LearnerDetailScreen> {
     if (result != null && result is List<double>) {
       try {
         setState(() => _saving = true);
-        final apiService = context.read<ApiService>();
         await apiService.uploadFaceEmbedding(
           learnerId: widget.learnerId,
           embedding: result,
@@ -344,6 +344,7 @@ class _LearnerDetailScreenState extends State<LearnerDetailScreen> {
           ElevatedButton(
             onPressed: () async {
               if (controller.isNotEmpty) {
+                final nav = Navigator.of(context);
                 final signature = await controller.toPngBytes();
                 if (signature != null) {
                   final tempDir = await getTemporaryDirectory();
@@ -351,7 +352,7 @@ class _LearnerDetailScreenState extends State<LearnerDetailScreen> {
                       await File('${tempDir.path}/signature.png').create();
                   await file.writeAsBytes(signature);
                   await _uploadSignature(file.path);
-                  if (mounted) Navigator.pop(context);
+                  if (mounted) nav.pop();
                 }
               }
             },

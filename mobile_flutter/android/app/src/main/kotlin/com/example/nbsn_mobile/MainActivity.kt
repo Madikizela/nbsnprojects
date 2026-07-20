@@ -18,7 +18,22 @@ import android.os.Message
 import android.os.SystemClock
 import com.futronictech.AnsiSDKLib
 import com.futronictech.UsbDeviceDataExchangeImpl
+import com.zkteco.android.biometric.core.device.ParameterHelper
+import com.zkteco.android.biometric.core.device.TransportType
+import com.zkteco.android.biometric.module.fingerprint.FingerprintCaptureListener
+import com.zkteco.android.biometric.module.fingerprint.FingerprintExceptionListener
+import com.zkteco.android.biometric.module.fingerprint.FingerprintFactory
+import com.zkteco.android.biometric.module.fingerprint.FingerprintSensor
+import com.zkteco.android.biometric.module.fingerprint.exception.FingerprintSensorException
+import com.zkteco.android.biometric.module.fingerprintreader.ZKFingerService
 import java.io.File
+import java.util.HashMap
+
+sealed class ScannerType {
+    object Futronic : ScannerType()
+    object ZKFinger : ScannerType()
+    object None : ScannerType()
+}
 
 class MainActivity: FlutterActivity() {
     private val CHANNEL = "com.example.nbsn_mobile/fingerprint"
@@ -28,6 +43,15 @@ class MainActivity: FlutterActivity() {
     private var usbHostCtx: UsbDeviceDataExchangeImpl? = null
     private var syncDir: File? = null
     private var captureThread: CaptureThread? = null
+    private var zkCaptureThread: ZKFingerCaptureThread? = null
+    
+    // ZKFinger specific variables
+    private var zkusbManager: ZKUSBManager? = null
+    private var fingerprintSensor: FingerprintSensor? = null
+    private var zkVid = 0x1b55
+    private var zkPid = 0x0121
+    private var bStarted = false
+    private var currentScannerType: ScannerType = ScannerType.None
     
     companion object {
         private const val TAG = "FingerprintService"
@@ -35,6 +59,8 @@ class MainActivity: FlutterActivity() {
         const val MESSAGE_SHOW_ERROR_MSG = 2
         const val MESSAGE_END_OPERATION = 3
         const val MESSAGE_CAPTURE_SUCCESS = 4
+        const val FUTRONIC_VID = 0x1491
+        const val ZKTECO_VID = 0x1b55
     }
 
     private val mHandler = Handler(Looper.getMainLooper()) { msg ->
@@ -62,7 +88,7 @@ class MainActivity: FlutterActivity() {
                 true
             }
             UsbDeviceDataExchangeImpl.MESSAGE_ALLOW_DEVICE -> {
-                Log.d(TAG, "USB device permission granted")
+                Log.d(TAG, "USB device permission granted (Futronic)")
                 if (usbHostCtx?.ValidateContext() == true) {
                     startCaptureOperation()
                 } else {
@@ -72,7 +98,7 @@ class MainActivity: FlutterActivity() {
                 true
             }
             UsbDeviceDataExchangeImpl.MESSAGE_DENY_DEVICE -> {
-                Log.d(TAG, "USB device permission denied")
+                Log.d(TAG, "USB device permission denied (Futronic)")
                 pendingResult?.error("PERMISSION_DENIED", "User denied scanner device", null)
                 pendingResult = null
                 true
@@ -117,8 +143,9 @@ class MainActivity: FlutterActivity() {
                         }
                         
                         device?.let {
-                            if (it.vendorId == 0x1491) {
-                                Log.d(TAG, "Futronic scanner attached: ${it.deviceName}")
+                            when (it.vendorId) {
+                                FUTRONIC_VID -> Log.d(TAG, "Futronic scanner attached: ${it.deviceName}")
+                                ZKTECO_VID -> Log.d(TAG, "ZKFinger scanner attached: ${it.deviceName}")
                             }
                         }
                     }
@@ -131,8 +158,9 @@ class MainActivity: FlutterActivity() {
                         }
                         
                         device?.let {
-                            if (it.vendorId == 0x1491) {
-                                Log.d(TAG, "Futronic scanner detached: ${it.deviceName}")
+                            when (it.vendorId) {
+                                FUTRONIC_VID -> Log.d(TAG, "Futronic scanner detached: ${it.deviceName}")
+                                ZKTECO_VID -> Log.d(TAG, "ZKFinger scanner detached: ${it.deviceName}")
                             }
                         }
                     }
@@ -140,6 +168,23 @@ class MainActivity: FlutterActivity() {
             } catch (e: Exception) {
                 Log.e(TAG, "Error in USB receiver", e)
             }
+        }
+    }
+
+    private val zkusbManagerListener = object : ZKUSBManagerListener {
+        override fun onCheckPermission(result: Int) {
+            afterGetUsbPermission(result)
+        }
+
+        override fun onUSBArrived(device: UsbDevice?) {
+            if (bStarted) {
+                closeZKDevice()
+                tryGetZKUsbPermission()
+            }
+        }
+
+        override fun onUSBRemoved(device: UsbDevice?) {
+            Log.d(TAG, "ZKFinger USB device removed")
         }
     }
 
@@ -162,6 +207,10 @@ class MainActivity: FlutterActivity() {
                 registerReceiver(usbReceiver, filter)
             }
             
+            // Initialize ZKFinger USB manager
+            zkusbManager = ZKUSBManager(this.applicationContext, zkusbManagerListener)
+            zkusbManager?.registerUSBPermissionReceiver()
+            
             Log.d(TAG, "USB receiver registered successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing USB", e)
@@ -183,6 +232,14 @@ class MainActivity: FlutterActivity() {
                 "isScannerAvailable" -> {
                     result.success(isScannerAvailable())
                 }
+                "getScannerType" -> {
+                    // Returns "futronic", "zkteco", or "none"
+                    result.success(when (detectScannerType()) {
+                        ScannerType.Futronic -> "futronic"
+                        ScannerType.ZKFinger -> "zkteco"
+                        ScannerType.None -> "none"
+                    })
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -190,28 +247,36 @@ class MainActivity: FlutterActivity() {
         }
     }
 
+    private fun detectScannerType(): ScannerType {
+        try {
+            val deviceList = usbManager?.deviceList
+            deviceList?.values?.forEach { device ->
+                when (device.vendorId) {
+                    FUTRONIC_VID -> return ScannerType.Futronic
+                    ZKTECO_VID -> {
+                        zkPid = device.productId
+                        return ScannerType.ZKFinger
+                    }
+                }
+            }
+            return ScannerType.None
+        } catch (e: Exception) {
+            Log.e(TAG, "Error detecting scanner type", e)
+            return ScannerType.None
+        }
+    }
+
     private fun captureFingerprint(result: MethodChannel.Result) {
         Log.d(TAG, "captureFingerprint called")
         try {
             pendingResult = result
+            currentScannerType = detectScannerType()
             
-            // Just try to open the device - UsbDeviceDataExchangeImpl will handle permission
-            if (usbHostCtx?.OpenDevice(0, true) == true) {
-                // Device opened successfully, start capture
-                startCaptureOperation()
-            } else {
-                // Check if permission is pending
-                if (usbHostCtx?.IsPendingOpen() == true) {
-                    Log.d(TAG, "Waiting for USB permission dialog...")
-                    // Permission dialog will be shown, wait for MESSAGE_ALLOW_DEVICE or MESSAGE_DENY_DEVICE
-                } else {
-                    // Failed to open device
-                    val deviceList = usbManager?.deviceList
-                    if (deviceList?.values?.any { it.vendorId == 0x1491 } == true) {
-                        pendingResult?.error("USB_ERROR", "Scanner detected but failed to open. Try disconnecting and reconnecting the scanner.", null)
-                    } else {
-                        pendingResult?.error("NO_DEVICE", "No Futronic scanner found. Please connect the scanner via USB.", null)
-                    }
+            when (currentScannerType) {
+                ScannerType.Futronic -> captureFutronic()
+                ScannerType.ZKFinger -> captureZKFinger()
+                ScannerType.None -> {
+                    pendingResult?.error("NO_DEVICE", "No supported scanner found. Please connect either Futronic or ZKFinger scanner.", null)
                     pendingResult = null
                 }
             }
@@ -222,8 +287,73 @@ class MainActivity: FlutterActivity() {
         }
     }
 
+    private fun captureFutronic() {
+        Log.d(TAG, "Starting Futronic capture")
+        // Just try to open the device - UsbDeviceDataExchangeImpl will handle permission
+        if (usbHostCtx?.OpenDevice(0, true) == true) {
+            // Device opened successfully, start capture
+            startCaptureOperation()
+        } else {
+            // Check if permission is pending
+            if (usbHostCtx?.IsPendingOpen() == true) {
+                Log.d(TAG, "Waiting for USB permission dialog...")
+                // Permission dialog will be shown, wait for MESSAGE_ALLOW_DEVICE or MESSAGE_DENY_DEVICE
+            } else {
+                // Failed to open device
+                pendingResult?.error("USB_ERROR", "Futronic scanner detected but failed to open. Try disconnecting and reconnecting the scanner.", null)
+                pendingResult = null
+            }
+        }
+    }
+
+    private fun captureZKFinger() {
+        Log.d(TAG, "Starting ZKFinger capture")
+        if (!enumZKDevice()) {
+            pendingResult?.error("NO_DEVICE", "ZKFinger scanner not found. Please connect the scanner.", null)
+            pendingResult = null
+            return
+        }
+        tryGetZKUsbPermission()
+    }
+
+    private fun enumZKDevice(): Boolean {
+        val usbManager = getSystemService(Context.USB_SERVICE) as UsbManager
+        for (device in usbManager.deviceList.values) {
+            val device_vid = device.vendorId
+            val device_pid = device.productId
+            if (device_vid == ZKTECO_VID) {
+                zkPid = device_pid
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun tryGetZKUsbPermission() {
+        zkusbManager?.initUSBPermission(ZKTECO_VID, zkPid)
+    }
+
+    private fun afterGetUsbPermission(result: Int) {
+        when (result) {
+            0 -> openZKDevice()
+            -1 -> {
+                pendingResult?.error("NO_DEVICE", "ZKFinger device not found", null)
+                pendingResult = null
+            }
+            -2 -> {
+                pendingResult?.error("PERMISSION_DENIED", "ZKFinger device permission denied", null)
+                pendingResult = null
+            }
+        }
+    }
+
+    private fun openZKDevice() {
+        zkCaptureThread = ZKFingerCaptureThread()
+        zkCaptureThread?.start()
+    }
+
     private fun startCaptureOperation() {
-        Log.d(TAG, "Starting capture operation")
+        Log.d(TAG, "Starting capture operation (Futronic)")
         captureThread = CaptureThread()
         captureThread?.start()
     }
@@ -236,7 +366,7 @@ class MainActivity: FlutterActivity() {
         }
         
         override fun run() {
-            Log.d(TAG, "Capture thread started")
+            Log.d(TAG, "Capture thread started (Futronic)")
             val ansiLib = AnsiSDKLib()
             var devOpen = false
             
@@ -314,10 +444,132 @@ class MainActivity: FlutterActivity() {
         }
     }
 
+    private inner class ZKFingerCaptureThread : Thread() {
+        private var cancelled = false
+        private var registerTemplate: ByteArray? = null
+        private var isRegistering = false
+        
+        fun cancel() {
+            cancelled = true
+        }
+        
+        override fun run() {
+            Log.d(TAG, "ZKFinger Capture thread started")
+            var devOpen = false
+            
+            try {
+                createFingerprintSensor()
+                bStarted = false
+                
+                if (0 != ZKFingerService.init()) {
+                    mHandler.obtainMessage(MESSAGE_SHOW_ERROR_MSG, "ZKFinger service init failed").sendToTarget()
+                    return
+                }
+                
+                fingerprintSensor?.open(0)
+                devOpen = true
+                bStarted = true
+                
+                val captureListener = object : FingerprintCaptureListener {
+                    override fun captureOK(mode: Int, rawImage: ByteArray, attributes: IntArray, fpTemplate: ByteArray) {
+                        try {
+                            val templateLength = fingerprintSensor?.lastTempLen ?: 0
+                            Log.d(TAG, "ZKFinger capture OK. Template length: $templateLength")
+                            
+                            val templateBytes = fpTemplate.copyOf(templateLength)
+                            val templateString = android.util.Base64.encodeToString(templateBytes, android.util.Base64.NO_WRAP)
+                            
+                            mHandler.obtainMessage(MESSAGE_CAPTURE_SUCCESS, templateString).sendToTarget()
+                            cancel()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error in captureOK", e)
+                            mHandler.obtainMessage(MESSAGE_SHOW_ERROR_MSG, "Capture error: ${e.message}").sendToTarget()
+                        }
+                    }
+
+                    override fun captureError(exception: FingerprintSensorException?) {
+                        Log.e(TAG, "ZKFinger capture error", exception)
+                        mHandler.obtainMessage(MESSAGE_SHOW_ERROR_MSG, "Capture error: ${exception?.message}").sendToTarget()
+                    }
+                }
+                
+                val exceptionListener = FingerprintExceptionListener {
+                    Log.e(TAG, "ZKFinger exception occurred")
+                }
+                
+                fingerprintSensor?.setFingerprintCaptureListener(0, captureListener)
+                fingerprintSensor?.startCapture(0)
+                Log.d(TAG, "ZKFinger waiting for finger...")
+                
+                while (!cancelled) {
+                    sleep(100)
+                }
+                
+            } catch (e: FingerprintSensorException) {
+                Log.e(TAG, "ZKFinger sensor exception", e)
+                mHandler.obtainMessage(MESSAGE_SHOW_ERROR_MSG, "Sensor error: ${e.message}").sendToTarget()
+                try {
+                    fingerprintSensor?.rebootDeviceEx(0)
+                } catch (ex: Exception) {
+                    Log.e(TAG, "Error rebooting ZKFinger device", ex)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in ZKFinger capture thread", e)
+                mHandler.obtainMessage(MESSAGE_SHOW_ERROR_MSG, "ZKFinger capture error: ${e.message}").sendToTarget()
+            } finally {
+                closeZKDevice()
+                mHandler.obtainMessage(MESSAGE_END_OPERATION).sendToTarget()
+            }
+        }
+        
+        private fun createFingerprintSensor() {
+            if (null != fingerprintSensor) {
+                FingerprintFactory.destroy(fingerprintSensor)
+                fingerprintSensor = null
+            }
+            val deviceParams = HashMap<String, Any>()
+            deviceParams[ParameterHelper.PARAM_KEY_VID] = ZKTECO_VID
+            deviceParams[ParameterHelper.PARAM_KEY_PID] = zkPid
+            fingerprintSensor = FingerprintFactory.createFingerprintSensor(this@MainActivity, TransportType.USB, deviceParams)
+        }
+    }
+
+    private fun closeZKDevice() {
+        if (bStarted) {
+            try {
+                fingerprintSensor?.stopCapture(0)
+                fingerprintSensor?.close(0)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error closing ZKFinger device", e)
+            }
+            ZKFingerService.free()
+            bStarted = false
+        }
+    }
+
     private fun verifyFingerprint(storedTemplate: String, result: MethodChannel.Result) {
         Log.d(TAG, "verifyFingerprint called")
         try {
             pendingResult = result
+            currentScannerType = detectScannerType()
+            
+            when (currentScannerType) {
+                ScannerType.Futronic -> verifyFutronic(storedTemplate)
+                ScannerType.ZKFinger -> verifyZKFinger(storedTemplate)
+                ScannerType.None -> {
+                    pendingResult?.error("NO_DEVICE", "No supported scanner found.", null)
+                    pendingResult = null
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error in verifyFingerprint", e)
+            result.error("ERROR", "Error: ${e.message}", null)
+        }
+    }
+
+    private fun verifyFutronic(storedTemplate: String) {
+        Log.d(TAG, "Starting Futronic verification")
+        try {
             val templateBytes = android.util.Base64.decode(storedTemplate, android.util.Base64.DEFAULT)
             
             // Just try to open the device - UsbDeviceDataExchangeImpl will handle permission
@@ -327,19 +579,21 @@ class MainActivity: FlutterActivity() {
                 if (usbHostCtx?.IsPendingOpen() == true) {
                     Log.d(TAG, "Waiting for USB permission dialog...")
                 } else {
-                    val deviceList = usbManager?.deviceList
-                    if (deviceList?.values?.any { it.vendorId == 0x1491 } == true) {
-                        pendingResult?.error("USB_ERROR", "Scanner detected but failed to open", null)
-                    } else {
-                        pendingResult?.error("NO_DEVICE", "No Futronic scanner found", null)
-                    }
+                    pendingResult?.error("USB_ERROR", "Futronic scanner detected but failed to open", null)
                     pendingResult = null
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Error in verifyFingerprint", e)
-            result.error("ERROR", "Error: ${e.message}", null)
+            Log.e(TAG, "Error in verifyFutronic", e)
+            pendingResult?.error("ERROR", "Error: ${e.message}", null)
+            pendingResult = null
         }
+    }
+
+    private fun verifyZKFinger(storedTemplate: String) {
+        Log.d(TAG, "ZKFinger verification not implemented yet")
+        pendingResult?.error("NOT_IMPLEMENTED", "ZKFinger verification not available yet", null)
+        pendingResult = null
     }
 
     private fun startVerifyOperation(template: ByteArray) {
@@ -351,7 +605,7 @@ class MainActivity: FlutterActivity() {
         private var cancelled = false
         
         override fun run() {
-            Log.d(TAG, "Verify thread started")
+            Log.d(TAG, "Verify thread started (Futronic)")
             val ansiLib = AnsiSDKLib()
             var devOpen = false
             
@@ -411,13 +665,13 @@ class MainActivity: FlutterActivity() {
             
             deviceList?.values?.forEach { device ->
                 Log.d(TAG, "Found USB device: vendorId=${device.vendorId}, productId=${device.productId}, deviceName=${device.deviceName}")
-                if (device.vendorId == 0x1491) {
-                    Log.d(TAG, "Futronic scanner found!")
+                if (device.vendorId == FUTRONIC_VID || device.vendorId == ZKTECO_VID) {
+                    Log.d(TAG, "Supported scanner found!")
                     return true
                 }
             }
             
-            Log.d(TAG, "No Futronic scanner found")
+            Log.d(TAG, "No supported scanner found")
             return false
         } catch (e: Exception) {
             Log.e(TAG, "Error checking scanner availability", e)
@@ -429,10 +683,180 @@ class MainActivity: FlutterActivity() {
         super.onDestroy()
         try {
             captureThread?.cancel()
+            zkCaptureThread?.cancel()
             usbHostCtx?.CloseDevice()
+            closeZKDevice()
             unregisterReceiver(usbReceiver)
+            zkusbManager?.unRegisterUSBPermissionReceiver()
         } catch (e: Exception) {
             Log.e(TAG, "Error in cleanup", e)
         }
     }
+
+    /**
+     * Called when a USB device is attached AND this activity is already running
+     * (because launchMode="singleTop" prevents a second instance).
+     * We absorb the intent so the scanner is silently claimed by our app.
+     */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleUsbAttachIntent(intent)
+    }
+
+    /**
+     * Called when this activity starts fresh from a USB_DEVICE_ATTACHED broadcast
+     * (i.e. the app was not running when the scanner was plugged in).
+     */
+    override fun onResume() {
+        super.onResume()
+        handleUsbAttachIntent(intent)
+    }
+
+    /**
+     * Silently handle USB_DEVICE_ATTACHED — just log it.
+     * The actual permission request happens via ZKUSBManager when the user
+     * triggers a scan. This prevents RLMS or any other app from grabbing focus.
+     */
+    private fun handleUsbAttachIntent(intent: Intent?) {
+        if (intent?.action == UsbManager.ACTION_USB_DEVICE_ATTACHED) {
+            val device: UsbDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+            }
+            if (device != null) {
+                Log.d(TAG, "USB device attached via intent: vid=${device.vendorId} pid=${device.productId} — handled by NBSN Mobile")
+                // Update detected scanner type so the Flutter UI reflects the connection
+                when (device.vendorId) {
+                    ZKTECO_VID -> {
+                        zkPid = device.productId
+                        Log.d(TAG, "ZKTeco scanner registered (vid=${device.vendorId} pid=${device.productId})")
+                    }
+                    FUTRONIC_VID -> Log.d(TAG, "Futronic scanner registered")
+                }
+            }
+            // Consume the intent so it is not processed again on next onResume
+            setIntent(Intent())
+        }
+    }
+}
+
+// ─── ZKTeco USB helper ────────────────────────────────────────────────────────
+
+interface ZKUSBManagerListener {
+    /** Called after permission check. result: 0 = granted, -1 = no device, -2 = denied */
+    fun onCheckPermission(result: Int)
+    fun onUSBArrived(device: UsbDevice?)
+    fun onUSBRemoved(device: UsbDevice?)
+}
+
+class ZKUSBManager(
+    private val context: Context,
+    private val listener: ZKUSBManagerListener
+) {
+    companion object {
+        private const val TAG = "ZKUSBManager"
+        private const val ACTION_ZK_USB_PERMISSION = "com.example.nbsn_mobile.ZK_USB_PERMISSION"
+    }
+
+    private val usbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
+    private var targetVid = 0
+    private var targetPid = 0
+
+    private val permissionReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context, intent: Intent) {
+            when (intent.action) {
+                ACTION_ZK_USB_PERMISSION -> {
+                    val device: UsbDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+                    }
+                    val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
+                    Log.d(TAG, "USB permission result: granted=$granted, device=$device")
+                    listener.onCheckPermission(if (granted) 0 else -2)
+                }
+            }
+        }
+    }
+
+    private val usbStateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(ctx: Context, intent: Intent) {
+            val device: UsbDevice? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                intent.getParcelableExtra(UsbManager.EXTRA_DEVICE, UsbDevice::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                intent.getParcelableExtra(UsbManager.EXTRA_DEVICE)
+            }
+            when (intent.action) {
+                UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
+                    if (device?.vendorId == targetVid) listener.onUSBArrived(device)
+                }
+                UsbManager.ACTION_USB_DEVICE_DETACHED -> {
+                    if (device?.vendorId == targetVid) listener.onUSBRemoved(device)
+                }
+            }
+        }
+    }
+
+    fun registerUSBPermissionReceiver() {
+        val permFilter = IntentFilter(ACTION_ZK_USB_PERMISSION)
+        val stateFilter = IntentFilter().apply {
+            addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED)
+            addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(permissionReceiver, permFilter, Context.RECEIVER_NOT_EXPORTED)
+            context.registerReceiver(usbStateReceiver, stateFilter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            context.registerReceiver(permissionReceiver, permFilter)
+            context.registerReceiver(usbStateReceiver, stateFilter)
+        }
+        Log.d(TAG, "USB receivers registered")
+    }
+
+    fun unRegisterUSBPermissionReceiver() {
+        try {
+            context.unregisterReceiver(permissionReceiver)
+            context.unregisterReceiver(usbStateReceiver)
+        } catch (e: Exception) {
+            Log.w(TAG, "Error unregistering receivers: ${e.message}")
+        }
+    }
+
+    fun initUSBPermission(vid: Int, pid: Int) {
+        targetVid = vid
+        targetPid = pid
+        val device = findDevice(vid, pid)
+        if (device == null) {
+            Log.w(TAG, "ZK device not found (vid=$vid, pid=$pid)")
+            listener.onCheckPermission(-1)
+            return
+        }
+        if (usbManager.hasPermission(device)) {
+            Log.d(TAG, "Already have permission for ZK device")
+            listener.onCheckPermission(0)
+            return
+        }
+        // On API 31+ the Intent must be explicit (set package) to use with getBroadcast.
+        // On API 34+ FLAG_MUTABLE + implicit intent is disallowed — use FLAG_IMMUTABLE.
+        // For USB permission, FLAG_IMMUTABLE is safe: the USB manager fills in the extras.
+        val permissionIntent = Intent(ACTION_ZK_USB_PERMISSION).apply {
+            setPackage(context.packageName)
+        }
+        val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        else
+            PendingIntent.FLAG_UPDATE_CURRENT
+        val permIntent = PendingIntent.getBroadcast(context, 0, permissionIntent, flags)
+        usbManager.requestPermission(device, permIntent)
+        Log.d(TAG, "Requesting USB permission for ZK device")
+    }
+
+    private fun findDevice(vid: Int, pid: Int): UsbDevice? =
+        usbManager.deviceList.values.firstOrNull {
+            it.vendorId == vid && (pid == 0 || it.productId == pid)
+        } ?: usbManager.deviceList.values.firstOrNull { it.vendorId == vid }
 }

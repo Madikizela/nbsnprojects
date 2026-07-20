@@ -1,0 +1,15 @@
+1、串口通讯调试
+	使用第三方串口调试工具，发送HEX(701300000000000000006EF10A), 设备正常时回复7013...0A；若未回复或者回复非此格式；硬件调试。
+2、USB 调试
+	1)设备连接失败处理方法：
+		a) 使用usbviewer 查看系统是否识别到vid=6997，pid=289的USB设备；若无次设备检查硬件是否支持USB Host
+		b) 设置日志级别为LogHelper.setLevel(Log.VERBOSE); 提供Logcat日志；tag:BiometricSDKLogger
+3、USB 请求权限几种方式
+	1） device_filter
+		可以设置默认，第一次会弹出提示；每次设备拔插启动Activity
+	2)  主动调用UsbManager.requestPermission
+		无法设备默认，每次设备拔插都会弹出提示；设备拔插不影响
+	3)  修改操作系统放行USB权限
+		APP无需处理或者请求权限不弹出提示(具体跟系统修改方案有关)
+		这种方式体验最好，如果客户的系统可以修改，推荐该方式
+		

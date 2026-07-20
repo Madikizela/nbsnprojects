@@ -20,7 +20,11 @@ import {
   getLegacyQualifications,
   getClientSDPs,
   getOccupationalUnitStandards,
-  getLegacyUnitStandards
+  getLegacyUnitStandards,
+  createOccupationalQualification,
+  createOccupationalUnitStandard,
+  createLegacyQualification,
+  createLegacyUnitStandard
 } from '../services/projectService';
 
 interface ProjectFormData {
@@ -120,6 +124,52 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
   // Search states for qualifications
   const [occupationalQualificationSearch, setOccupationalQualificationSearch] = useState('');
   const [legacyQualificationSearch, setLegacyQualificationSearch] = useState('');
+
+  // Modal states
+  const [showOccupationalQualificationModal, setShowOccupationalQualificationModal] = useState(false);
+  const [showLegacyQualificationModal, setShowLegacyQualificationModal] = useState(false);
+  const [showOccupationalUnitStandardModal, setShowOccupationalUnitStandardModal] = useState(false);
+  const [showLegacyUnitStandardModal, setShowLegacyUnitStandardModal] = useState(false);
+
+  // New qualification data
+  const [newOccupationalQualification, setNewOccupationalQualification] = useState({
+    name: '',
+    level: 0,
+    credits: 0,
+    qualificationType: '',
+    description: '',
+    qualityPartner: '',
+    trade: ''
+  });
+  const [newLegacyQualification, setNewLegacyQualification] = useState({
+    qualificationId: 0,
+    name: '',
+    description: '',
+    level: 0,
+    credits: 0,
+    qualificationType: '',
+    hasCat: 'NO'
+  });
+
+  // New unit standard data
+  const [newOccupationalUnitStandard, setNewOccupationalUnitStandard] = useState({
+    moduleCode: '',
+    unitStandardName: '',
+    moduleType: '',
+    level: 0,
+    credits: 0
+  });
+  const [newLegacyUnitStandard, setNewLegacyUnitStandard] = useState({
+    unitStandardId: 0,
+    unitStandardName: '',
+    level: 0,
+    credits: 0,
+    synced: false
+  });
+
+  // Current qualification for adding unit standards
+  const [currentQualificationIdForUnitStandard, setCurrentQualificationIdForUnitStandard] = useState<number | null>(null);
+  const [currentQualificationTypeForUnitStandard, setCurrentQualificationTypeForUnitStandard] = useState<'occupational' | 'legacy' | null>(null);
 
   // Location state management
   const [availableDistricts, setAvailableDistricts] = useState<District[]>([]);
@@ -472,6 +522,102 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
         };
       })
     }));
+  };
+
+  // Handle creating new occupational qualification
+  const handleCreateOccupationalQualification = async () => {
+    try {
+      const newOq = await createOccupationalQualification(newOccupationalQualification);
+      setOccupationalQualifications(prev => [...prev, newOq]);
+      setShowOccupationalQualificationModal(false);
+      setNewOccupationalQualification({
+        name: '',
+        level: 0,
+        credits: 0,
+        qualificationType: '',
+        description: '',
+        qualityPartner: '',
+        trade: ''
+      });
+    } catch (error) {
+      console.error('Error creating occupational qualification:', error);
+    }
+  };
+
+  // Handle creating new legacy qualification
+  const handleCreateLegacyQualification = async () => {
+    try {
+      const newLq = await createLegacyQualification(newLegacyQualification);
+      setLegacyQualifications(prev => [...prev, newLq]);
+      setShowLegacyQualificationModal(false);
+      setNewLegacyQualification({
+        qualificationId: 0,
+        name: '',
+        description: '',
+        level: 0,
+        credits: 0,
+        qualificationType: '',
+        hasCat: 'NO'
+      });
+    } catch (error) {
+      console.error('Error creating legacy qualification:', error);
+    }
+  };
+
+  // Handle creating new occupational unit standard
+  const handleCreateOccupationalUnitStandard = async () => {
+    if (!currentQualificationIdForUnitStandard) return;
+    try {
+      const newOus = await createOccupationalUnitStandard(
+        currentQualificationIdForUnitStandard,
+        newOccupationalUnitStandard
+      );
+      setUnitStandards(prev => ({
+        ...prev,
+        [currentQualificationIdForUnitStandard]: [
+          ...(prev[currentQualificationIdForUnitStandard] || []),
+          newOus
+        ]
+      }));
+      setShowOccupationalUnitStandardModal(false);
+      setNewOccupationalUnitStandard({
+        moduleCode: '',
+        unitStandardName: '',
+        moduleType: '',
+        level: 0,
+        credits: 0
+      });
+    } catch (error) {
+      console.error('Error creating occupational unit standard:', error);
+    }
+  };
+
+  // Handle creating new legacy unit standard
+  const handleCreateLegacyUnitStandard = async () => {
+    if (!currentQualificationIdForUnitStandard) return;
+    try {
+      const newLus = await createLegacyUnitStandard(
+        currentQualificationIdForUnitStandard,
+        newLegacyUnitStandard
+      );
+      setLegacyUnitStandards(prev => ({
+        ...prev,
+        [currentQualificationIdForUnitStandard]: [
+          ...(prev[currentQualificationIdForUnitStandard] || []),
+          newLus
+        ]
+      }));
+      setShowLegacyUnitStandardModal(false);
+      setNewLegacyUnitStandard({
+        unitStandardId: 0,
+        unitStandardName: '',
+        level: 0,
+        credits: 0,
+        synced: false
+      });
+    } catch (error) {
+      console.error('Error creating legacy unit standard:', error);
+    }
   };
 
   // Filter qualifications based on search
@@ -1210,7 +1356,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
                                 {/* Occupational Qualification */}
                                 {qualification.qualificationTypeId === 2 && (
                                   <div className="col-md-6">
-                                    <label className="form-label small">Occupational Qualification</label>
+                                    <div className="d-flex justify-content-between align-items-center mb-1">
+                                      <label className="form-label small mb-0">Occupational Qualification</label>
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-success"
+                                        onClick={() => setShowOccupationalQualificationModal(true)}
+                                      >
+                                        <i className="bi bi-plus"></i> Add New
+                                      </button>
+                                    </div>
                                     <input
                                       type="text"
                                       className="form-control form-control-sm mb-2"
@@ -1239,7 +1394,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
                                 {/* Legacy Qualification */}
                                 {qualification.qualificationTypeId === 1 && (
                                   <div className="col-md-6">
-                                    <label className="form-label small">Legacy Qualification</label>
+                                    <div className="d-flex justify-content-between align-items-center mb-1">
+                                      <label className="form-label small mb-0">Legacy Qualification</label>
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-success"
+                                        onClick={() => setShowLegacyQualificationModal(true)}
+                                      >
+                                        <i className="bi bi-plus"></i> Add New
+                                      </button>
+                                    </div>
                                     <input
                                       type="text"
                                       className="form-control form-control-sm mb-2"
@@ -1355,11 +1519,24 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
                                 <div className="mt-3">
                                   <div className="d-flex justify-content-between align-items-center mb-2">
                                     <h6 className="mb-0 text-muted">Unit Standards - Select Multiple</h6>
-                                    {loadingUnitStandards[qualification.occupationalQualificationId] && (
-                                      <div className="spinner-border spinner-border-sm text-primary" role="status">
-                                        <span className="visually-hidden">Loading...</span>
-                                      </div>
-                                    )}
+                                    <div className="d-flex align-items-center gap-2">
+                                      {loadingUnitStandards[qualification.occupationalQualificationId] && (
+                                        <div className="spinner-border spinner-border-sm text-primary" role="status">
+                                          <span className="visually-hidden">Loading...</span>
+                                        </div>
+                                      )}
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm btn-outline-success"
+                                        onClick={() => {
+                                          setCurrentQualificationIdForUnitStandard(qualification.occupationalQualificationId);
+                                          setCurrentQualificationTypeForUnitStandard('occupational');
+                                          setShowOccupationalUnitStandardModal(true);
+                                        }}
+                                      >
+                                        <i className="bi bi-plus"></i> Add New
+                                      </button>
+                                    </div>
                                   </div>
                                   {(() => {
                                     const standards = unitStandards[qualification.occupationalQualificationId] || [];
@@ -1473,21 +1650,34 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
                                       <>
                                         <div className="d-flex justify-content-between align-items-center mb-2">
                                           <h6 className="mb-0 text-muted">Legacy Unit Standards - Select Multiple</h6>
-                                          {loadingLegacyUnitStandards[actualQualificationId] && (
-                                            <div className="spinner-border spinner-border-sm text-primary" role="status">
-                                              <span className="visually-hidden">Loading...</span>
-                                            </div>
-                                          )}
-                                          {!loadingLegacyUnitStandards[actualQualificationId] && (
+                                          <div className="d-flex align-items-center gap-2">
+                                            {loadingLegacyUnitStandards[actualQualificationId] && (
+                                              <div className="spinner-border spinner-border-sm text-primary" role="status">
+                                                <span className="visually-hidden">Loading...</span>
+                                              </div>
+                                            )}
                                             <button
                                               type="button"
-                                              className="btn btn-sm btn-outline-danger ms-2"
-                                              onClick={() => removeSyncedLegacyStandards(pathwayIndex, qualIndex)}
-                                              title="Remove all synced unit standards from selection"
+                                              className="btn btn-sm btn-outline-success"
+                                              onClick={() => {
+                                                setCurrentQualificationIdForUnitStandard(actualQualificationId);
+                                                setCurrentQualificationTypeForUnitStandard('legacy');
+                                                setShowLegacyUnitStandardModal(true);
+                                              }}
                                             >
-                                              Remove Synced
+                                              <i className="bi bi-plus"></i> Add New
                                             </button>
-                                          )}
+                                            {!loadingLegacyUnitStandards[actualQualificationId] && (
+                                              <button
+                                                type="button"
+                                                className="btn btn-sm btn-outline-danger"
+                                                onClick={() => removeSyncedLegacyStandards(pathwayIndex, qualIndex)}
+                                                title="Remove all synced unit standards from selection"
+                                              >
+                                                Remove Synced
+                                              </button>
+                                            )}
+                                          </div>
                                         </div>
                                         {(() => {
                                           const standards = legacyUnitStandards[actualQualificationId] || [];
@@ -1638,6 +1828,174 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
           </button>
         </div>
       </form>
+
+      {/* Modal: Add Occupational Qualification */}
+      {showOccupationalQualificationModal && (
+        <div className="modal show d-block" tabIndex={-1} style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Add Occupational Qualification</h5>
+                <button type="button" className="btn-close" onClick={() => setShowOccupationalQualificationModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Name</label>
+                  <input type="text" className="form-control" value={newOccupationalQualification.name} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, name: e.target.value})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Level</label>
+                  <input type="number" className="form-control" value={newOccupationalQualification.level} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, level: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Credits</label>
+                  <input type="number" className="form-control" value={newOccupationalQualification.credits} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, credits: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Qualification Type</label>
+                  <input type="text" className="form-control" value={newOccupationalQualification.qualificationType} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, qualificationType: e.target.value})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Description</label>
+                  <input type="text" className="form-control" value={newOccupationalQualification.description} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, description: e.target.value})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Quality Partner</label>
+                  <input type="text" className="form-control" value={newOccupationalQualification.qualityPartner} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, qualityPartner: e.target.value})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Trade</label>
+                  <input type="text" className="form-control" value={newOccupationalQualification.trade} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, trade: e.target.value})} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowOccupationalQualificationModal(false)}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={handleCreateOccupationalQualification}>Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add Legacy Qualification */}
+      {showLegacyQualificationModal && (
+        <div className="modal show d-block" tabIndex={-1} style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Add Legacy Qualification</h5>
+                <button type="button" className="btn-close" onClick={() => setShowLegacyQualificationModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Qualification ID</label>
+                  <input type="number" className="form-control" value={newLegacyQualification.qualificationId} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, qualificationId: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Name</label>
+                  <input type="text" className="form-control" value={newLegacyQualification.name} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, name: e.target.value})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Description</label>
+                  <input type="text" className="form-control" value={newLegacyQualification.description} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, description: e.target.value})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Level</label>
+                  <input type="number" className="form-control" value={newLegacyQualification.level} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, level: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Credits</label>
+                  <input type="number" className="form-control" value={newLegacyQualification.credits} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, credits: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Qualification Type</label>
+                  <input type="text" className="form-control" value={newLegacyQualification.qualificationType} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, qualificationType: e.target.value})} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowLegacyQualificationModal(false)}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={handleCreateLegacyQualification}>Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add Occupational Unit Standard */}
+      {showOccupationalUnitStandardModal && (
+        <div className="modal show d-block" tabIndex={-1} style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Add Unit Standard</h5>
+                <button type="button" className="btn-close" onClick={() => setShowOccupationalUnitStandardModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Module Code</label>
+                  <input type="text" className="form-control" value={newOccupationalUnitStandard.moduleCode} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, moduleCode: e.target.value})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Unit Standard Name</label>
+                  <input type="text" className="form-control" value={newOccupationalUnitStandard.unitStandardName} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, unitStandardName: e.target.value})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Module Type</label>
+                  <input type="text" className="form-control" value={newOccupationalUnitStandard.moduleType} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, moduleType: e.target.value})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Level</label>
+                  <input type="number" className="form-control" value={newOccupationalUnitStandard.level} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, level: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Credits</label>
+                  <input type="number" className="form-control" value={newOccupationalUnitStandard.credits} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, credits: parseInt(e.target.value) || 0})} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowOccupationalUnitStandardModal(false)}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={handleCreateOccupationalUnitStandard}>Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Add Legacy Unit Standard */}
+      {showLegacyUnitStandardModal && (
+        <div className="modal show d-block" tabIndex={-1} style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Add Legacy Unit Standard</h5>
+                <button type="button" className="btn-close" onClick={() => setShowLegacyUnitStandardModal(false)}></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Unit Standard ID</label>
+                  <input type="number" className="form-control" value={newLegacyUnitStandard.unitStandardId} onChange={(e) => setNewLegacyUnitStandard({...newLegacyUnitStandard, unitStandardId: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Unit Standard Name</label>
+                  <input type="text" className="form-control" value={newLegacyUnitStandard.unitStandardName} onChange={(e) => setNewLegacyUnitStandard({...newLegacyUnitStandard, unitStandardName: e.target.value})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Level</label>
+                  <input type="number" className="form-control" value={newLegacyUnitStandard.level} onChange={(e) => setNewLegacyUnitStandard({...newLegacyUnitStandard, level: parseInt(e.target.value) || 0})} />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Credits</label>
+                  <input type="number" className="form-control" value={newLegacyUnitStandard.credits} onChange={(e) => setNewLegacyUnitStandard({...newLegacyUnitStandard, credits: parseInt(e.target.value) || 0})} />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowLegacyUnitStandardModal(false)}>Cancel</button>
+                <button type="button" className="btn btn-primary" onClick={handleCreateLegacyUnitStandard}>Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

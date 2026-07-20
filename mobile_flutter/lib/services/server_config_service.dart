@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ServerConfigService {
   static const String _keyServerUrl = 'server_url';
   static const String defaultServerUrl =
-      'http://192.168.0.68:5213'; // Updated to current PC IP address
+      'http://192.168.198.166:5213'; // Updated to match backend server IP
 
   /// Returns the saved server URL, or the default if none is saved.
   static Future<String> getServerUrl() async {
@@ -11,7 +11,10 @@ class ServerConfigService {
     final saved = prefs.getString(_keyServerUrl);
     // If saved URL still points to old subnet, reset it
     if (saved != null &&
-        (saved.contains('192.168.4.') || saved.contains('192.168.148.'))) {
+        (saved.contains('192.168.4.') ||
+            saved.contains('192.168.148.') ||
+            saved.contains('10.24.226.') ||
+            saved.contains('192.168.0.'))) {
       await prefs.remove(_keyServerUrl);
       return defaultServerUrl;
     }

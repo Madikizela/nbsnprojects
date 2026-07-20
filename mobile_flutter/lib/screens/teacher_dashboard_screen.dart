@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import 'attendance_details_screen.dart';
 import 'sick_note_upload_screen.dart';
 import 'face_recognition_screen.dart';
+import 'video_conference_setup_screen.dart';
 
 class TeacherDashboardScreen extends StatefulWidget {
   const TeacherDashboardScreen({super.key});
@@ -230,7 +231,9 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                     onTap: () {
                       Navigator.pop(context);
                       final classId = classItem['classId'];
-                      context.push('/classes/$classId/attendance-history');
+                      final className = classItem['className'] ?? 'Class';
+                      context.push(
+                          '/classes/$classId/attendance-history?className=${Uri.encodeComponent(className)}');
                     },
                   ),
                   _buildMenuItem(
@@ -285,6 +288,31 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
                       Navigator.pop(context);
                       final classId = classItem['classId'];
                       context.push('/classes/$classId/learner-evidence');
+                    },
+                  ),
+                  _buildMenuItem(
+                    icon: Icons.video_call,
+                    title: 'Set Video Conference Link',
+                    color: const Color(0xFF10b981),
+                    onTap: () {
+                      Navigator.pop(context);
+                      final rawClassId = classItem['classId'];
+                      final int classId = rawClassId is int
+                          ? rawClassId
+                          : (rawClassId != null
+                              ? int.tryParse(rawClassId.toString()) ?? 0
+                              : 0);
+                      final className =
+                          classItem['className'] ?? 'Unknown Class';
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => VideoConferenceSetupScreen(
+                            classId: classId,
+                            className: className,
+                          ),
+                        ),
+                      );
                     },
                   ),
                   _buildMenuItem(

@@ -118,6 +118,9 @@ class _NoticeBoardScreenState extends State<NoticeBoardScreen> {
   }
 
   Future<void> _deleteNotice(int id) async {
+    final api = context.read<ApiService>();
+    final messenger = ScaffoldMessenger.of(context);
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
@@ -144,12 +147,11 @@ class _NoticeBoardScreenState extends State<NoticeBoardScreen> {
     if (confirmed != true) return;
 
     try {
-      final api = context.read<ApiService>();
       await api.delete('/api/Announcements/$id');
       await _loadNotices();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        messenger.showSnackBar(
           SnackBar(
               content: Text('Failed to delete: $e'),
               backgroundColor: Colors.red),
@@ -157,8 +159,6 @@ class _NoticeBoardScreenState extends State<NoticeBoardScreen> {
       }
     }
   }
-
-  // ── UI ────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {

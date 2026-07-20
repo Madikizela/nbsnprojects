@@ -4,4 +4,6 @@
     <usb-device vendor-id="1491" product-id="32" />
     <!-- Match all Futronic devices -->
     <usb-device vendor-id="1491" />
+    <!-- ZKFinger USB Fingerprint Scanner -->
+    <usb-device vendor-id="7029" /> <!-- 0x1b55 is 7029 in decimal -->
 </resources>

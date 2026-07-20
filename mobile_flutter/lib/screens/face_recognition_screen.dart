@@ -116,8 +116,10 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
 
       // Get current position
       Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.best,
-        timeLimit: const Duration(seconds: 15),
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.best,
+          timeLimit: Duration(seconds: 15),
+        ),
       );
 
       // Calculate distance
@@ -464,6 +466,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
     });
 
     try {
+      final nav = Navigator.of(context);
       final XFile file = await _controller.takePicture();
       final bytes = await File(file.path).readAsBytes();
       img.Image? originalImage = img.decodeImage(bytes);
@@ -477,7 +480,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
 
       if (embedding != null) {
         if (widget.mode == FaceMode.register) {
-          Navigator.pop(context, embedding);
+          nav.pop(embedding);
         } else {
           // Verify mode - Clocking
           // Check location first
@@ -538,8 +541,10 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
       Position? position;
       try {
         position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high,
-          timeLimit: const Duration(seconds: 5),
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 5),
+          ),
         );
       } catch (e) {
         debugPrint('Warning: Could not get precise location for API: $e');
@@ -593,19 +598,22 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
           if (mounted) {
             final pending =
                 await OfflineAttendanceQueue.instance.pendingCount();
-            setState(
-                () => _status = 'Offline — queued for sync ($pending pending)');
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                    '📴 No connection. Attendance saved locally and will sync when online. ($pending queued)'),
-                backgroundColor: Colors.orange,
-                duration: const Duration(seconds: 4),
-              ),
-            );
-            Future.delayed(const Duration(seconds: 3), () {
-              if (mounted) Navigator.pop(context);
-            });
+            if (mounted) {
+              final messenger = ScaffoldMessenger.of(context);
+              setState(() =>
+                  _status = 'Offline — queued for sync ($pending pending)');
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text(
+                      '📴 No connection. Attendance saved locally and will sync when online. ($pending queued)'),
+                  backgroundColor: Colors.orange,
+                  duration: const Duration(seconds: 4),
+                ),
+              );
+              Future.delayed(const Duration(seconds: 3), () {
+                if (mounted) Navigator.pop(context);
+              });
+            }
           }
         } else {
           // Server-side error (4xx/5xx) — don't queue, show the error

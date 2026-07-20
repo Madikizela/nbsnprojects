@@ -146,10 +146,11 @@ const Login: React.FC = () => {
         const isIT = role === '6' || role === '13' || role === 'SDPIT' || deptName.includes('it');
 
         // Route to appropriate dashboard
-        if (isLogistics || isQA || isAdminManager || isFinance || isIT) {
+        if (role === '18' || role === 'ExternalUser') {
+          navigate('/external-portal');
+        } else if (isLogistics || isQA || isAdminManager || isFinance || isIT) {
           navigate('/sdp-manager-dashboard');
         } else if (isSDP) {
-          // If it's a general SDP user with no specific manager role
           navigate('/sdp-dashboard');
         } else if (isClient) {
           navigate('/client-dashboard');

@@ -90,50 +90,52 @@ namespace backend.Controllers
                         .OrderBy(e => e.Learner!.LastName)
                         .ThenBy(e => e.Learner!.FirstName)
                         .Select(e => new LearnerResponseDto
-                        {
-                            Id = e.Learner!.Id,
-                            EnrollmentId = e.Id,
-                            SiteClassId = e.SiteClassId,
-                            ClassName = e.SiteClass != null ? e.SiteClass.ClassName : "",
-                            SiteName = e.SiteClass != null && e.SiteClass.ProjectSite != null ? e.SiteClass.ProjectSite.SiteName : "",
-                            Title = e.Learner.Title,
-                            FirstName = e.Learner.FirstName,
-                            LastName = e.Learner.LastName,
-                            IdNumber = e.Learner.IdNumber,
-                            ContactNumber = e.Learner.ContactNumber,
-                            Email = e.Learner.Email,
-                            DateOfBirth = e.Learner.DateOfBirth,
-                            Age = e.Learner.Age,
-                            Gender = e.Learner.Gender,
-                            Race = e.Learner.Race,
-                            HomeLanguage = e.Learner.HomeLanguage,
-                            Disability = e.Learner.Disability,
-                            AddressLine1 = e.Learner.AddressLine1,
-                            AddressLine2 = e.Learner.AddressLine2,
-                            AddressLine3 = e.Learner.AddressLine3,
-                            PostalCode = e.Learner.PostalCode,
-                            HighSchoolName = e.Learner.HighSchoolName,
-                            YearOfCompletion = e.Learner.YearOfCompletion,
-                            SchoolLocation = e.Learner.SchoolLocation,
-                            HighestGradePassed = e.Learner.HighestGradePassed,
-                            NextOfKinName = e.Learner.NextOfKinName,
-                            NextOfKinRelation = e.Learner.NextOfKinRelation,
-                            NextOfKinContactNumber = e.Learner.NextOfKinContactNumber,
-                            BankName = e.Learner.BankName,
-                            AccountType = e.Learner.AccountType,
-                            AccountNumber = e.Learner.AccountNumber,
-                            BranchCode = e.Learner.BranchCode,
-                            ProfilePhotoPath = e.Learner.ProfilePhotoPath,
-                            Status = e.Status,
-                            EnrollmentDate = e.EnrollmentDate,
-                            CompletionDate = e.CompletionDate,
-                            LeftThumbTemplate = e.Learner.LeftThumbTemplate,
-                            RightThumbTemplate = e.Learner.RightThumbTemplate,
-                            SignaturePath = e.Learner.SignaturePath,
-                            CreatedAt = e.Learner.CreatedAt,
-                            UpdatedAt = e.Learner.UpdatedAt,
-                            CreatedByUserName = e.CreatedByUser != null ? (e.CreatedByUser.FirstName + " " + e.CreatedByUser.LastName) : null
-                        })
+                {
+                    Id = e.Learner!.Id,
+                    EnrollmentId = e.Id,
+                    SiteClassId = e.SiteClassId,
+                    ClassName = e.SiteClass != null ? e.SiteClass.ClassName : "",
+                    SiteName = e.SiteClass != null && e.SiteClass.ProjectSite != null ? e.SiteClass.ProjectSite.SiteName : "",
+                    Title = e.Learner.Title,
+                    FirstName = e.Learner.FirstName,
+                    LastName = e.Learner.LastName,
+                    IdNumber = e.Learner.IdNumber,
+                    ContactNumber = e.Learner.ContactNumber,
+                    Email = e.Learner.Email,
+                    DateOfBirth = e.Learner.DateOfBirth,
+                    Age = e.Learner.Age,
+                    Gender = e.Learner.Gender,
+                    Race = e.Learner.Race,
+                    HomeLanguage = e.Learner.HomeLanguage,
+                    Disability = e.Learner.Disability,
+                    AddressLine1 = e.Learner.AddressLine1,
+                    AddressLine2 = e.Learner.AddressLine2,
+                    AddressLine3 = e.Learner.AddressLine3,
+                    PostalCode = e.Learner.PostalCode,
+                    HighSchoolName = e.Learner.HighSchoolName,
+                    YearOfCompletion = e.Learner.YearOfCompletion,
+                    SchoolLocation = e.Learner.SchoolLocation,
+                    HighestGradePassed = e.Learner.HighestGradePassed,
+                    NextOfKinName = e.Learner.NextOfKinName,
+                    NextOfKinRelation = e.Learner.NextOfKinRelation,
+                    NextOfKinContactNumber = e.Learner.NextOfKinContactNumber,
+                    BankName = e.Learner.BankName,
+                    AccountType = e.Learner.AccountType,
+                    AccountNumber = e.Learner.AccountNumber,
+                    BranchCode = e.Learner.BranchCode,
+                    ProfilePhotoPath = e.Learner.ProfilePhotoPath,
+                    Status = e.Status,
+                    EnrollmentDate = e.EnrollmentDate,
+                    CompletionDate = e.CompletionDate,
+                    LeftThumbTemplate = e.Learner.LeftThumbTemplate,
+                    RightThumbTemplate = e.Learner.RightThumbTemplate,
+                    LeftThumbTemplateZk = e.Learner.LeftThumbTemplateZk,
+                    RightThumbTemplateZk = e.Learner.RightThumbTemplateZk,
+                    SignaturePath = e.Learner.SignaturePath,
+                    CreatedAt = e.Learner.CreatedAt,
+                    UpdatedAt = e.Learner.UpdatedAt,
+                    CreatedByUserName = e.CreatedByUser != null ? (e.CreatedByUser.FirstName + " " + e.CreatedByUser.LastName) : null
+                })
                         .ToListAsync();
 
                     return Ok(enrollments);
@@ -833,6 +835,12 @@ namespace backend.Controllers
                 return BadRequest(new { message = "Invalid fingerprint type. Must be 'LeftThumb' or 'RightThumb'" });
             }
 
+            // Validate scanner type
+            if (dto.ScannerType != "Futronic" && dto.ScannerType != "ZKTECO")
+            {
+                return BadRequest(new { message = "Invalid scanner type. Must be 'Futronic' or 'ZKTECO'" });
+            }
+
             // Validate template data
             if (string.IsNullOrEmpty(dto.TemplateData))
             {
@@ -840,21 +848,36 @@ namespace backend.Controllers
             }
 
             // Update learner record
-            if (dto.FingerprintType == "LeftThumb")
+            if (dto.ScannerType == "Futronic")
             {
-                learner.LeftThumbTemplate = dto.TemplateData;
+                if (dto.FingerprintType == "LeftThumb")
+                {
+                    learner.LeftThumbTemplate = dto.TemplateData;
+                }
+                else
+                {
+                    learner.RightThumbTemplate = dto.TemplateData;
+                }
             }
-            else
+            else // ZKTECO
             {
-                learner.RightThumbTemplate = dto.TemplateData;
+                if (dto.FingerprintType == "LeftThumb")
+                {
+                    learner.LeftThumbTemplateZk = dto.TemplateData;
+                }
+                else
+                {
+                    learner.RightThumbTemplateZk = dto.TemplateData;
+                }
             }
 
             learner.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
             return Ok(new { 
-                message = $"{dto.FingerprintType} registered successfully",
-                fingerprintType = dto.FingerprintType
+                message = $"{dto.FingerprintType} registered successfully for {dto.ScannerType}",
+                fingerprintType = dto.FingerprintType,
+                scannerType = dto.ScannerType
             });
         }
 
@@ -870,8 +893,12 @@ namespace backend.Controllers
 
             return Ok(new {
                 learnerId = id,
-                hasLeftThumb = !string.IsNullOrEmpty(learner.LeftThumbTemplate),
-                hasRightThumb = !string.IsNullOrEmpty(learner.RightThumbTemplate)
+                // Futronic fingerprints
+                hasLeftThumbFutronic = !string.IsNullOrEmpty(learner.LeftThumbTemplate),
+                hasRightThumbFutronic = !string.IsNullOrEmpty(learner.RightThumbTemplate),
+                // ZKTECO fingerprints
+                hasLeftThumbZkteco = !string.IsNullOrEmpty(learner.LeftThumbTemplateZk),
+                hasRightThumbZkteco = !string.IsNullOrEmpty(learner.RightThumbTemplateZk)
             });
         }
 
@@ -914,7 +941,8 @@ namespace backend.Controllers
 public class RegisterFingerprintDto
 {
     public string FingerprintType { get; set; } = string.Empty; // "LeftThumb" or "RightThumb"
-    public string TemplateData { get; set; } = string.Empty; // Base64 encoded ANSI template
+    public string ScannerType { get; set; } = string.Empty; // "Futronic" or "ZKTECO"
+    public string TemplateData { get; set; } = string.Empty; // Base64 encoded template
 }
 
 // DTO for face embedding registration

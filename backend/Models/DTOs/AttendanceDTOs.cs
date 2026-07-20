@@ -45,6 +45,9 @@ namespace backend.Models.DTOs
         [Required]
         public string FingerprintTemplate { get; set; } = string.Empty; // Base64 template
 
+        [Required]
+        public string ScannerType { get; set; } = "Futronic"; // "Futronic" or "ZKTECO"
+
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
 

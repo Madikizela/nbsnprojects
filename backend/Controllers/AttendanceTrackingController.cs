@@ -3,6 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using backend.Models;
 using backend.Models.DTOs;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 
 namespace backend.Controllers
 {
@@ -635,6 +638,572 @@ namespace backend.Controllers
             var dayOfWeek = (int)date.DayOfWeek;
             var daysFromMonday = dayOfWeek == 0 ? 6 : dayOfWeek - 1; // Sunday = 0, so 6 days from Monday
             return date.AddDays(-daysFromMonday);
+        }
+
+        // GET: api/AttendanceTracking/learner/{learnerId}/calendar
+        [HttpGet("learner/{learnerId}/calendar")]
+        public async Task<ActionResult<LearnerAttendanceCalendarDto>> GetLearnerAttendanceCalendar(
+            int learnerId,
+            [FromQuery] int year,
+            [FromQuery] int month)
+        {
+            try
+            {
+                // Validate inputs
+                if (year < 2020 || year > 2100 || month < 1 || month > 12)
+                {
+                    return BadRequest(new { message = "Invalid year or month" });
+                }
+
+                var learner = await _context.Learners
+                    .Include(l => l.ClassEnrollments!)
+                        .ThenInclude(ce => ce.SiteClass!)
+                            .ThenInclude(sc => sc.ProjectSite!)
+                                .ThenInclude(ps => ps.Project)
+                                    .ThenInclude(p => p!.ProjectLearningPathways)
+                                        .ThenInclude(plp => plp.LearningPathway)
+                    .Include(l => l.ClassEnrollments!)
+                        .ThenInclude(ce => ce.SiteClass!)
+                            .ThenInclude(sc => sc.CreatedByUser)
+                    .FirstOrDefaultAsync(l => l.Id == learnerId);
+
+                if (learner == null)
+                {
+                    return NotFound(new { message = "Learner not found" });
+                }
+
+                // Get active enrollment
+                var activeEnrollment = learner.ClassEnrollments?
+                    .FirstOrDefault(ce => ce.Status == "Active");
+
+                if (activeEnrollment?.SiteClass == null)
+                {
+                    return NotFound(new { message = "No active class enrollment found" });
+                }
+
+                var projectSite = activeEnrollment.SiteClass.ProjectSite;
+                var project = projectSite?.Project;
+
+                var startDate = new DateTime(year, month, 1);
+                var endDate = startDate.AddMonths(1).AddDays(-1);
+
+                // Get all attendance records for the month - join with Learner to get signature
+                var attendanceRecords = await _context.LearnerAttendances
+                    .Where(la => la.LearnerId == learnerId &&
+                                la.AttendanceDate >= startDate &&
+                                la.AttendanceDate <= endDate)
+                    .OrderBy(la => la.AttendanceDate)
+                    .ToListAsync();
+
+                // Build calendar days - use learner signature for present days
+                var calendarDays = new List<CalendarDayDto>();
+                for (var date = startDate; date <= endDate; date = date.AddDays(1))
+                {
+                    var attendance = attendanceRecords.FirstOrDefault(ar => ar.AttendanceDate.Date == date.Date);
+                    
+                    // Use learner's signature if present, otherwise use attendance signature
+                    string? signaturePath = null;
+                    if (attendance != null && (attendance.Status == "Present" || attendance.Status == "Late"))
+                    {
+                        signaturePath = !string.IsNullOrEmpty(learner.SignaturePath) 
+                            ? learner.SignaturePath 
+                            : attendance.SignaturePath;
+                    }
+                    
+                    var day = new CalendarDayDto
+                    {
+                        Date = date,
+                        Day = date.Day,
+                        DayOfWeek = date.DayOfWeek.ToString(),
+                        Status = attendance != null ? attendance.Status : "No Record",
+                        ClockInTime = attendance?.ClockInTime,
+                        ClockOutTime = attendance?.ClockOutTime,
+                        SignaturePath = signaturePath,
+                        ContactHours = attendance?.ClockInTime != null && attendance?.ClockOutTime != null
+                            ? Math.Round((attendance.ClockOutTime.Value - attendance.ClockInTime.Value).TotalHours, 2)
+                            : null,
+                        Notes = attendance?.Notes,
+                        IsWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday
+                    };
+
+                    calendarDays.Add(day);
+                }
+
+                // Calculate statistics - include past days with no records as absent
+                var today = DateTime.Today;
+                var presentDays = attendanceRecords.Count(ar => ar.Status == "Present" && ar.ClockInTime.HasValue);
+                var recordedAbsentDays = attendanceRecords.Count(ar => ar.Status == "Absent");
+                
+                // Count past working days with no attendance record as absent
+                var pastDaysNoRecord = calendarDays.Count(cd => 
+                    cd.Date < today && 
+                    !cd.IsWeekend && 
+                    cd.Status == "No Record");
+                
+                var totalAbsentDays = recordedAbsentDays + pastDaysNoRecord;
+                
+                var lateDays = attendanceRecords.Count(ar => ar.Status == "Late");
+                var totalContactHours = attendanceRecords
+                    .Where(ar => ar.ClockInTime.HasValue && ar.ClockOutTime.HasValue)
+                    .Sum(ar => (ar.ClockOutTime!.Value - ar.ClockInTime!.Value).TotalHours);
+
+                var workingDays = calendarDays.Count(cd => !cd.IsWeekend && cd.Date <= today);
+                var invalidAttendanceDays = attendanceRecords.Count(ar => ar.Status == "Invalid");
+                var holidayDays = 0; // Can be enhanced later
+
+                // Get unit standards/learning materials for the learner's class  
+                var unitStandards = new List<string>(); // Will be populated from learning materials if available
+
+                var result = new LearnerAttendanceCalendarDto
+                {
+                    LearnerId = learnerId,
+                    FirstName = learner.FirstName,
+                    LastName = learner.LastName,
+                    IdNumber = learner.IdNumber,
+                    Gender = learner.Gender,
+                    Telephone = learner.ContactNumber,
+                    Address = $"{learner.AddressLine1} {learner.AddressLine2} {learner.AddressLine3}".Trim(),
+                    ProfilePhotoPath = learner.ProfilePhotoPath,
+                    SignaturePath = learner.SignaturePath,
+                    
+                    // Project Details
+                    ProjectName = project?.ProjectName,
+                    Pathway = project?.ProjectLearningPathways?.FirstOrDefault()?.LearningPathway?.Name,
+                    Province = !string.IsNullOrWhiteSpace(projectSite?.Province) ? projectSite!.Province : null,
+                    SiteName = projectSite?.SiteName,
+                    
+                    // Class Details
+                    ClassName = activeEnrollment.SiteClass.ClassName,
+                    TeacherName = activeEnrollment.SiteClass.CreatedByUser != null
+                        ? $"{activeEnrollment.SiteClass.CreatedByUser.FirstName} {activeEnrollment.SiteClass.CreatedByUser.LastName}"
+                        : null,
+                    TeacherEmail = activeEnrollment.SiteClass.CreatedByUser?.Email,
+                    TeacherSignaturePath = activeEnrollment.SiteClass.CreatedByUser?.Signature,
+                    TeacherProfileImagePath = activeEnrollment.SiteClass.CreatedByUser?.ProfileImage,
+                    QualificationLevel = null, // To be populated from class data
+                    
+                    // Unit Standards
+                    UnitStandards = unitStandards,
+                    
+                    // Calendar Data
+                    Year = year,
+                    Month = month,
+                    MonthName = new DateTime(year, month, 1).ToString("MMMM"),
+                    CalendarDays = calendarDays,
+                    
+                    // Statistics
+                    PresentDays = presentDays,
+                    AbsentDays = totalAbsentDays,
+                    LateDays = lateDays,
+                    TotalContactHours = Math.Round(totalContactHours, 2),
+                    AttendanceRate = workingDays > 0
+                        ? Math.Round((double)presentDays / workingDays * 100, 2)
+                        : 0,
+                    ExpectedAttendance = workingDays,
+                    ActualAttendance = presentDays,
+                    DaysAbsent = totalAbsentDays,
+                    InvalidAttendance = invalidAttendanceDays,
+                    Holidays = holidayDays,
+                    ApprovedSickDays = 0, // Can be enhanced later
+                    PendingSickDays = 0   // Can be enhanced later
+                };
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching learner attendance calendar for learner {LearnerId}", learnerId);
+                return StatusCode(500, new { message = "An error occurred while fetching attendance calendar" });
+            }
+        }
+
+        // GET: api/AttendanceTracking/learner/{learnerId}/calendar/pdf
+        [HttpGet("learner/{learnerId}/calendar/pdf")]
+        public async Task<IActionResult> ExportLearnerAttendanceCalendarPdf(
+            int learnerId,
+            [FromQuery] int year,
+            [FromQuery] int month)
+        {
+            try
+            {
+                // Reuse the existing calendar endpoint logic
+                var calendarEndpoint = await GetLearnerAttendanceCalendar(learnerId, year, month);
+                
+                if (calendarEndpoint.Result is not OkObjectResult okResult || okResult.Value is not LearnerAttendanceCalendarDto calendarData)
+                {
+                    return BadRequest(new { message = "Could not fetch calendar data" });
+                }
+
+                // Generate PDF
+                // Pre-calculate layout so cells fill the page
+                var firstDayOfMonth = new DateTime(year, month, 1);
+                int startDayOffset = ((int)firstDayOfMonth.DayOfWeek + 6) % 7; // Monday=0
+                int totalCells = calendarData.CalendarDays.Count + startDayOffset;
+                int totalRows = (int)Math.Ceiling(totalCells / 7.0);
+                
+                // A4 Landscape = 297 x 210 mm. With margin 10mm each side:
+                // Usable width = 277mm, usable height = 190mm
+                // Header ~14mm, footer ~8mm, paddingTop ~3mm, legend ~9mm = 156mm for calendar
+                // Header row of days = 10mm, remaining split into totalRows
+                float calendarCellHeight = (float)Math.Floor((156f - 10f) / totalRows);
+
+                var document = QuestPDF.Fluent.Document.Create(container =>
+                {
+                    container.Page(page =>
+                    {
+                        page.Size(PageSizes.A4.Landscape());
+                        page.Margin(10);
+                        page.PageColor("#0f172a");
+                       
+                        page.Header().Column(column =>
+                        {
+                            column.Item().Background("#1e3a8a").Padding(4).Row(headerRow =>
+                            {
+                                headerRow.RelativeItem().Column(leftCol =>
+                                {
+                                    leftCol.Item().Text("Attendance Calendar").FontSize(12).Bold().FontColor(Colors.White);
+                                    var startDate = new DateTime(year, month, 1);
+                                    var endDate = startDate.AddMonths(1).AddDays(-1);
+                                    leftCol.Item().Text($"{calendarData.MonthName} {calendarData.Year}  ·  Period {startDate:yyyy.MM.dd} – {endDate:yyyy.MM.dd}")
+                                        .FontSize(7).FontColor(Colors.White);
+                                });
+                                headerRow.RelativeItem().AlignRight().Column(rightCol =>
+                                {
+                                    rightCol.Item().AlignRight().Text("NBSN Project").FontSize(11).Bold().FontColor(Colors.White);
+                                    rightCol.Item().AlignRight().Text("Attendance Management System").FontSize(6).FontColor(Colors.White);
+                                });
+                            });
+                        });
+
+                        page.Content().PaddingTop(3).Row(row =>
+                        {
+                            // LEFT SIDE - Calendar (70% width)
+                            row.RelativeItem(70).Column(column =>
+                            {
+                                // Calendar Grid
+                                column.Item().Table(table =>
+                                {
+                                    table.ColumnsDefinition(cols => { for (int i = 0; i < 7; i++) cols.RelativeColumn(); });
+                                    table.ExtendLastCellsToTableBottom();
+
+                                    // Day-of-week header row
+                                    foreach (var d in new[] { "MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN" })
+                                    {
+                                        table.Cell().Border(1).BorderColor("#1e3a8a")
+                                            .Background("#1e3a8a").MinHeight(10f)
+                                            .AlignCenter().AlignMiddle()
+                                            .Text(d).FontSize(8).Bold().FontColor(Colors.White);
+                                    }
+
+                                    // Empty leading cells
+                                    for (int i = 0; i < startDayOffset; i++)
+                                        table.Cell().Border(1).BorderColor("#070d17")
+                                            .Background("#070d17").MinHeight(calendarCellHeight).Text("");
+
+                                    var today = DateTime.Today;
+                                    foreach (var day in calendarData.CalendarDays)
+                                    {
+                                        var dayDate = new DateTime(calendarData.Year, calendarData.Month, day.Day);
+                                        bool isFuture = dayDate > today;
+                                        bool isAbsentNoRecord = day.Status == "No Record" && !isFuture && !day.IsWeekend;
+
+                                        // Match modal colors exactly
+                                        string bg, border, textColor, statusText;
+                                        if (day.IsWeekend)           { bg = "#0a0f1a"; border = "#1e293b"; textColor = "#475569"; statusText = "WKND"; }
+                                        else if (day.Status == "Present") { bg = "#064e3b"; border = "#10b981"; textColor = "#6ee7b7"; statusText = "PRESENT"; }
+                                        else if (day.Status == "Absent" || isAbsentNoRecord) { bg = "#7f1d1d"; border = "#ef4444"; textColor = "#fca5a5"; statusText = "ABSENT"; }
+                                        else if (day.Status == "Late") { bg = "#78350f"; border = "#f59e0b"; textColor = "#fcd34d"; statusText = "LATE"; }
+                                        else if (isFuture)           { bg = "#1e293b"; border = "#334155"; textColor = "#94a3b8"; statusText = "PENDING"; }
+                                        else                         { bg = "#1e293b"; border = "#334155"; textColor = "#94a3b8"; statusText = ""; }
+
+                                        table.Cell().Border(1).BorderColor(border)
+                                            .Background(bg).MinHeight(calendarCellHeight).Padding(3).Column(col =>
+                                        {
+                                            col.Item().Text(day.Day.ToString()).FontSize(8).Bold().FontColor(Colors.White);
+
+                                            if (!string.IsNullOrEmpty(statusText))
+                                                col.Item().AlignCenter().PaddingTop(2).Text(statusText)
+                                                    .FontSize(7).Bold().FontColor(textColor);
+
+                                            if ((day.Status == "Present" || day.Status == "Late") && day.ClockInTime.HasValue && day.ClockOutTime.HasValue)
+                                            {
+                                                col.Item().AlignCenter().PaddingTop(1).Text(
+                                                    $"{day.ClockInTime.Value:HH:mm} – {day.ClockOutTime.Value:HH:mm}")
+                                                    .FontSize(5).FontColor(textColor);
+                                                if (day.ContactHours.HasValue && day.ContactHours > 0)
+                                                    col.Item().AlignCenter().Text($"{day.ContactHours:F2}h")
+                                                        .FontSize(5).FontColor("#93c5fd");
+                                            }
+                                        });
+                                    }
+
+                                    // Fill trailing empty cells to complete last row
+                                    int filled = startDayOffset + calendarData.CalendarDays.Count;
+                                    int remainder = filled % 7;
+                                    if (remainder != 0)
+                                        for (int i = 0; i < 7 - remainder; i++)
+                                            table.Cell().Border(1).BorderColor("#070d17")
+                                                .Background("#070d17").MinHeight(calendarCellHeight).Text("");
+                                });
+
+                                // Legend - dark theme
+                                column.Item().PaddingTop(4).Row(leg =>
+                                {
+                                    leg.AutoItem().PaddingRight(6).Text("Legend:").FontSize(7).Bold().FontColor(Colors.White);
+                                    foreach (var (label, bg, border) in new (string, string, string)[] {
+                                        ("Present", "#064e3b", "#10b981"),
+                                        ("Absent",  "#7f1d1d", "#ef4444"),
+                                        ("Late",    "#78350f", "#f59e0b"),
+                                        ("Pending", "#1e293b", "#475569"),
+                                        ("Weekend", "#0a0f1a", "#1e293b") })
+                                    {
+                                        leg.AutoItem().PaddingRight(6).Row(r =>
+                                        {
+                                            r.AutoItem().Width(12).Height(10).Background(bg).Border(1).BorderColor(border);
+                                            r.AutoItem().PaddingLeft(2).Text(label).FontSize(6).FontColor(Colors.White);
+                                        });
+                                    }
+                                });
+
+                                // Signatures below legend
+                                column.Item().PaddingTop(6).Row(sigRow =>
+                                {
+                                    string? ResolvePath(string? storedPath)
+                                    {
+                                        if (string.IsNullOrEmpty(storedPath)) return null;
+                                        var clean = storedPath.TrimStart('/', '\\').Replace('\\', Path.DirectorySeparatorChar);
+                                        var full = Path.Combine(Directory.GetCurrentDirectory(), clean);
+                                        return System.IO.File.Exists(full) ? full : null;
+                                    }
+
+                                    void RenderSig(ColumnDescriptor sig, string label, string? storedPath, string signerName)
+                                    {
+                                        sig.Item().Text(label).FontSize(6).FontColor("#94a3b8");
+                                        var resolved = ResolvePath(storedPath);
+                                        if (resolved != null)
+                                        {
+                                            try
+                                            {
+                                                var sigBytes = System.IO.File.ReadAllBytes(resolved);
+                                                sig.Item().PaddingTop(2).Background(Colors.White).Padding(2)
+                                                    .Height(25).Width(80).Image(sigBytes).FitArea();
+                                            }
+                                            catch
+                                            {
+                                                sig.Item().PaddingTop(2).Height(25).Width(80)
+                                                    .Background("#1e293b").Border(1).BorderColor("#334155");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            sig.Item().PaddingTop(2).Height(25).Width(80)
+                                                .Background("#1e293b").Border(1).BorderColor("#334155")
+                                                .AlignCenter().AlignMiddle().Text("No signature").FontSize(6).FontColor("#94a3b8");
+                                        }
+                                        sig.Item().PaddingTop(2).BorderTop(1).BorderColor("#334155")
+                                            .Text(signerName).FontSize(6).FontColor(Colors.White);
+                                    }
+
+                                    // Learner Signature
+                                    sigRow.RelativeItem().Column(sig =>
+                                        RenderSig(sig, "Learner Signature:", calendarData.SignaturePath,
+                                            $"{calendarData.FirstName} {calendarData.LastName}"));
+
+                                    sigRow.ConstantItem(10);
+
+                                    // Facilitator Signature
+                                    sigRow.RelativeItem().Column(sig =>
+                                        RenderSig(sig, "Facilitator Signature:", calendarData.TeacherSignaturePath,
+                                            calendarData.TeacherName ?? "Facilitator"));
+                                });
+                            });
+
+                            row.ConstantItem(6);
+
+                            // RIGHT SIDE - Info Panel (30% width) - matches modal exactly
+                            row.RelativeItem(30).Column(column =>
+                            {
+                                // Learner photo + name header
+                                column.Item().Background("#1e3a8a").Padding(5).Column(header =>
+                                {
+                                    if (!string.IsNullOrEmpty(calendarData.ProfilePhotoPath))
+                                    {
+                                        try
+                                        {
+                                            var cleanPath = calendarData.ProfilePhotoPath
+                                                .TrimStart('/', '\\')
+                                                .Replace('\\', Path.DirectorySeparatorChar)
+                                                .Replace('/', Path.DirectorySeparatorChar);
+                                            var fullPath = Path.Combine(Directory.GetCurrentDirectory(), cleanPath);
+                                            
+                                            if (System.IO.File.Exists(fullPath))
+                                            {
+                                                var rawBytes = System.IO.File.ReadAllBytes(fullPath);
+                                                byte[] circularBytes = rawBytes; // fallback
+
+                                                try
+                                                {
+                                                    // Draw circular image using SkiaSharp - output as PNG
+                                                    using var srcBitmap = SkiaSharp.SKBitmap.Decode(rawBytes);
+                                                    if (srcBitmap != null)
+                                                    {
+                                                        const int size = 54;
+                                                        using var surface = SkiaSharp.SKSurface.Create(
+                                                            new SkiaSharp.SKImageInfo(size, size, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul));
+                                                        var canvas = surface.Canvas;
+                                                        canvas.Clear(SkiaSharp.SKColors.Transparent);
+
+                                                        // Clip to circle
+                                                        using var circlePath = new SkiaSharp.SKPath();
+                                                        circlePath.AddCircle(size / 2f, size / 2f, size / 2f);
+                                                        canvas.ClipPath(circlePath, SkiaSharp.SKClipOperation.Intersect, true);
+
+                                                        // Draw image scaled to fill
+                                                        var destRect = SkiaSharp.SKRect.Create(0, 0, size, size);
+                                                        canvas.DrawBitmap(srcBitmap, destRect);
+                                                        canvas.Flush();
+
+                                                        using var snapImage = surface.Snapshot();
+                                                        using var pngData = snapImage.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+                                                        circularBytes = pngData.ToArray();
+                                                    }
+                                                }
+                                                catch { /* use raw bytes */ }
+
+                                                header.Item().AlignCenter().Width(54).Height(54).Image(circularBytes).FitArea();
+                                            }
+                                        }
+                                        catch { /* skip photo */ }
+                                    }
+                                    header.Item().AlignCenter().PaddingTop(3)
+                                        .Text($"{calendarData.FirstName} {calendarData.LastName}")
+                                        .FontSize(10).Bold().FontColor(Colors.White);
+                                });
+
+                                // ── PROJECT DETAILS ──
+                                column.Item().PaddingTop(3)
+                                    .Text("PROJECT DETAILS").FontSize(7).Bold().FontColor("#3b82f6");
+
+                                column.Item().PaddingTop(2).Column(col =>
+                                {
+                                    void InfoRow(string label, string? value)
+                                    {
+                                        col.Item().PaddingBottom(2).Row(r =>
+                                        {
+                                            r.ConstantItem(55).Text(label).FontSize(6).FontColor("#94a3b8");
+                                            r.RelativeItem().Text(value ?? "N/A").FontSize(6).FontColor(Colors.White);
+                                        });
+                                    }
+                                    InfoRow("Pathway:", calendarData.Pathway);
+                                    InfoRow("Province:", calendarData.Province);
+                                    InfoRow("Project:", calendarData.ProjectName);
+                                    InfoRow("Site:", calendarData.SiteName);
+                                });
+
+                                // ── CLASS & FACILITATOR ──
+                                column.Item().PaddingTop(4).BorderTop(1).BorderColor("#334155")
+                                    .PaddingTop(3).Text("CLASS & FACILITATOR").FontSize(7).Bold().FontColor("#3b82f6");
+
+                                column.Item().PaddingTop(2).Column(col =>
+                                {
+                                    void InfoRow(string label, string? value)
+                                    {
+                                        col.Item().PaddingBottom(2).Row(r =>
+                                        {
+                                            r.ConstantItem(55).Text(label).FontSize(6).FontColor("#94a3b8");
+                                            r.RelativeItem().Text(value ?? "N/A").FontSize(6).FontColor(Colors.White);
+                                        });
+                                    }
+                                    InfoRow("Class:", calendarData.ClassName);
+                                    InfoRow("Facilitator:", calendarData.TeacherName);
+                                    InfoRow("Email:", calendarData.TeacherEmail);
+                                });
+
+                                // ── LEARNER ──
+                                column.Item().PaddingTop(4).BorderTop(1).BorderColor("#334155")
+                                    .PaddingTop(3).Text("LEARNER").FontSize(7).Bold().FontColor("#3b82f6");
+
+                                column.Item().PaddingTop(2).Column(col =>
+                                {
+                                    void InfoRow(string label, string? value)
+                                    {
+                                        col.Item().PaddingBottom(2).Row(r =>
+                                        {
+                                            r.ConstantItem(55).Text(label).FontSize(6).FontColor("#94a3b8");
+                                            r.RelativeItem().Text(value ?? "N/A").FontSize(6).FontColor(Colors.White);
+                                        });
+                                    }
+                                    InfoRow("ID:", calendarData.IdNumber);
+                                    InfoRow("Gender:", calendarData.Gender);
+                                    InfoRow("Phone:", calendarData.Telephone);
+                                    col.Item().PaddingBottom(2).Column(c =>
+                                    {
+                                        c.Item().Text("Address:").FontSize(6).FontColor("#94a3b8");
+                                        c.Item().Text(calendarData.Address ?? "N/A").FontSize(6).FontColor(Colors.White);
+                                    });
+                                });
+
+                                // ── ATTENDANCE STATISTICS ──
+                                column.Item().PaddingTop(4).BorderTop(1).BorderColor("#334155")
+                                    .PaddingTop(3).Text("ATTENDANCE STATISTICS").FontSize(7).Bold().FontColor("#3b82f6");
+
+                                column.Item().PaddingTop(2).Column(statsCol =>
+                                {
+                                    void StatPair(string l1, string v1, string bar1, string l2, string v2, string bar2)
+                                    {
+                                        statsCol.Item().PaddingBottom(2).Row(r =>
+                                        {
+                                            r.RelativeItem().Border(1).BorderColor("#334155").Background("#0f172a").Padding(3).Row(inner =>
+                                            {
+                                                inner.ConstantItem(3).Background(bar1);
+                                                inner.RelativeItem().PaddingLeft(4).AlignCenter().Column(c =>
+                                                {
+                                                    c.Item().Text(v1).FontSize(10).Bold().FontColor(Colors.White);
+                                                    c.Item().Text(l1).FontSize(5).FontColor("#94a3b8");
+                                                });
+                                            });
+                                            r.RelativeItem().Border(1).BorderColor("#334155").Background("#0f172a").Padding(3).Row(inner =>
+                                            {
+                                                inner.ConstantItem(3).Background(bar2);
+                                                inner.RelativeItem().PaddingLeft(4).AlignCenter().Column(c =>
+                                                {
+                                                    c.Item().Text(v2).FontSize(10).Bold().FontColor(Colors.White);
+                                                    c.Item().Text(l2).FontSize(5).FontColor("#94a3b8");
+                                                });
+                                            });
+                                        });
+                                    }
+
+                                    var attendanceRate = $"{calendarData.AttendanceRate:F2}%";
+                                    StatPair("Expected", calendarData.ExpectedAttendance.ToString(), "#06b6d4",
+                                             "Actual",   calendarData.ActualAttendance.ToString(),   "#10b981");
+                                    StatPair("Absent",   calendarData.DaysAbsent.ToString(),         "#ef4444",
+                                             "Rate",     attendanceRate,                              "#3b82f6");
+                                    StatPair("Holidays", calendarData.Holidays.ToString(),            "#8b5cf6",
+                                             "Sick",     calendarData.ApprovedSickDays.ToString(),    "#f59e0b");
+                                });
+                            });
+                        });
+
+                        page.Footer().BorderTop(1).BorderColor("#334155").PaddingTop(3).Row(f =>
+                        {
+                            f.RelativeItem().AlignLeft().Text($"Facilitator: {calendarData.TeacherName ?? "N/A"}").FontSize(6).Italic().FontColor("#94a3b8");
+                            f.RelativeItem().AlignCenter().Text("NBSN Project · Attendance Management").FontSize(6).SemiBold().FontColor("#3b82f6");
+                            f.RelativeItem().AlignRight().Text($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm}").FontSize(6).Italic().FontColor("#94a3b8");
+                        });
+                    });
+                });
+
+                var pdfBytes = document.GeneratePdf();
+                var fileName = $"Attendance_Calendar_{calendarData.FirstName}_{calendarData.LastName}_{calendarData.Year}_{calendarData.Month:D2}.pdf";
+
+                return File(pdfBytes, "application/pdf", fileName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating PDF for learner {LearnerId}", learnerId);
+                return StatusCode(500, new { message = "An error occurred while generating PDF" });
+            }
         }
     }
 }

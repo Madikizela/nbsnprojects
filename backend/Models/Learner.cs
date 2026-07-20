@@ -111,9 +111,17 @@ namespace backend.Models
 
         public bool MustChangePassword { get; set; } = true;
 
-        // Fingerprint Data (Base64 encoded ANSI templates)
-        public string? LeftThumbTemplate { get; set; }
-        public string? RightThumbTemplate { get; set; }
+        // Password Reset
+        [StringLength(255)]
+        public string? PasswordResetToken { get; set; }
+
+        public DateTime? PasswordResetTokenExpiry { get; set; }
+
+        // Fingerprint Data (Base64 encoded templates)
+        public string? LeftThumbTemplate { get; set; } // Futronic ANSI template
+        public string? RightThumbTemplate { get; set; } // Futronic ANSI template
+        public string? LeftThumbTemplateZk { get; set; } // ZKTECO template
+        public string? RightThumbTemplateZk { get; set; } // ZKTECO template
 
         // Face Recognition
         public string? FaceEmbedding { get; set; } // JSON serialized List<double>

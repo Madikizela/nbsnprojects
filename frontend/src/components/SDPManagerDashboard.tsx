@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SignatureCanvas from 'react-signature-canvas';
 import FunderReport from './FunderReport';
+import LearningMaterialsSection from './LearningMaterialsSection';
+import ExternalUsersManager from './ExternalUsersManager';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
@@ -543,13 +545,16 @@ interface LearnerProgress {
 const SDPManagerDashboard: React.FC = () => {
   console.log('SDPManagerDashboard: Component rendered/re-rendered');
   
+  // API base URL constant
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:5213';
+  
   const navigate = useNavigate();
   const location = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'reports' | 'team' | 'tasks' | 'attendanceTracking' | 'documentApprovals' | 'sickNotes' | 'marking' | 'moderation' | 'assessmentPlan' | 'candidatePreparation' | 'assessorReport' | 'systemLogs' | 'allUsers'>((location.state as any)?.section || 'overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'reports' | 'team' | 'tasks' | 'attendanceTracking' | 'documentApprovals' | 'sickNotes' | 'marking' | 'moderation' | 'assessmentPlan' | 'candidatePreparation' | 'assessorReport' | 'systemLogs' | 'allUsers' | 'externalUsers'>((location.state as any)?.section || 'overview');
   const [dataLoading, setDataLoading] = useState(false);
   const [expandedProjects, setExpandedProjects] = useState<{[key: number]: boolean}>({});
   const [projectDetails, setProjectDetails] = useState<{[key: number]: any}>({});
@@ -757,6 +762,22 @@ const SDPManagerDashboard: React.FC = () => {
   const [attendanceViewMode, setAttendanceViewMode] = useState<'daily' | 'weekly'>('daily');
   const [weekStartDate, setWeekStartDate] = useState<string>(getMondayOfCurrentWeek());
 
+  // Learner Attendance Modal state
+  const [showLearnerAttendanceModal, setShowLearnerAttendanceModal] = useState(false);
+  const [selectedLearnerForAttendance, setSelectedLearnerForAttendance] = useState<any>(null);
+  const [learnerAttendanceData, setLearnerAttendanceData] = useState<any>(null);
+  const [learnerAttendanceLoading, setLearnerAttendanceLoading] = useState(false);
+  const [learnerAttendanceStartDate, setLearnerAttendanceStartDate] = useState<string>(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  const [learnerAttendanceEndDate, setLearnerAttendanceEndDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  // Attendance Calendar Modal state
+  const [showAttendanceCalendar, setShowAttendanceCalendar] = useState(false);
+  const [calendarData, setCalendarData] = useState<any>(null);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth() + 1);
+  const [selectedLearnerId, setSelectedLearnerId] = useState<number | null>(null);
+
   // QA Metrics state (for Quality Assurance Managers)
   const [qaMetrics, setQaMetrics] = useState<any | null>(null);
   const [qaMetricsLoading, setQaMetricsLoading] = useState(false);
@@ -863,6 +884,7 @@ const SDPManagerDashboard: React.FC = () => {
 
   // Helper function for authenticated fetch with 401 handling
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
+    console.log('fetchWithAuth called with url:', url);
     const token = localStorage.getItem('token');
     if (!token) {
       console.error('No token found, redirecting to login');
@@ -875,8 +897,12 @@ const SDPManagerDashboard: React.FC = () => {
       'Authorization': `Bearer ${token}`
     };
 
+    // Prepend API base URL if it doesn't already start with http
+    const apiUrl = url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL || 'http://localhost:5213'}${url}`;
+    console.log('Using apiUrl:', apiUrl);
+
     try {
-      const response = await fetch(url, { ...options, headers });
+      const response = await fetch(apiUrl, { ...options, headers });
       if (response.status === 401) {
         console.error('Unauthorized access (401), redirecting to login');
         localStorage.removeItem('token');
@@ -1068,6 +1094,7 @@ const SDPManagerDashboard: React.FC = () => {
   const [showStatsBreakdown, setShowStatsBreakdown] = useState(false);
   const [documentFilterStatus, setDocumentFilterStatus] = useState<string>('All');
   const [bulkDownloading, setBulkDownloading] = useState(false);
+  const [bulkAttendanceDownloading, setBulkAttendanceDownloading] = useState(false);
 
   // Filter projects based on assignments for Assessors and Moderators
   const filteredProjects = useMemo(() => {
@@ -1482,6 +1509,7 @@ const SDPManagerDashboard: React.FC = () => {
   }, [learnerProgress, markingProjectDetails, markingLearnerId]);
 
   const compilePOE = async (learnerId: number) => {
+    console.log('compilePOE called with learnerId:', learnerId);
     try {
       const response = await fetchWithAuth(`/api/POE/compile/${learnerId}`);
       if (response && response.ok) {
@@ -4039,6 +4067,59 @@ const SDPManagerDashboard: React.FC = () => {
     }
   };
 
+  // ─── Attendance Calendar Functions ──────────────────────────────────────
+  const openAttendanceCalendar = async (learnerId: number) => {
+    setSelectedLearnerId(learnerId);
+    setShowAttendanceCalendar(true);
+    await fetchLearnerAttendanceCalendar(learnerId, calendarYear, calendarMonth);
+  };
+
+  const fetchLearnerAttendanceCalendar = async (learnerId: number, year: number, month: number) => {
+    setCalendarLoading(true);
+    try {
+      const response = await fetchWithAuth(`/api/AttendanceTracking/learner/${learnerId}/calendar?year=${year}&month=${month}`);
+      
+      if (response && response.ok) {
+        const data = await response.json();
+        setCalendarData(data);
+      } else {
+        console.error('Failed to fetch attendance calendar');
+        setCalendarData(null);
+      }
+    } catch (error) {
+      console.error('Error fetching attendance calendar:', error);
+      setCalendarData(null);
+    } finally {
+      setCalendarLoading(false);
+    }
+  };
+
+  const changeCalendarMonth = (direction: 'prev' | 'next') => {
+    let newMonth = calendarMonth;
+    let newYear = calendarYear;
+
+    if (direction === 'prev') {
+      newMonth--;
+      if (newMonth < 1) {
+        newMonth = 12;
+        newYear--;
+      }
+    } else {
+      newMonth++;
+      if (newMonth > 12) {
+        newMonth = 1;
+        newYear++;
+      }
+    }
+
+    setCalendarMonth(newMonth);
+    setCalendarYear(newYear);
+
+    if (selectedLearnerId) {
+      fetchLearnerAttendanceCalendar(selectedLearnerId, newYear, newMonth);
+    }
+  };
+
   const exportStipendSchedule = async (projectId: number) => {
     try {
       const date = new Date(attendanceStartDate);
@@ -4062,6 +4143,47 @@ const SDPManagerDashboard: React.FC = () => {
     } catch (error) {
       console.error('Error exporting stipend:', error);
       alert('An error occurred during export');
+    }
+  };
+
+  // Bulk download: all projects for the current SDP as a ZIP (monthly + stipend)
+  const handleBulkAttendanceDownload = async (_currentProjectId: number) => {
+    setBulkAttendanceDownloading(true);
+    try {
+      const date = new Date(attendanceStartDate);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+
+      // Collect all project IDs visible to this user
+      const ids = filteredProjects.map((p: any) => p.id).join(',');
+      if (!ids) {
+        alert('No projects found to download.');
+        return;
+      }
+
+      // Show a modal-style date picker? For now use attendanceStartDate's month.
+      const url = `/api/AttendanceExport/bulk-download?year=${year}&month=${month}&projectIds=${ids}&includeStipend=true&dailyRate=150`;
+      const response = await fetchWithAuth(url);
+
+      if (response && response.ok) {
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `Bulk_Attendance_${year}_${String(month).padStart(2, '0')}_${Date.now()}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(downloadUrl);
+        document.body.removeChild(a);
+      } else if (response) {
+        const txt = await response.text();
+        alert(`Bulk download failed: ${txt}`);
+      }
+    } catch (error) {
+      console.error('Error in bulk attendance download:', error);
+      alert('An error occurred during bulk download');
+    } finally {
+      setBulkAttendanceDownloading(false);
     }
   };
 
@@ -4351,6 +4473,8 @@ const SDPManagerDashboard: React.FC = () => {
       </div>
     </div>
   );
+
+  const renderExternalUsers = () => <ExternalUsersManager fetchWithAuth={fetchWithAuth} />;
 
   const renderAllUsers = () => (
     <div className="card border-0 shadow-lg">
@@ -7161,8 +7285,20 @@ const SDPManagerDashboard: React.FC = () => {
       {/* Project Selection */}
       {!selectedAttendanceProject ? (
         <div className="card border-0 shadow-lg">
-          <div className="card-header border-0" style={{ backgroundColor: "#4facfe", color: 'white' }}>
+          <div className="card-header border-0 d-flex justify-content-between align-items-center" style={{ backgroundColor: "#4facfe", color: 'white' }}>
             <h5 className="mb-0">📁 Select Project to Track Attendance</h5>
+            <button
+              className="btn btn-light btn-sm fw-semibold d-flex align-items-center gap-2"
+              onClick={() => handleBulkAttendanceDownload(0)}
+              disabled={bulkAttendanceDownloading}
+              title={`Download attendance for all ${filteredProjects.length} project(s) as a ZIP — uses the selected month`}
+            >
+              {bulkAttendanceDownloading ? (
+                <><span className="spinner-border spinner-border-sm" />Preparing...</>
+              ) : (
+                <>📦 Bulk Download All</>
+              )}
+            </button>
           </div>
           <div className="card-body">
             {attendanceLoading ? (
@@ -7272,7 +7408,7 @@ const SDPManagerDashboard: React.FC = () => {
                     </small>
                   </div>
                 </div>
-                <div className="d-flex gap-2">
+                <div className="d-flex gap-2 flex-wrap">
                   <button
                     className="btn btn-success"
                     onClick={() => exportMonthlyAttendance(selectedAttendanceProject.projectId)}
@@ -7286,6 +7422,18 @@ const SDPManagerDashboard: React.FC = () => {
                     disabled={attendanceLoading}
                   >
                     💰 Excel Stipend
+                  </button>
+                  <button
+                    className="btn btn-warning text-dark fw-semibold"
+                    onClick={() => handleBulkAttendanceDownload(selectedAttendanceProject.projectId)}
+                    disabled={bulkAttendanceDownloading}
+                    title="Download attendance + stipend for ALL projects as a ZIP"
+                  >
+                    {bulkAttendanceDownloading ? (
+                      <><span className="spinner-border spinner-border-sm me-1" />Preparing ZIP...</>
+                    ) : (
+                      <>📦 Bulk Download All Projects</>
+                    )}
                   </button>
                   <button
                     className="btn btn-primary"
@@ -7520,6 +7668,7 @@ const SDPManagerDashboard: React.FC = () => {
                           <th>Clock Out</th>
                           <th>Contact Time</th>
                           <th>Verified</th>
+                          <th>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -7570,6 +7719,15 @@ const SDPManagerDashboard: React.FC = () => {
                                 <small className="text-muted">-</small>
                               )}
                             </td>
+                            <td>
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => openAttendanceCalendar(learner.learnerId)}
+                                title="View Attendance Calendar"
+                              >
+                                📅 View Attendance
+                              </button>
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -7584,13 +7742,13 @@ const SDPManagerDashboard: React.FC = () => {
                       <div key={learner.learnerId} className="card mb-3 border-0 shadow-sm">
                         <div className="card-header bg-light">
                           <div className="row align-items-center">
-                            <div className="col-md-6">
+                            <div className="col-md-5">
                               <h6 className="mb-0">
                                 <strong>{learner.firstName} {learner.lastName}</strong>
                                 <small className="text-muted ms-2">{learner.idNumber}</small>
                               </h6>
                             </div>
-                            <div className="col-md-6">
+                            <div className="col-md-5">
                               <div className="row text-center">
                                 <div className="col-3">
                                   <div className="text-success">
@@ -7617,6 +7775,15 @@ const SDPManagerDashboard: React.FC = () => {
                                   </div>
                                 </div>
                               </div>
+                            </div>
+                            <div className="col-md-2 text-end">
+                              <button
+                                className="btn btn-sm btn-primary"
+                                onClick={() => openAttendanceCalendar(learner.learnerId)}
+                                title="View Attendance Calendar"
+                              >
+                                📅 Calendar
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -8788,6 +8955,15 @@ const SDPManagerDashboard: React.FC = () => {
         </div>
       </div>
     );
+  };
+
+  const renderLearningMaterials = () => {
+    return <LearningMaterialsSection
+      filteredProjects={filteredProjects}
+      projectDetails={projectDetails}
+      fetchWithAuth={fetchWithAuth}
+      baseApiUrl={import.meta.env.VITE_API_URL || 'http://localhost:5213'}
+    />;
   };
 
   const renderAssessorReport = () => {
@@ -10530,6 +10706,41 @@ const SDPManagerDashboard: React.FC = () => {
                     <span>Candidate Preparation</span>
                   </button>
                 )}
+                
+                {/* Learning Materials - Only for QA Managers */}
+                {(isQA) && (
+                  <button
+                    className={`nav-link text-start border-0 ${activeSection === 'learningMaterials' ? 'active' : ''}`}
+                    style={{
+                      color: '#ffffff',
+                      backgroundColor: activeSection === 'learningMaterials' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                      padding: '12px 16px',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      fontWeight: activeSection === 'learningMaterials' ? 600 : 400,
+                      transition: 'all 0.2s ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => setActiveSection('learningMaterials')}
+                    onMouseEnter={(e) => {
+                      if (activeSection !== 'learningMaterials') {
+                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (activeSection !== 'learningMaterials') {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    <span style={{ fontSize: '1.2rem' }}>📚</span>
+                    <span>Learning Materials</span>
+                  </button>
+                )}
+                
                 {(isQA) && (
                   <button
                     className={`nav-link text-start border-0 ${activeSection === 'assessorReport' ? 'active' : ''}`}
@@ -10750,6 +10961,25 @@ const SDPManagerDashboard: React.FC = () => {
                       <span>User Management</span>
                     </button>
                     <button
+                      className={`nav-link text-start border-0 ${activeSection === 'externalUsers' ? 'active' : ''}`}
+                      style={{
+                        color: '#ffffff',
+                        backgroundColor: activeSection === 'externalUsers' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
+                        padding: '12px 16px',
+                        borderRadius: '8px',
+                        fontSize: '0.95rem',
+                        fontWeight: activeSection === 'externalUsers' ? 600 : 400,
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px'
+                      }}
+                      onClick={() => setActiveSection('externalUsers')}
+                    >
+                      <span style={{ fontSize: '1.2rem' }}>🏢</span>
+                      <span>External Users</span>
+                    </button>
+                    <button
                       className={`nav-link text-start border-0 ${activeSection === 'systemLogs' ? 'active' : ''}`}
                       style={{
                         color: '#ffffff',
@@ -10828,6 +11058,7 @@ const SDPManagerDashboard: React.FC = () => {
               {activeSection === 'moderation' && renderMarking()}
               {activeSection === 'assessmentPlan' && renderAssessmentPlan()}
               {activeSection === 'candidatePreparation' && renderCandidatePreparation()}
+              {activeSection === 'learningMaterials' && isQA && renderLearningMaterials()}
               {activeSection === 'assessorReport' && renderAssessorReport()}
               {activeSection === 'reports' && (isAdmin || isQA) && <FunderReport token={localStorage.getItem('token') || ''} />}
               {activeSection === 'sickNotes' && (isAdmin || isFinance) && renderSickNotes()}
@@ -10835,6 +11066,7 @@ const SDPManagerDashboard: React.FC = () => {
               {activeSection === 'documentApprovals' && (!isAssessor && (!isModerator || isQA)) && renderDocumentApprovals()}
               {activeSection === 'allUsers' && isIT && renderAllUsers()}
               {activeSection === 'systemLogs' && isIT && renderSystemLogs()}
+              {activeSection === 'externalUsers' && isIT && renderExternalUsers()}
             </div>
           </div>
         </div>
@@ -13284,6 +13516,266 @@ const SDPManagerDashboard: React.FC = () => {
                   <button type="submit" className="btn btn-danger">Decline Sick Note</button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Attendance Calendar Modal */}
+      {showAttendanceCalendar && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}>
+          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '95vw', margin: '10px auto' }}>
+            <div className="modal-content" style={{ backgroundColor: '#0f172a', color: 'white', maxHeight: '95vh', display: 'flex', flexDirection: 'column' }}>
+              
+              {/* Header */}
+              <div className="modal-header py-2" style={{ borderBottom: '1px solid #334155', backgroundColor: '#1e3a8a', flexShrink: 0 }}>
+                <h6 className="modal-title mb-0 d-flex align-items-center gap-2">
+                  📅 <span>Attendance Calendar</span>
+                  {calendarData && <span className="text-light">— {calendarData.firstName} {calendarData.lastName}</span>}
+                </h6>
+                <button type="button" className="btn-close btn-close-white" onClick={() => { setShowAttendanceCalendar(false); setCalendarData(null); }}></button>
+              </div>
+
+              <div className="modal-body p-2" style={{ overflowY: 'auto', flex: 1 }}>
+                {calendarLoading ? (
+                  <div className="text-center py-5">
+                    <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
+                    <p className="mt-3">Loading attendance calendar...</p>
+                  </div>
+                ) : calendarData ? (
+                  <div className="row g-2" style={{ minHeight: 0 }}>
+                    {/* LEFT COLUMN - Calendar */}
+                    <div className="col-lg-8">
+
+                      {/* Month Navigation - compact */}
+                      <div className="d-flex justify-content-between align-items-center mb-2 px-1">
+                        <button className="btn btn-outline-light btn-sm py-0 px-2" style={{ fontSize: '0.75rem' }} onClick={() => changeCalendarMonth('prev')}>← Prev</button>
+                        <div className="text-center">
+                          <span className="fw-bold" style={{ fontSize: '0.9rem' }}>{calendarData.monthName} {calendarData.year}</span>
+                          <span className="text-muted ms-2" style={{ fontSize: '0.7rem' }}>
+                            {calendarData.year}/{String(calendarData.month).padStart(2,'0')}/01 – {calendarData.year}/{String(calendarData.month).padStart(2,'0')}/{new Date(calendarData.year, calendarData.month, 0).getDate()}
+                          </span>
+                        </div>
+                        <button className="btn btn-outline-light btn-sm py-0 px-2" style={{ fontSize: '0.75rem' }} onClick={() => changeCalendarMonth('next')}>Next →</button>
+                      </div>
+
+                    {/* Calendar Grid */}
+                    <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '8px' }}>
+                      {/* Days of Week Header */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', marginBottom: '3px' }}>
+                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
+                          <div key={day} className="text-center py-1 fw-bold" style={{ fontSize: '0.7rem', color: 'white', backgroundColor: '#1e3a8a', borderRadius: '4px' }}>
+                            {day}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Calendar Days - chunked into weeks */}
+                      {(() => {
+                        const firstDay = new Date(calendarData.year, calendarData.month - 1, 1);
+                        let startOffset = firstDay.getDay();
+                        startOffset = startOffset === 0 ? 6 : startOffset - 1;
+
+                        // Build flat array: nulls for offset + actual days
+                        const allCells: (any | null)[] = [];
+                        for (let i = 0; i < startOffset; i++) allCells.push(null);
+                        calendarData.calendarDays.forEach((d: any) => allCells.push(d));
+                        // Pad end to complete last row
+                        while (allCells.length % 7 !== 0) allCells.push(null);
+
+                        // Split into weeks
+                        const weeks: (any | null)[][] = [];
+                        for (let i = 0; i < allCells.length; i += 7) weeks.push(allCells.slice(i, i + 7));
+
+                        const today = new Date(); today.setHours(0,0,0,0);
+
+                        return weeks.map((week, wi) => (
+                          <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', marginBottom: '3px' }}>
+                            {week.map((day, di) => {
+                              if (!day) return (
+                                <div key={`e-${wi}-${di}`} style={{ minHeight: '72px', backgroundColor: '#070d17', borderRadius: '4px' }} />
+                              );
+
+                              const isWeekend = day.isWeekend;
+                              const isPresent = day.status === 'Present';
+                              const isAbsent = day.status === 'Absent';
+                              const isLate = day.status === 'Late';
+                              const dayDate = new Date(calendarData.year, calendarData.month - 1, day.day);
+                              const isFuture = dayDate > today;
+                              // Past working days with no record = absent
+                              const isAbsentNoRecord = day.status === 'No Record' && !isFuture && !isWeekend;
+
+                              let bg = '#1e293b', border = '#334155', textColor = '#94a3b8';
+                              let statusText = isFuture && !isWeekend ? 'PENDING' : '';
+                              if (isWeekend) { bg = '#0a0f1a'; border = '#1e293b'; textColor = '#475569'; statusText = 'WKND'; }
+                              if (isPresent) { bg = '#064e3b'; border = '#10b981'; textColor = '#6ee7b7'; statusText = 'PRESENT'; }
+                              if (isAbsent || isAbsentNoRecord)  { bg = '#7f1d1d'; border = '#ef4444'; textColor = '#fca5a5'; statusText = 'ABSENT'; }
+                              if (isLate)    { bg = '#78350f'; border = '#f59e0b'; textColor = '#fcd34d'; statusText = 'LATE'; }
+
+                              return (
+                                <div key={day.date} style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '4px', minHeight: '72px', padding: '4px' }}>
+                                  <div style={{ color: 'white', fontSize: '0.75rem', fontWeight: 'bold' }}>{day.day}</div>
+                                  <div style={{ color: textColor, fontSize: '0.6rem', fontWeight: 'bold', textAlign: 'center' }}>{statusText}</div>
+                                  {(isPresent || isLate) && day.clockInTime && day.clockOutTime && (
+                                    <div style={{ color: textColor, fontSize: '0.55rem', textAlign: 'center', lineHeight: 1.3, marginTop: '2px' }}>
+                                      {new Date(day.clockInTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+                                      {' – '}
+                                      {new Date(day.clockOutTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+                                      {day.contactHours > 0 && <div style={{ color: '#93c5fd' }}>{day.contactHours}h</div>}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ));
+                      })()}
+
+                      {/* Legend - compact */}
+                      <div className="d-flex gap-2 mt-2 flex-wrap" style={{ fontSize: '0.7rem' }}>
+                        {[['#064e3b','#10b981','Present'],['#7f1d1d','#ef4444','Absent'],['#78350f','#f59e0b','Late'],['#1e293b','#475569','Pending'],['#0a0f1a','#1e293b','Weekend']].map(([bg,border,label]) => (
+                          <div key={label} className="d-flex align-items-center gap-1">
+                            <div style={{ width: '12px', height: '12px', backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '2px' }}></div>
+                            <span>{label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT COLUMN - Learner Information */}
+                  <div className="col-lg-4">
+                    <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', padding: '10px', fontSize: '0.8rem' }}>
+                      
+                      {/* Learner Name & Photo */}
+                      <div className="text-center mb-2 pb-2" style={{ borderBottom: '1px solid #334155' }}>
+                        {calendarData.profilePhotoPath ? (
+                          <img src={`${API}/${calendarData.profilePhotoPath}`} alt="Profile"
+                            style={{ width: '55px', height: '55px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #3b82f6' }}
+                            onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
+                        ) : (
+                          <div style={{ width: '55px', height: '55px', borderRadius: '50%', backgroundColor: '#0f172a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #3b82f6', fontSize: '24px' }}>👤</div>
+                        )}
+                        <div className="fw-bold text-white mt-1" style={{ fontSize: '0.85rem' }}>{calendarData.firstName} {calendarData.lastName}</div>
+                      </div>
+
+                      {/* Project Details */}
+                      <div className="mb-2">
+                        <div className="fw-bold text-primary mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Project Details</div>
+                        {[['Pathway', calendarData.pathway],['Province', calendarData.province],['Project', calendarData.projectName],['Site', calendarData.siteName]].map(([lbl,val]) => (
+                          <div key={lbl} className="d-flex justify-content-between mb-1">
+                            <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{lbl}:</span>
+                            <span className="text-white text-end" style={{ maxWidth: '60%', fontSize: '0.75rem' }}>{val || 'N/A'}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Class & Teacher Details */}
+                      <div className="mb-2 pt-1" style={{ borderTop: '1px solid #334155' }}>
+                        <div className="fw-bold text-primary mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Class & Facilitator</div>
+                        {[['Class', calendarData.className],['Facilitator', calendarData.teacherName],['Email', calendarData.teacherEmail]].map(([lbl,val]) => (
+                          <div key={lbl} className="d-flex justify-content-between mb-1">
+                            <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{lbl}:</span>
+                            <span className="text-white text-end" style={{ maxWidth: '65%', fontSize: '0.75rem', wordBreak: 'break-all' }}>{val || 'N/A'}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Learner Details */}
+                      <div className="mb-2 pt-1" style={{ borderTop: '1px solid #334155' }}>
+                        <div className="fw-bold text-primary mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Learner</div>
+                        {[['ID', calendarData.idNumber],['Gender', calendarData.gender],['Phone', calendarData.telephone]].map(([lbl,val]) => (
+                          <div key={lbl} className="d-flex justify-content-between mb-1">
+                            <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{lbl}:</span>
+                            <span className="text-white" style={{ fontSize: '0.75rem' }}>{val || 'N/A'}</span>
+                          </div>
+                        ))}
+                        <div className="mt-1">
+                          <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Address:</span>
+                          <div className="text-white" style={{ fontSize: '0.7rem' }}>{calendarData.address || 'N/A'}</div>
+                        </div>
+                      </div>
+
+                      {/* Attendance Statistics */}
+                      <div className="pt-1" style={{ borderTop: '1px solid #334155' }}>
+                        <div className="fw-bold text-primary mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Attendance Statistics</div>
+                        <div className="row g-1">
+                          {[
+                            ['Expected', calendarData.expectedAttendance ?? 0, '#06b6d4'],
+                            ['Actual',   calendarData.actualAttendance ?? calendarData.presentDays ?? 0, '#10b981'],
+                            ['Absent',   calendarData.daysAbsent ?? calendarData.absentDays ?? 0, '#ef4444'],
+                            ['Rate',     `${calendarData.attendanceRate ?? 0}%`, '#3b82f6'],
+                            ['Holidays', calendarData.holidays ?? 0, '#8b5cf6'],
+                            ['Sick',     calendarData.approvedSickDays ?? 0, '#f59e0b'],
+                          ].map(([lbl, val, color]) => (
+                            <div key={String(lbl)} className="col-6">
+                              <div className="rounded p-1 text-center" style={{ backgroundColor: '#0f172a', borderLeft: `3px solid ${color}` }}>
+                                <div className="fw-bold text-white" style={{ fontSize: '0.9rem' }}>{val}</div>
+                                <div style={{ fontSize: '0.6rem', color: '#94a3b8' }}>{lbl}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-5">
+                    <div className="display-1 mb-3">📅</div>
+                    <h5>No Calendar Data</h5>
+                    <p className="text-muted">Unable to load attendance calendar</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="modal-footer py-2" style={{ borderTop: '1px solid #334155', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={async () => {
+                    if (calendarData) {
+                      try {
+                        const response = await fetchWithAuth(
+                          `/api/AttendanceTracking/learner/${calendarData.learnerId}/calendar/pdf?year=${calendarYear}&month=${calendarMonth}`
+                        );
+                        
+                        if (response && response.ok) {
+                          const blob = await response.blob();
+                          const url = window.URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `Attendance_Calendar_${calendarData.firstName}_${calendarData.lastName}_${calendarYear}_${String(calendarMonth).padStart(2, '0')}.pdf`;
+                          document.body.appendChild(a);
+                          a.click();
+                          window.URL.revokeObjectURL(url);
+                          document.body.removeChild(a);
+                        } else {
+                          alert('Failed to generate PDF');
+                        }
+                      } catch (error) {
+                        console.error('Error downloading PDF:', error);
+                        alert('An error occurred while generating PDF');
+                      }
+                    }
+                  }}
+                  disabled={!calendarData}
+                >
+                  <i className="bi bi-file-pdf me-2"></i>
+                  Download PDF
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setShowAttendanceCalendar(false);
+                    setCalendarData(null);
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

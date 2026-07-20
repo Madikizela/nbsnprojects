@@ -66,6 +66,9 @@ namespace backend.Models
         public DbSet<LearnerAssessmentAnswer> LearnerAssessmentAnswers { get; set; }
         public DbSet<LearnerAssessmentProgress> LearnerAssessmentProgress { get; set; }
         
+        // Learning Content System Entities
+        public DbSet<LearningMaterial> LearningMaterials { get; set; }
+        
         // Site Management System Entities
         public DbSet<ProjectSite> ProjectSites { get; set; }
         public DbSet<SiteClass> SiteClasses { get; set; }
@@ -81,6 +84,9 @@ namespace backend.Models
 
         // Notice Board
         public DbSet<Announcement> Announcements { get; set; }
+        
+        // External User Access
+        public DbSet<ExternalUserAccess> ExternalUserAccess { get; set; }
         
         // Legacy Assessment System Entities
         public DbSet<AssessmentType> AssessmentTypes { get; set; }
