@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const API = 'http://192.168.0.53:5213';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5213';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 function authHeaders(token: string) {
