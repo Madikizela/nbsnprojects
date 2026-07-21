@@ -676,6 +676,19 @@ namespace backend.Controllers
                 var activeEnrollment = learner.ClassEnrollments?
                     .FirstOrDefault(ce => ce.Status == "Active");
 
+                // Look up the assigned teacher from ClassTeachers for the active class
+                // (preferred over CreatedByUser since CreatedByUser is the manager)
+                User? assignedTeacher = null;
+                if (activeEnrollment?.SiteClassId != null)
+                {
+                    var classTeacher = await _context.ClassTeachers
+                        .Include(ct => ct.Teacher)
+                        .Where(ct => ct.ClassId == activeEnrollment.SiteClassId && ct.IsActive)
+                        .OrderByDescending(ct => ct.AssignedDate)
+                        .FirstOrDefaultAsync();
+                    assignedTeacher = classTeacher?.Teacher;
+                }
+
                 if (activeEnrollment?.SiteClass == null)
                 {
                     return NotFound(new { message = "No active class enrollment found" });
@@ -769,17 +782,25 @@ namespace backend.Controllers
                     // Project Details
                     ProjectName = project?.ProjectName,
                     Pathway = project?.ProjectLearningPathways?.FirstOrDefault()?.LearningPathway?.Name,
-                    Province = !string.IsNullOrWhiteSpace(projectSite?.Province) ? projectSite!.Province : null,
+                    Province = !string.IsNullOrWhiteSpace(projectSite?.Province)
+                        ? projectSite!.Province
+                        : project?.Province,
                     SiteName = projectSite?.SiteName,
                     
-                    // Class Details
+                    // Class Details — prefer the assigned teacher from ClassTeachers over the class creator
                     ClassName = activeEnrollment.SiteClass.ClassName,
-                    TeacherName = activeEnrollment.SiteClass.CreatedByUser != null
-                        ? $"{activeEnrollment.SiteClass.CreatedByUser.FirstName} {activeEnrollment.SiteClass.CreatedByUser.LastName}"
-                        : null,
-                    TeacherEmail = activeEnrollment.SiteClass.CreatedByUser?.Email,
-                    TeacherSignaturePath = activeEnrollment.SiteClass.CreatedByUser?.Signature,
-                    TeacherProfileImagePath = activeEnrollment.SiteClass.CreatedByUser?.ProfileImage,
+                    TeacherName = assignedTeacher != null
+                        ? $"{assignedTeacher.FirstName} {assignedTeacher.LastName}"
+                        : (activeEnrollment.SiteClass.CreatedByUser != null
+                            ? $"{activeEnrollment.SiteClass.CreatedByUser.FirstName} {activeEnrollment.SiteClass.CreatedByUser.LastName}"
+                            : null),
+                    TeacherEmail = assignedTeacher?.Email
+                        ?? activeEnrollment.SiteClass.CreatedByUser?.Email,
+                    TeacherSignaturePath = !string.IsNullOrEmpty(assignedTeacher?.Signature)
+                        ? assignedTeacher!.Signature
+                        : activeEnrollment.SiteClass.CreatedByUser?.Signature,
+                    TeacherProfileImagePath = assignedTeacher?.ProfileImage
+                        ?? activeEnrollment.SiteClass.CreatedByUser?.ProfileImage,
                     QualificationLevel = null, // To be populated from class data
                     
                     // Unit Standards
@@ -979,20 +1000,35 @@ namespace backend.Controllers
                                     void RenderSig(ColumnDescriptor sig, string label, string? storedPath, string signerName)
                                     {
                                         sig.Item().Text(label).FontSize(6).FontColor("#94a3b8");
-                                        var resolved = ResolvePath(storedPath);
-                                        if (resolved != null)
+                                        
+                                        byte[]? sigBytes = null;
+                                        
+                                        // Handle base64 encoded signature (stored directly in DB)
+                                        if (!string.IsNullOrEmpty(storedPath) && storedPath.Length > 200)
                                         {
                                             try
                                             {
-                                                var sigBytes = System.IO.File.ReadAllBytes(resolved);
-                                                sig.Item().PaddingTop(2).Background(Colors.White).Padding(2)
-                                                    .Height(25).Width(80).Image(sigBytes).FitArea();
+                                                // Strip data URI prefix if present
+                                                var base64 = storedPath.Contains(',') ? storedPath.Split(',')[1] : storedPath;
+                                                sigBytes = Convert.FromBase64String(base64);
                                             }
-                                            catch
+                                            catch { sigBytes = null; }
+                                        }
+                                        else
+                                        {
+                                            // Handle file path
+                                            var resolved = ResolvePath(storedPath);
+                                            if (resolved != null)
                                             {
-                                                sig.Item().PaddingTop(2).Height(25).Width(80)
-                                                    .Background("#1e293b").Border(1).BorderColor("#334155");
+                                                try { sigBytes = System.IO.File.ReadAllBytes(resolved); }
+                                                catch { sigBytes = null; }
                                             }
+                                        }
+
+                                        if (sigBytes != null)
+                                        {
+                                            sig.Item().PaddingTop(2).Background(Colors.White).Padding(2)
+                                                .Height(25).Width(80).Image(sigBytes).FitArea();
                                         }
                                         else
                                         {

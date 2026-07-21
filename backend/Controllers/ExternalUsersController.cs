@@ -589,6 +589,16 @@ namespace backend.Controllers
                 if (learner == null) return null;
                 var enrollment = learner.ClassEnrollments?.FirstOrDefault(ce => ce.Status == "Active");
                 if (enrollment?.SiteClass == null) return null;
+
+                // Look up the assigned teacher from ClassTeachers
+                User? assignedTeacher = null;
+                var classTeacher = await _context.ClassTeachers
+                    .Include(ct => ct.Teacher)
+                    .Where(ct => ct.ClassId == enrollment.SiteClassId && ct.IsActive)
+                    .OrderByDescending(ct => ct.AssignedDate)
+                    .FirstOrDefaultAsync();
+                assignedTeacher = classTeacher?.Teacher;
+
                 var projectSite = enrollment.SiteClass.ProjectSite;
                 var project = projectSite?.Project;
                 var startDate = new DateTime(year, month, 1);
@@ -616,17 +626,30 @@ namespace backend.Controllers
                 var absentDays = records.Count(r => r.Status == "Absent")
                     + calendarDays.Count(cd => cd.Date < today && !cd.IsWeekend && cd.Status == "No Record");
                 var workingDays = calendarDays.Count(cd => !cd.IsWeekend && cd.Date <= today);
+
+                // Prefer assigned teacher over class creator
+                var teacherName = assignedTeacher != null
+                    ? $"{assignedTeacher.FirstName} {assignedTeacher.LastName}"
+                    : (enrollment.SiteClass.CreatedByUser != null
+                        ? $"{enrollment.SiteClass.CreatedByUser.FirstName} {enrollment.SiteClass.CreatedByUser.LastName}"
+                        : null);
+                var teacherEmail = assignedTeacher?.Email ?? enrollment.SiteClass.CreatedByUser?.Email;
+                var teacherSig = !string.IsNullOrEmpty(assignedTeacher?.Signature)
+                    ? assignedTeacher!.Signature
+                    : enrollment.SiteClass.CreatedByUser?.Signature;
+
                 return new backend.Models.DTOs.LearnerAttendanceCalendarDto
                 {
                     LearnerId = learnerId, FirstName = learner.FirstName, LastName = learner.LastName,
                     IdNumber = learner.IdNumber, Gender = learner.Gender, Telephone = learner.ContactNumber,
                     Address = $"{learner.AddressLine1} {learner.AddressLine2} {learner.AddressLine3}".Trim(),
                     ProfilePhotoPath = learner.ProfilePhotoPath, SignaturePath = learner.SignaturePath,
-                    ProjectName = project?.ProjectName, Province = projectSite?.Province, SiteName = projectSite?.SiteName,
+                    ProjectName = project?.ProjectName, Province = !string.IsNullOrWhiteSpace(projectSite?.Province) ? projectSite!.Province : project?.Province, SiteName = projectSite?.SiteName,
                     Pathway = project?.ProjectLearningPathways?.FirstOrDefault()?.LearningPathway?.Name,
                     ClassName = enrollment.SiteClass.ClassName,
-                    TeacherName = enrollment.SiteClass.CreatedByUser != null ? $"{enrollment.SiteClass.CreatedByUser.FirstName} {enrollment.SiteClass.CreatedByUser.LastName}" : null,
-                    TeacherEmail = enrollment.SiteClass.CreatedByUser?.Email,
+                    TeacherName = teacherName,
+                    TeacherEmail = teacherEmail,
+                    TeacherSignaturePath = teacherSig,
                     Year = year, Month = month, MonthName = new DateTime(year, month, 1).ToString("MMMM"),
                     CalendarDays = calendarDays, PresentDays = presentDays, AbsentDays = absentDays,
                     LateDays = records.Count(r => r.Status == "Late"), ExpectedAttendance = workingDays,
@@ -763,7 +786,31 @@ namespace backend.Controllers
                                 sigRow.RelativeItem().Column(sig =>
                                 {
                                     sig.Item().Text("Facilitator Signature:").FontSize(6).FontColor("#94a3b8");
-                                    sig.Item().PaddingTop(2).Height(25).Width(80).Background("#1e293b").Border(1).BorderColor("#334155").AlignCenter().AlignMiddle().Text("No signature").FontSize(5).FontColor("#94a3b8");
+                                    
+                                    byte[]? facSigBytes = null;
+                                    if (!string.IsNullOrEmpty(cal.TeacherSignaturePath) && cal.TeacherSignaturePath.Length > 200)
+                                    {
+                                        try
+                                        {
+                                            var base64 = cal.TeacherSignaturePath.Contains(',') ? cal.TeacherSignaturePath.Split(',')[1] : cal.TeacherSignaturePath;
+                                            facSigBytes = Convert.FromBase64String(base64);
+                                        }
+                                        catch { facSigBytes = null; }
+                                    }
+                                    else
+                                    {
+                                        var facSigPath = ResolvePath(cal.TeacherSignaturePath);
+                                        if (facSigPath != null)
+                                        {
+                                            try { facSigBytes = System.IO.File.ReadAllBytes(facSigPath); }
+                                            catch { facSigBytes = null; }
+                                        }
+                                    }
+
+                                    if (facSigBytes != null)
+                                        sig.Item().PaddingTop(2).Background(QuestPDF.Helpers.Colors.White).Padding(2).Height(25).Width(80).Image(facSigBytes).FitArea();
+                                    else
+                                        sig.Item().PaddingTop(2).Height(25).Width(80).Background("#1e293b").Border(1).BorderColor("#334155").AlignCenter().AlignMiddle().Text("No signature").FontSize(5).FontColor("#94a3b8");
                                     sig.Item().PaddingTop(2).BorderTop(1).BorderColor("#334155").Text(cal.TeacherName ?? "Facilitator").FontSize(6).FontColor(QuestPDF.Helpers.Colors.White);
                                 });
                             });

@@ -612,15 +612,28 @@ export default function ExternalPortal() {
                             <div style={{fontSize:'0.68rem',color:'#94a3b8',marginBottom:'3px'}}>Learner Signature:</div>
                             <div style={{backgroundColor:'white',height:'48px',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'3px'}}>
                               {attData.signaturePath
-                                ? <img src={`${API}/${attData.signaturePath}`} style={{maxHeight:'44px',maxWidth:'100%',objectFit:'contain'}} alt="sig"/>
+                                ? <img
+                                    src={attData.signaturePath.startsWith('data:') || attData.signaturePath.length > 200
+                                      ? (attData.signaturePath.startsWith('data:') ? attData.signaturePath : `data:image/png;base64,${attData.signaturePath}`)
+                                      : `${API}/${attData.signaturePath}`}
+                                    style={{maxHeight:'44px',maxWidth:'100%',objectFit:'contain'}} alt="sig"
+                                    onError={(e)=>{ (e.target as HTMLImageElement).style.display='none'; }}/>
                                 : <span style={{color:'#9ca3af',fontSize:'0.7rem'}}>No signature</span>}
                             </div>
                             <div style={{fontSize:'0.64rem',color:'white',marginTop:'2px',borderTop:'1px solid #334155',paddingTop:'2px'}}>{attData.firstName} {attData.lastName}</div>
                           </div>
                           <div style={{flex:1}}>
                             <div style={{fontSize:'0.68rem',color:'#94a3b8',marginBottom:'3px'}}>Facilitator Signature:</div>
-                            <div style={{backgroundColor:'#1e293b',border:'1px solid #334155',height:'48px',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'3px'}}>
-                              <span style={{color:'#9ca3af',fontSize:'0.7rem'}}>No signature</span>
+                            <div style={{backgroundColor: attData.teacherSignaturePath ? 'white' : '#1e293b',border:'1px solid #334155',height:'48px',display:'flex',alignItems:'center',justifyContent:'center',borderRadius:'3px'}}>
+                              {attData.teacherSignaturePath
+                                ? <img
+                                    src={attData.teacherSignaturePath.startsWith('data:') || attData.teacherSignaturePath.startsWith('iVBOR') || attData.teacherSignaturePath.length > 200
+                                      ? (attData.teacherSignaturePath.startsWith('data:') ? attData.teacherSignaturePath : `data:image/png;base64,${attData.teacherSignaturePath}`)
+                                      : `${API}/${attData.teacherSignaturePath}`}
+                                    style={{maxHeight:'44px',maxWidth:'100%',objectFit:'contain'}}
+                                    alt="facilitator sig"
+                                    onError={(e)=>{ (e.target as HTMLImageElement).style.display='none'; }}/>
+                                : <span style={{color:'#9ca3af',fontSize:'0.7rem'}}>No signature</span>}
                             </div>
                             <div style={{fontSize:'0.64rem',color:'white',marginTop:'2px',borderTop:'1px solid #334155',paddingTop:'2px'}}>{attData.teacherName||'Facilitator'}</div>
                           </div>
