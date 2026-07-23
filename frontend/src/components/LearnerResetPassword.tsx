@@ -10,7 +10,7 @@ export default function LearnerResetPassword() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [tokenInfo, setTokenInfo] = useState<any>(null);
+  const [tokenInfo, setTokenInfo] = useState<unknown>(null);
 
   // Step 1: Get reset token by email
   async function handleGetToken(e: React.FormEvent) {
@@ -190,9 +190,9 @@ export default function LearnerResetPassword() {
                 {token}
               </p>
             </div>
-            {tokenInfo?.expiresAt && (
+            {tokenInfo && (tokenInfo as Record<string, unknown>).expiresAt && (
               <p style={{ color: '#94a3b8', fontSize: 12, margin: 0 }}>
-                ⏰ Expires: {new Date(tokenInfo.expiresAt).toLocaleString()}
+                ⏰ Expires: {new Date((tokenInfo as Record<string, unknown>).expiresAt as string).toLocaleString()}
               </p>
             )}
           </div>

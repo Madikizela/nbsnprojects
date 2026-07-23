@@ -166,13 +166,14 @@ const Login: React.FC = () => {
           if (errorData.details) {
             errorMessage += `\nDetails: ${errorData.details}`;
           }
-        } catch (e) {
+        } catch {
           errorMessage = `Server Error (${response.status}): ${text.substring(0, 100)}...`;
         }
         setError(errorMessage);
       }
-    } catch (error: any) {
-      setError(`Network error: ${error.message || 'Please try again.'}`);
+    } catch (error: unknown) {
+      const errorMsg = error instanceof Error ? error.message : 'Please try again.';
+      setError(`Network error: ${errorMsg}`);
     } finally {
       setIsLoading(false);
     }

@@ -24,17 +24,15 @@ interface LearningMaterial {
 }
 
 interface Props {
-  filteredProjects: any[];
-  projectDetails: Record<number, any>;
+  filteredProjects: unknown[];
+  projectDetails: Record<number, unknown>;
   fetchWithAuth: (url: string, options?: RequestInit) => Promise<Response>;
-  baseApiUrl: string;
 }
 
 const LearningMaterialsSection: React.FC<Props> = ({
   filteredProjects,
   projectDetails,
   fetchWithAuth,
-  baseApiUrl,
 }) => {
   const [selectedQualification, setSelectedQualification] = useState<Qualification | null>(null);
   const [materials, setMaterials] = useState<LearningMaterial[]>([]);
@@ -44,7 +42,7 @@ const LearningMaterialsSection: React.FC<Props> = ({
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   // Local copy of project details — pre-fetched on mount for all projects
-  const [localDetails, setLocalDetails] = useState<Record<number, any>>({ ...projectDetails });
+  const [localDetails, setLocalDetails] = useState<Record<number, unknown>>({ ...projectDetails });
   const [loadingDetails, setLoadingDetails] = useState(false);
   const fetchedIds = useRef<Set<number>>(new Set(Object.keys(projectDetails).map(Number)));
 
@@ -104,11 +102,15 @@ const LearningMaterialsSection: React.FC<Props> = ({
   // Collect all qualifications from all projects using localDetails
   const allQualifications: Qualification[] = [];
   filteredProjects.forEach(project => {
-    const details = localDetails[project.id];
+    const proj = project as Record<string, unknown>;
+    const details = localDetails[proj.id as number];
     if (details?.learningPathways) {
-      details.learningPathways.forEach((lp: any) => {
+      const detailsRecord = details as Record<string, unknown>;
+      (detailsRecord.learningPathways as unknown[]).forEach((lpUnknown: unknown) => {
+        const lp = lpUnknown as Record<string, unknown>;
         if (lp.qualifications) {
-          lp.qualifications.forEach((q: any) => {
+          (lp.qualifications as unknown[]).forEach((qUnknown: unknown) => {
+            const q = qUnknown as Record<string, unknown>;
             const qualName =
               q.legacyQualification?.name ||
               q.occupationalQualification?.name ||
@@ -122,12 +124,13 @@ const LearningMaterialsSection: React.FC<Props> = ({
               q.occupationalQualification?.qualificationType ||
               '';
             
+            const lpRecord = lp as Record<string, unknown>;
             allQualifications.push({
-              id: q.id, // project_qualification_id
-              projectId: project.id,
-              projectName: project.projectName,
+              id: Number(q.id), // project_qualification_id
+              projectId: proj.id as number,
+              projectName: proj.projectName as string,
               qualificationName: qualName,
-              pathwayName: lp.pathway?.name || lp.learningPathway?.name || 'Unknown Pathway',
+              pathwayName: (lpRecord.pathway as Record<string, unknown>)?.name || (lpRecord.learningPathway as Record<string, unknown>)?.name || 'Unknown Pathway',
               qualificationLevel: qualLevel,
               qualificationType: qualType,
             });
@@ -202,8 +205,9 @@ const LearningMaterialsSection: React.FC<Props> = ({
         const err = await res.text();
         setErrorMsg(`Upload failed: ${err}`);
       }
-    } catch (err: any) {
-      setErrorMsg(`Upload error: ${err.message}`);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : 'Unknown error';
+      setErrorMsg(`Upload error: ${errMsg}`);
     } finally {
       setUploading(false);
     }

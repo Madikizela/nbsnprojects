@@ -8962,7 +8962,6 @@ const SDPManagerDashboard: React.FC = () => {
       filteredProjects={filteredProjects}
       projectDetails={projectDetails}
       fetchWithAuth={fetchWithAuth}
-      baseApiUrl={import.meta.env.VITE_API_URL || 'http://localhost:5213'}
     />;
   };
 
