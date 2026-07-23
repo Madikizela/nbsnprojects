@@ -72,3 +72,6 @@ backups/
 
 # Uploaded files — never commit user data
 backend/uploads/
+
+# Java heap dumps
+java_pid*.hprof
