@@ -192,8 +192,7 @@ export default function LearnerPortal() {
             </button>
           </div>
         )}
-
-        {/* Responsive CSS */}
+      </nav>{/* Responsive CSS */}
         <style>{`
           @media (max-width: 768px) {
             .desktop-menu {
@@ -431,7 +430,7 @@ function LearnerForgotPassword({ onBack }: { onBack: () => void }) {
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 function LearnerDashboard({ token, user, setSection }: { token: string; user: LearnerUser; setSection: (s: string) => void }) {
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<unknown>(null);
 
   useEffect(() => {
     apiFetch(`/api/Learners/${user.id}`, token).then(r => r.json()).then(setStats).catch(() => {});
@@ -470,7 +469,7 @@ function LearnerDashboard({ token, user, setSection }: { token: string; user: Le
 
 // ─── Profile ─────────────────────────────────────────────────────────────────
 function LearnerProfile({ token, user, setUser }: { token: string; user: LearnerUser; setUser: (u: LearnerUser) => void }) {
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const photoRef = useRef<HTMLInputElement>(null);
@@ -506,7 +505,7 @@ function LearnerProfile({ token, user, setUser }: { token: string; user: Learner
     });
     if (res.ok) {
       const data = await res.json();
-      setProfile((p: any) => ({ ...p, profilePhotoPath: data.profilePhotoPath }));
+      setProfile((p: unknown) => ({ ...(p as Record<string, unknown>), profilePhotoPath: data.profilePhotoPath }));
       const updated = { ...user, profilePhotoPath: data.profilePhotoPath };
       setUser(updated);
       localStorage.setItem('learner_user', JSON.stringify(updated));
@@ -550,11 +549,11 @@ function LearnerProfile({ token, user, setUser }: { token: string; user: Learner
   const field = (label: string, key: string, type = 'text') => (
     <div style={{ marginBottom: 16 }}>
       <label style={labelStyle}>{label}</label>
-      <input style={inputStyle} type={type} value={profile[key] || ''} onChange={e => setProfile((p: any) => ({ ...p, [key]: e.target.value }))} />
+      <input style={inputStyle} type={type} value={(profile as Record<string, unknown>)[key] || ''} onChange={e => setProfile((p: unknown) => ({ ...(p as Record<string, unknown>), [key]: e.target.value }))} />
     </div>
   );
 
-  const photoUrl = profile.profilePhotoPath ? `${API}/${profile.profilePhotoPath}` : null;
+  const photoUrl = (profile as Record<string, unknown>).profilePhotoPath ? `${API}/${(profile as Record<string, unknown>).profilePhotoPath}` : null;
 
   return (
     <div>
@@ -565,8 +564,8 @@ function LearnerProfile({ token, user, setUser }: { token: string; user: Learner
           {photoUrl ? <img src={photoUrl} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : '👤'}
         </div>
         <div>
-          <h3 style={{ margin: '0 0 8px', color: '#fff' }}>{profile.firstName} {profile.lastName}</h3>
-          <p style={{ color: '#94a3b8', margin: '0 0 12px', fontSize: 14 }}>ID: {profile.idNumber}</p>
+          <h3 style={{ margin: '0 0 8px', color: '#fff' }}>{(profile as Record<string, unknown>).firstName} {(profile as Record<string, unknown>).lastName}</h3>
+          <p style={{ color: '#94a3b8', margin: '0 0 12px', fontSize: 14 }}>ID: {(profile as Record<string, unknown>).idNumber}</p>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button style={btnSecondary} onClick={() => photoRef.current?.click()}>📷 Upload Photo</button>
             <button style={btnSecondary} onClick={cameraOpen ? stopCamera : startCamera}>
@@ -627,7 +626,7 @@ function LearnerProfile({ token, user, setUser }: { token: string; user: Learner
 
 // ─── Documents ───────────────────────────────────────────────────────────────
 function LearnerDocuments({ token, user }: { token: string; user: LearnerUser }) {
-  const [docs, setDocs] = useState<any[]>([]);
+  const [docs, setDocs] = useState<unknown[]>([]);
   const [uploading, setUploading] = useState(false);
   const [docType, setDocType] = useState('ID Document');
   const [msg, setMsg] = useState('');
@@ -680,18 +679,21 @@ function LearnerDocuments({ token, user }: { token: string; user: LearnerUser })
         <h4 style={{ color: '#fff' }}>Uploaded Documents ({docs.length})</h4>
         {docs.length === 0 ? <p style={{ color: '#64748b' }}>No documents uploaded yet.</p> : (
           <div style={{ display: 'grid', gap: 12 }}>
-            {docs.map((d: any) => (
-              <div key={d.id} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            {docs.map((d: unknown) => {
+              const doc = d as Record<string, unknown>;
+              return (
+              <div key={doc.id} style={{ ...cardStyle, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{d.documentType}</div>
-                  <div style={{ color: '#94a3b8', fontSize: 13 }}>{d.fileName} · {(d.fileSize / 1024).toFixed(0)} KB</div>
-                  <div style={{ fontSize: 12, color: '#64748b' }}>{new Date(d.uploadedAt).toLocaleDateString()}</div>
+                  <div style={{ fontWeight: 600 }}>{doc.documentType}</div>
+                  <div style={{ color: '#94a3b8', fontSize: 13 }}>{doc.fileName} · {(Number(doc.fileSize) / 1024).toFixed(0)} KB</div>
+                  <div style={{ fontSize: 12, color: '#64748b' }}>{new Date(doc.uploadedAt as string).toLocaleDateString()}</div>
                 </div>
-                <span style={{ background: d.approvalStatus === 'Approved' ? '#166534' : d.approvalStatus === 'Declined' ? '#7f1d1d' : '#1e3a5f', color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>
-                  {d.approvalStatus || 'Pending'}
+                <span style={{ background: doc.approvalStatus === 'Approved' ? '#166534' : doc.approvalStatus === 'Declined' ? '#7f1d1d' : '#1e3a5f', color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: 12 }}>
+                  {doc.approvalStatus || 'Pending'}
                 </span>
               </div>
-            ))}
+            )
+          })}
           </div>
         )}
       </div>
@@ -701,7 +703,7 @@ function LearnerDocuments({ token, user }: { token: string; user: LearnerUser })
 
 // ─── Learning Materials ──────────────────────────────────────────────────────
 function LearnerMaterials({ token, user }: { token: string; user: LearnerUser }) {
-  const [materials, setMaterials] = useState<any[]>([]);
+  const [materials, setMaterials] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -801,9 +803,11 @@ function LearnerMaterials({ token, user }: { token: string; user: LearnerUser })
         </div>
       ) : (
         <div style={{ display: 'grid', gap: 12 }}>
-          {materials.map((material: any) => (
+          {materials.map((material: unknown) => {
+            const mat = material as Record<string, unknown>;
+            return (
             <div
-              key={material.id}
+              key={mat.id}
               style={{
                 ...cardStyle,
                 display: 'flex',
@@ -814,36 +818,36 @@ function LearnerMaterials({ token, user }: { token: string; user: LearnerUser })
             >
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 24 }}>{materialTypeIcon(material.materialType)}</span>
-                  <h4 style={{ margin: 0, color: '#fff', fontSize: 16 }}>{material.title}</h4>
+                  <span style={{ fontSize: 24 }}>{materialTypeIcon(mat.materialType as string)}</span>
+                  <h4 style={{ margin: 0, color: '#fff', fontSize: 16 }}>{mat.title}</h4>
                 </div>
-                {material.description && (
+                {mat.description && (
                   <p style={{ color: '#94a3b8', fontSize: 13, margin: '0 0 8px', lineHeight: 1.5 }}>
-                    {material.description}
+                    {mat.description}
                   </p>
                 )}
                 <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
-                  {material.qualificationName && (
-                    <span>🎓 {material.qualificationName}</span>
+                  {mat.qualificationName && (
+                    <span>🎓 {mat.qualificationName}</span>
                   )}
-                  {material.unitStandardName && (
-                    <span>📋 {material.unitStandardName}</span>
+                  {mat.unitStandardName && (
+                    <span>📋 {mat.unitStandardName}</span>
                   )}
-                  {material.fileName && (
+                  {mat.fileName && (
                     <span>
-                      {mimeIcon(material.mimeType)} {material.fileName}
+                      {mimeIcon(mat.mimeType as string)} {mat.fileName}
                     </span>
                   )}
-                  {material.fileSize && <span>📦 {formatFileSize(material.fileSize)}</span>}
+                  {mat.fileSize && <span>📦 {formatFileSize(Number(mat.fileSize))}</span>}
                 </div>
                 <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>
                   <span className="badge" style={{ background: '#334155', color: '#94a3b8', padding: '2px 8px', borderRadius: 4 }}>
-                    {material.materialType}
+                    {mat.materialType}
                   </span>
                 </div>
               </div>
               <button
-                onClick={() => handleDownload(material.id, material.fileName)}
+                onClick={() => handleDownload(Number(mat.id), mat.fileName as string)}
                 style={{
                   background: '#0EA5E9',
                   color: '#fff',
@@ -860,7 +864,8 @@ function LearnerMaterials({ token, user }: { token: string; user: LearnerUser })
                 ⬇️ Download
               </button>
             </div>
-          ))}
+            )
+          })}
         </div>
       )}
 

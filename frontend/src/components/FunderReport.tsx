@@ -25,7 +25,7 @@ export default function FunderReport({ token }: Props) {
     if (!selectedProject) return;
     fetch(`${API}/api/Learners/project/${selectedProject}`, { headers })
       .then(r => r.json())
-      .then((data: any[]) => setLearners(data))
+      .then((data: unknown[]) => setLearners(data as { id: number; firstName: string; lastName: string }[]))
       .catch(() => {});
   }, [selectedProject]);
 

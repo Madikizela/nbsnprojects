@@ -67,7 +67,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onBackToLogin }) => {
           if (errorData?.details || errorData?.error) {
             message += `\nDetails: ${errorData.details || errorData.error}`;
           }
-        } catch (_) {
+        } catch {
           message = `Server Error (${response.status}): ${text.substring(0, 100)}...`;
         }
         setError(message);
