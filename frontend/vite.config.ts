@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: 5174,
       strictPort: true,
-      allowedHosts: 'all',
+      allowedHosts: true,
       proxy: {
         // Local dev: proxy /api calls to local backend
         '/api': {
