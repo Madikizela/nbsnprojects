@@ -100,14 +100,6 @@ export const StatCard: React.FC<StatCardProps> = ({
   subtitle,
   trend
 }) => {
-  const colorMap = {
-    primary: theme.primary,
-    success: theme.success,
-    warning: theme.warning,
-    danger: theme.danger,
-    info: theme.info
-  };
-
   const bgColorMap = {
     primary: theme.primaryLight + '20',
     success: theme.successLight,

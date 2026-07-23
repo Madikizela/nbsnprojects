@@ -43,7 +43,7 @@ export default function ExternalPortal() {
   const [docFilter, setDocFilter] = useState('');
   const [viewDoc, setViewDoc] = useState<{url:string;fileName:string;mime:string;type:string;id:number;learner:Learner|null}|null>(null);
   const [viewAtt, setViewAtt] = useState<{learner:Learner;year:number;month:number}|null>(null);
-  const [attData, setAttData] = useState<any>(null);
+  const [attData, setAttData] = useState<unknown>(null);
   const [attLoading, setAttLoading] = useState(false);
   // Bulk download state
   const [showBulk, setShowBulk] = useState(false);
@@ -370,12 +370,13 @@ export default function ExternalPortal() {
                   <div className="d-flex flex-wrap gap-2">
                     {sel.allowedDocumentTypes.map(dt=>(
                       <div key={dt} className="form-check form-check-inline m-0 p-2 rounded" style={{backgroundColor:bulkSelTypes.has(dt)?'#1e3a8a':'#0f172a',border:`1px solid ${bulkSelTypes.has(dt)?'#3b82f6':'#334155'}`,cursor:'pointer'}}
-                        onClick={()=>setBulkSelTypes(prev=>{const s=new Set(prev);s.has(dt)?s.delete(dt):s.add(dt);return s;})}>
+                        onClick={()=>setBulkSelTypes(prev=>{const s=new Set(prev); if (s.has(dt)) s.delete(dt); else s.add(dt); return s;})}>
                         <span style={{fontSize:'0.8rem'}}>{icon(dt)} {dt}</span>
                         {bulkSelTypes.has(dt)&&<span style={{color:'#10b981',marginLeft:'6px'}}>✓</span>}
                       </div>
                     ))}
                   </div>
+
                   {/* Attendance month/year if attendance selected */}
                   {bulkSelTypes.has('Attendance Register')&&(
                     <div className="p-2 mt-2 rounded" style={{backgroundColor:'#0f172a',border:'1px solid #334155'}}>
@@ -414,20 +415,12 @@ export default function ExternalPortal() {
                       <button className="btn btn-sm btn-outline-secondary" style={{fontSize:'0.7rem'}} onClick={()=>setBulkSelLearners(new Set())}>None</button>
                     </div>
                   </div>
-                  {/* Group by site */}
-                  {sel.sites.map(site=>{
-                    const siteLearners = sel.learners.filter(l=>
-                      l.documents.length>=0 // all learners shown per site
-                    ).slice(0, sel.learners.length); // all for now - group by site not possible without site on learner
-                    // Show site header with select all for site
-                    return null; // sites don't have learner cross-reference in frontend data
-                  })}
                   {/* Simple learner grid */}
                   <div style={{maxHeight:'300px',overflowY:'auto'}}>
                     <div className="row g-2">
                       {sel.learners.map(l=>(
                         <div key={l.id} className="col-md-4 col-6">
-                          <div onClick={()=>setBulkSelLearners(prev=>{const s=new Set(prev);s.has(l.id)?s.delete(l.id):s.add(l.id);return s;})}
+                          <div onClick={()=>setBulkSelLearners(prev=>{const s=new Set(prev); if (s.has(l.id)) s.delete(l.id); else s.add(l.id); return s;})}
                             style={{padding:'8px',borderRadius:'6px',cursor:'pointer',backgroundColor:bulkSelLearners.has(l.id)?'#1e3a8a':'#0f172a',border:`1px solid ${bulkSelLearners.has(l.id)?'#3b82f6':'#334155'}`,display:'flex',alignItems:'center',gap:'8px'}}>
                             <div style={{width:'16px',height:'16px',borderRadius:'3px',backgroundColor:bulkSelLearners.has(l.id)?'#3b82f6':'#334155',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
                               {bulkSelLearners.has(l.id)&&<span style={{color:'white',fontSize:'0.65rem'}}>✓</span>}
@@ -557,9 +550,9 @@ export default function ExternalPortal() {
                     const today=new Date(); today.setHours(0,0,0,0);
                     const firstDay=new Date(attData.year,attData.month-1,1);
                     let off=firstDay.getDay(); off=off===0?6:off-1;
-                    const cells:any[]=[...Array(off).fill(null),...attData.calendarDays];
+                    const cells:(unknown)[]=[...Array(off).fill(null),...(attData as { calendarDays: unknown[] }).calendarDays];
                     while(cells.length%7!==0) cells.push(null);
-                    const weeks:any[][]=[];
+                    const weeks:(unknown)[][]=[];
                     for(let i=0;i<cells.length;i+=7) weeks.push(cells.slice(i,i+7));
                     return (
                       <div>

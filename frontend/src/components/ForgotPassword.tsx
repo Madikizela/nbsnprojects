@@ -67,14 +67,15 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ onBackToLogin }) => {
           if (errorData?.details || errorData?.error) {
             message += `\nDetails: ${errorData.details || errorData.error}`;
           }
-        } catch (e) {
+        } catch (_) {
           message = `Server Error (${response.status}): ${text.substring(0, 100)}...`;
         }
         setError(message);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('ForgotPassword: Fetch error:', error);
-      setError(`Network error: ${error.message || 'Please check your connection and try again.'}`);
+      const errorMessage = error instanceof Error ? error.message : 'Please check your connection and try again.';
+      setError(`Network error: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }

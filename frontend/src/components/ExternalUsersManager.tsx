@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5213';
-
 // No hardcoded list - document types come from the database per project
 
 interface ExternalUser {
