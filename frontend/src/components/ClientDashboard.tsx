@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { southAfricaData, type District, type Municipality } from '../data/southAfricaData';
-import ProjectForm from './ProjectForm';
 import { getClientSDPs, getClientProjects, type SkillsDevelopmentProvider, type Project } from '../services/projectService';
 import nbsnLogo from '../assets/nbsn-logo.png';
 
@@ -291,7 +290,7 @@ const ClientDashboard: React.FC = () => {
       });
   
       const contentType = response.headers.get('content-type') || '';
-      let result: any;
+      let result: unknown;
       if (contentType.includes('application/json')) {
         result = await response.json();
       } else {

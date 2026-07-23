@@ -9,7 +9,10 @@ interface User {
   firstName: string;
   lastName: string;
   email: string;
-  role: number;
+  role: number | string;
+  userType?: string;
+  accessLevel?: number;
+  clientId?: number | null;
 }
 
 const Dashboard = () => {
@@ -372,11 +375,10 @@ const Dashboard = () => {
     // Redirect Client users away from System Admin dashboard
     if (!user) return;
 
-    const userAny: any = user as any;
-    const userType = userAny?.userType;
-    const role = userAny?.role;
-    const accessLevel = userAny?.accessLevel;
-    const clientId = userAny?.clientId;
+    const userType = user?.userType;
+    const role = user?.role;
+    const accessLevel = user?.accessLevel;
+    const clientId = user?.clientId;
 
     const isClient =
       userType === 'ClientAdmin' ||

@@ -68,7 +68,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
         }
         break;
 
-      case 'emailAddress':
+      case 'emailAddress': {
         if (!value || typeof value !== 'string') {
           return 'Email address is required';
         }
@@ -77,6 +77,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
           return 'Please enter a valid email address';
         }
         break;
+      }
 
       case 'vatNumber':
         if (value && typeof value === 'string' && value.trim()) {
@@ -122,8 +123,8 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
       case 'phoneNumber':
         if (value && typeof value === 'string' && value.trim()) {
-          const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-          if (!phoneRegex.test(value.replace(/[\s\-\(\)]/g, ''))) {
+          const phoneRegex = /^[+]?[1-9]\d{0,15}$/;
+          if (!phoneRegex.test(value.replace(/[\s\-()]/g, ''))) {
             return 'Please enter a valid phone number';
           }
         }
@@ -266,11 +267,12 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
         setSubmitMessage(null);
       }, 3000);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting form:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to register client. Please try again.';
       setSubmitMessage({
         type: 'error',
-        text: error.message || 'Failed to register client. Please try again.'
+        text: errorMessage
       });
     } finally {
       setIsSubmitting(false);
@@ -278,7 +280,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
   };
 
   const getFieldClassName = (fieldName: keyof ClientFormErrors, hasValue?: boolean) => {
-    let baseClass = "form-control form-control-lg";
+    const baseClass = "form-control form-control-lg";
     
     if (errors[fieldName]) {
       return `${baseClass} is-invalid`;
