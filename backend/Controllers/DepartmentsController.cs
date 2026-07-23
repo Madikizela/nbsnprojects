@@ -61,7 +61,7 @@ namespace backend.Controllers
         public async Task<ActionResult<IEnumerable<Department>>> GetDepartmentsByClient(int clientId)
         {
             return await _context.Departments
-                .Where(d => d.SkillsDevelopmentProvider.ClientId == clientId)
+                .Where(d => d.SkillsDevelopmentProvider != null && d.SkillsDevelopmentProvider.ClientId == clientId)
                 .Include(d => d.SkillsDevelopmentProvider)
                 .Include(d => d.Users)
                 .ToListAsync();

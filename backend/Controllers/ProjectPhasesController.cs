@@ -104,7 +104,7 @@ namespace backend.Controllers
                     {
                         Id = plp.Id,
                         ProjectLearningPathwayId = plp.ProjectLearningPathwayId,
-                        PathwayName = plp.ProjectLearningPathway.LearningPathway.Name,
+                        PathwayName = plp.ProjectLearningPathway?.LearningPathway?.Name ?? "Unknown",
                         PlannedLearners = plp.PlannedLearners,
                         ActualLearners = plp.ActualLearners
                     }).ToList()

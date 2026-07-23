@@ -121,7 +121,7 @@ namespace backend.Controllers
                     destRect = new SKRect(0, -(height - size) / 2f, size, size + (height - size) / 2f);
                 }
 
-                using var paint = new SKPaint { IsAntialias = true, FilterQuality = SKFilterQuality.High };
+                using var paint = new SKPaint { IsAntialias = true };
                 canvas.DrawBitmap(oriented, destRect, paint);
 
                 // Add a professional blue border ring

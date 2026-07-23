@@ -242,7 +242,8 @@ namespace backend.Controllers
                 }
 
                 // Decrypt the file for download
-                var decryptedContent = await _encryptionService.DecryptFileAsync(document.FilePath, document.EncryptionKey);
+                var key = document.EncryptionKey ?? string.Empty;
+                var decryptedContent = await _encryptionService.DecryptFileAsync(document.FilePath, key);
                 
                 await _auditService.LogDocumentAccessAsync(id, userId.Value, DocumentAccessAction.Download,
                     GetClientIpAddress(), GetUserAgent());

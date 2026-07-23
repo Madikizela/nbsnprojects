@@ -648,7 +648,10 @@ namespace backend.Controllers
                     <p>Best regards,<br/>National Building Skills Network</p>
                 ";
 
-                await _emailService.SendEmailAsync(learner.Email, "Reset Your Learner Portal Password", emailBody);
+                if (!string.IsNullOrEmpty(learner.Email))
+                {
+                    await _emailService.SendEmailAsync(learner.Email, "Reset Your Learner Portal Password", emailBody);
+                }
 
                 _logger.LogInformation("Password reset email sent to learner: {Email}", email);
 
