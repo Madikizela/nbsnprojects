@@ -52,10 +52,20 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
-// Add database context (using MySQL)
+// Add database context (using PostgreSQL)
 builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    
+    // Log available environment variables for debugging
+    Console.WriteLine("🔍 Database Configuration Debug Info:");
+    Console.WriteLine($"  DB_HOST: {Environment.GetEnvironmentVariable("DB_HOST") ?? "(not set)"}");
+    Console.WriteLine($"  PGHOST: {Environment.GetEnvironmentVariable("PGHOST") ?? "(not set)"}");
+    Console.WriteLine($"  DB_PORT: {Environment.GetEnvironmentVariable("DB_PORT") ?? "(not set)"}");
+    Console.WriteLine($"  PGPORT: {Environment.GetEnvironmentVariable("PGPORT") ?? "(not set)"}");
+    Console.WriteLine($"  DB_NAME: {Environment.GetEnvironmentVariable("DB_NAME") ?? "(not set)"}");
+    Console.WriteLine($"  PGDATABASE: {Environment.GetEnvironmentVariable("PGDATABASE") ?? "(not set)"}");
+    Console.WriteLine($"  DATABASE_URL: {(string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DATABASE_URL")) ? "(not set)" : "(set)")}");
     
     // Support both the application's DB_* names and Railway's standard PG* names.
     var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? Environment.GetEnvironmentVariable("PGHOST");
@@ -65,24 +75,45 @@ builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
     var dbPass = Environment.GetEnvironmentVariable("DB_PASS") ?? Environment.GetEnvironmentVariable("PGPASSWORD");
     var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
-    if (!string.IsNullOrEmpty(dbHost) && !string.IsNullOrEmpty(dbName))
+    // Prefer DATABASE_URL if available (Railway provides this)
+    if (!string.IsNullOrWhiteSpace(databaseUrl) && Uri.TryCreate(databaseUrl, UriKind.Absolute, out var databaseUri))
+    {
+        try
+        {
+            var userInfo = databaseUri.UserInfo.Split(':', 2);
+            var railwayConnection = new NpgsqlConnectionStringBuilder
+            {
+                Host = databaseUri.Host,
+                Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
+                Database = databaseUri.AbsolutePath.TrimStart('/'),
+                Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty,
+                Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
+                SslMode = SslMode.Require
+            };
+            connectionString = railwayConnection.ConnectionString;
+            Console.WriteLine("✅ Using DATABASE_URL connection string");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"⚠️ Failed to parse DATABASE_URL: {ex.Message}");
+            // Fall through to manual construction
+        }
+    }
+    
+    // Fall back to manual construction from individual environment variables
+    if (string.IsNullOrEmpty(connectionString) && !string.IsNullOrEmpty(dbHost) && !string.IsNullOrEmpty(dbName))
     {
         connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass}";
+        Console.WriteLine($"✅ Using manual connection string from DB_* / PG* variables");
     }
-    else if (!string.IsNullOrWhiteSpace(databaseUrl) && Uri.TryCreate(databaseUrl, UriKind.Absolute, out var databaseUri))
+
+    if (string.IsNullOrEmpty(connectionString))
     {
-        var userInfo = databaseUri.UserInfo.Split(':', 2);
-        var railwayConnection = new NpgsqlConnectionStringBuilder
-        {
-            Host = databaseUri.Host,
-            Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
-            Database = databaseUri.AbsolutePath.TrimStart('/'),
-            Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty,
-            Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
-            SslMode = SslMode.Require
-        };
-        connectionString = railwayConnection.ConnectionString;
+        throw new InvalidOperationException(
+            "No database connection string configured. Set DATABASE_URL or provide DB_HOST, DB_NAME, DB_USER, and DB_PASS environment variables.");
     }
+
+    Console.WriteLine($"📡 Database connection string configured for host: {dbHost ?? "(from DATABASE_URL)"}");
 
     options.UseNpgsql(connectionString, npgsqlOptions =>
        {
@@ -271,3 +302,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
