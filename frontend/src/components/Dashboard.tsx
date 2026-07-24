@@ -15,9 +15,24 @@ interface User {
   clientId?: number | null;
 }
 
+interface ClientRecord {
+  id: number;
+  name: string;
+  contactPerson?: string;
+  email?: string;
+  phoneNumber?: string;
+  status: string;
+}
+
+const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
+
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeSection, setActiveSection] = useState('clients');
+  const [clients, setClients] = useState<ClientRecord[]>([]);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const [resendingId, setResendingId] = useState<number | null>(null);
+  const [resendMessage, setResendMessage] = useState<{ id: number; text: string; type: 'success' | 'error' } | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -43,6 +58,56 @@ const Dashboard = () => {
     localStorage.removeItem('user');
     navigate('/login');
   };
+
+  const fetchClients = async () => {
+    setClientsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API}/api/Clients`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClients(data);
+      }
+    } catch (err) {
+      console.error('Failed to load clients:', err);
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
+  const resendCredentials = async (clientId: number) => {
+    setResendingId(clientId);
+    setResendMessage(null);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API}/api/Clients/${clientId}/resend-credentials`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        let text = data.message;
+        if (!data.emailSent && data.adminUsername) {
+          text += `\nUsername: ${data.adminUsername}\nPassword: ${data.temporaryPassword}`;
+        }
+        setResendMessage({ id: clientId, text, type: 'success' });
+      } else {
+        setResendMessage({ id: clientId, text: data.message || 'Failed to resend', type: 'error' });
+      }
+    } catch {
+      setResendMessage({ id: clientId, text: 'Network error — please try again', type: 'error' });
+    } finally {
+      setResendingId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (activeSection === 'view-clients') {
+      fetchClients();
+    }
+  }, [activeSection]);
 
   const menuItems = [
     { id: 'clients', label: 'Client Management', icon: '🏢' },
@@ -181,7 +246,7 @@ const Dashboard = () => {
                     <h2 className="card-title h3 mb-2">Client Directory 📋</h2>
                     <p className="card-text">View and manage all registered clients</p>
                   </div>
-                  <button 
+                  <button
                     onClick={() => setActiveSection('clients')}
                     className="btn btn-light btn-sm d-flex align-items-center"
                   >
@@ -193,93 +258,93 @@ const Dashboard = () => {
                 </div>
               </div>
             </div>
-            
+
             <div className="card shadow-sm">
               <div className="card-header bg-light">
                 <div className="d-flex justify-content-between align-items-center">
                   <h3 className="card-title h5 mb-0">All Clients</h3>
-                  <div className="d-flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="Search clients..."
-                      className="form-control form-control-sm"
-                      style={{ width: '200px' }}
-                    />
-                    <button className="btn btn-primary btn-sm">
-                      Search
-                    </button>
-                  </div>
+                  <button className="btn btn-primary btn-sm" onClick={fetchClients}>
+                    🔄 Refresh
+                  </button>
                 </div>
               </div>
-              
+
               <div className="table-responsive">
-                <table className="table table-hover mb-0">
-                  <thead className="table-light">
-                    <tr>
-                      <th scope="col">Client Name</th>
-                      <th scope="col">Contact Person</th>
-                      <th scope="col">Email</th>
-                      <th scope="col">Phone</th>
-                      <th scope="col">Status</th>
-                      <th scope="col">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Sample client data */}
-                    {[
-                      { id: 1, name: 'Tech Solutions Inc.', contact: 'John Smith', email: 'john@techsolutions.com', phone: '+1 234-567-8900', status: 'Active' },
-                      { id: 2, name: 'Global Enterprises', contact: 'Sarah Johnson', email: 'sarah@globalent.com', phone: '+1 234-567-8901', status: 'Active' },
-                      { id: 3, name: 'Innovation Corp', contact: 'Mike Davis', email: 'mike@innovation.com', phone: '+1 234-567-8902', status: 'Inactive' },
-                      { id: 4, name: 'Future Systems', contact: 'Lisa Wilson', email: 'lisa@futuresys.com', phone: '+1 234-567-8903', status: 'Active' },
-                    ].map((client) => (
-                      <tr key={client.id}>
-                        <td>
-                          <div className="fw-medium">{client.name}</div>
-                        </td>
-                        <td className="text-muted">{client.contact}</td>
-                        <td className="text-muted">{client.email}</td>
-                        <td className="text-muted">{client.phone}</td>
-                        <td>
-                          <span className={`badge ${
-                            client.status === 'Active' 
-                              ? 'bg-success' 
-                              : 'bg-danger'
-                          }`}>
-                            {client.status}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="d-flex gap-2">
-                            <button className="btn btn-outline-primary btn-sm">Edit</button>
-                            <button className="btn btn-outline-danger btn-sm">Delete</button>
-                          </div>
-                        </td>
+                {clientsLoading ? (
+                  <div className="text-center p-4">
+                    <div className="spinner-border text-primary" role="status">
+                      <span className="visually-hidden">Loading...</span>
+                    </div>
+                  </div>
+                ) : (
+                  <table className="table table-hover mb-0">
+                    <thead className="table-light">
+                      <tr>
+                        <th>Client Name</th>
+                        <th>Contact Person</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Status</th>
+                        <th>Actions</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {clients.length === 0 ? (
+                        <tr>
+                          <td colSpan={6} className="text-center text-muted py-4">
+                            No clients found. Click Refresh to load.
+                          </td>
+                        </tr>
+                      ) : (
+                        clients.map((client) => (
+                          <>
+                            <tr key={client.id}>
+                              <td><div className="fw-medium">{client.name}</div></td>
+                              <td className="text-muted">{client.contactPerson || '—'}</td>
+                              <td className="text-muted">{client.email || '—'}</td>
+                              <td className="text-muted">{client.phoneNumber || '—'}</td>
+                              <td>
+                                <span className={`badge ${client.status === 'Active' || client.status === '1' ? 'bg-success' : 'bg-secondary'}`}>
+                                  {client.status === '1' ? 'Active' : client.status}
+                                </span>
+                              </td>
+                              <td>
+                                <button
+                                  className="btn btn-outline-primary btn-sm"
+                                  onClick={() => resendCredentials(client.id)}
+                                  disabled={resendingId === client.id}
+                                  title="Reset password and resend login credentials to client"
+                                >
+                                  {resendingId === client.id ? (
+                                    <><span className="spinner-border spinner-border-sm me-1" />Sending...</>
+                                  ) : (
+                                    '📧 Resend Credentials'
+                                  )}
+                                </button>
+                              </td>
+                            </tr>
+                            {resendMessage?.id === client.id && (
+                              <tr key={`msg-${client.id}`}>
+                                <td colSpan={6}>
+                                  <div className={`alert ${resendMessage.type === 'success' ? 'alert-success' : 'alert-danger'} mb-0 py-2`}
+                                    style={{ whiteSpace: 'pre-line' }}>
+                                    {resendMessage.text}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                )}
               </div>
-              
+
               <div className="card-footer bg-light">
-                <div className="d-flex justify-content-between align-items-center">
-                  <p className="text-muted mb-0">
-                    Showing <span className="fw-medium">1</span> to <span className="fw-medium">4</span> of{' '}
-                    <span className="fw-medium">4</span> results
-                  </p>
-                  <nav aria-label="Client pagination">
-                    <ul className="pagination pagination-sm mb-0">
-                      <li className="page-item disabled">
-                        <a className="page-link" href="#" tabIndex={-1} aria-disabled="true">Previous</a>
-                      </li>
-                      <li className="page-item active">
-                        <a className="page-link" href="#">1</a>
-                      </li>
-                      <li className="page-item disabled">
-                        <a className="page-link" href="#">Next</a>
-                      </li>
-                    </ul>
-                  </nav>
-                </div>
+                <p className="text-muted mb-0">
+                  {clients.length} client{clients.length !== 1 ? 's' : ''} registered
+                </p>
               </div>
             </div>
           </div>

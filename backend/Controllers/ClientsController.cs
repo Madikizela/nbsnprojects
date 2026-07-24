@@ -362,6 +362,61 @@ namespace backend.Controllers
             return NoContent();
         }
 
+        // POST: api/Clients/{id}/resend-credentials
+        // Resets the admin user's password and resends welcome email with new credentials
+        [HttpPost("{id}/resend-credentials")]
+        public async Task<IActionResult> ResendCredentials(int id)
+        {
+            try
+            {
+                var client = await _context.Clients.FindAsync(id);
+                if (client == null)
+                    return NotFound(new { message = "Client not found" });
+
+                // Find the admin user for this client
+                var adminUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.ClientId == id && u.Role == UserRole.ClientAdmin);
+
+                if (adminUser == null)
+                    return NotFound(new { message = "No admin user found for this client" });
+
+                // Generate a fresh password
+                var newPassword = _dataEncryptionService.GenerateSecurePassword();
+                adminUser.PasswordHash = _passwordHashingService.HashPassword(newPassword);
+                adminUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+                await _context.SaveChangesAsync();
+
+                // Resend welcome email with new credentials
+                var emailSent = await _emailService.SendWelcomeEmailAsync(
+                    adminUser.Email!,
+                    client.Name,
+                    adminUser.Username ?? adminUser.Email!,
+                    newPassword);
+
+                if (emailSent)
+                {
+                    _logger.LogInformation("Credentials resent to {Email} for client {ClientName}", adminUser.Email, client.Name);
+                    return Ok(new { message = $"Credentials resent successfully to {adminUser.Email}", emailSent = true });
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to send credentials email to {Email}", adminUser.Email);
+                    return Ok(new
+                    {
+                        message = "Password reset but email could not be sent. Save these credentials:",
+                        emailSent = false,
+                        adminUsername = adminUser.Username ?? adminUser.Email,
+                        temporaryPassword = newPassword
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resending credentials for client {ClientId}", id);
+                return StatusCode(500, new { message = "An error occurred while resending credentials" });
+            }
+        }
+
         private bool ClientExists(int id)
         {
             return _context.Clients.Any(e => e.Id == id);
