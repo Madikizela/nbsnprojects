@@ -314,6 +314,59 @@ namespace backend.Controllers
         {
             return _context.SkillsDevelopmentProviders.Any(e => e.Id == id);
         }
+
+        // POST: api/SkillsDevelopmentProviders/{id}/resend-credentials
+        [HttpPost("{id}/resend-credentials")]
+        public async Task<IActionResult> ResendCredentials(int id)
+        {
+            try
+            {
+                var sdp = await _context.SkillsDevelopmentProviders.FindAsync(id);
+                if (sdp == null)
+                    return NotFound(new { message = "SDP not found" });
+
+                // Find the admin user for this SDP
+                var adminUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.SkillsDevelopmentProviderId == id);
+
+                if (adminUser == null)
+                    return NotFound(new { message = "No user account found for this SDP" });
+
+                // Generate fresh password
+                var newPassword = _dataEncryptionService.GenerateSecurePassword();
+                adminUser.PasswordHash = _passwordHashingService.HashPassword(newPassword);
+                adminUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+                await _context.SaveChangesAsync();
+
+                // Send welcome email
+                var emailSent = await _emailService.SendWelcomeEmailAsync(
+                    adminUser.Email!,
+                    sdp.Name,
+                    adminUser.Username ?? adminUser.Email!,
+                    newPassword);
+
+                if (emailSent)
+                {
+                    _logger.LogInformation("Credentials resent to {Email} for SDP {SdpName}", adminUser.Email, sdp.Name);
+                    return Ok(new { message = $"Credentials resent to {adminUser.Email}", emailSent = true });
+                }
+                else
+                {
+                    return Ok(new
+                    {
+                        message = "Password reset but email could not be sent. Save these credentials:",
+                        emailSent = false,
+                        adminUsername = adminUser.Username ?? adminUser.Email,
+                        temporaryPassword = newPassword
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resending credentials for SDP {SdpId}", id);
+                return StatusCode(500, new { message = "An error occurred while resending credentials" });
+            }
+        }
     }
 
     // DTOs for SDP Registration

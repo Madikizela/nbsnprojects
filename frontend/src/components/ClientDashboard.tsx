@@ -27,6 +27,34 @@ const ClientDashboard: React.FC = () => {
   const [sdps, setSdps] = useState<SkillsDevelopmentProvider[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+
+  // SDP credential resend state
+  const [resendingId, setResendingId] = useState<number | null>(null);
+  const [resendMsg, setResendMsg] = useState<{ id: number; text: string; ok: boolean } | null>(null);
+
+  const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
+
+  const resendSdpCredentials = async (sdpId: number) => {
+    setResendingId(sdpId);
+    setResendMsg(null);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${API}/api/SkillsDevelopmentProviders/${sdpId}/resend-credentials`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      const data = await res.json();
+      let text = data.message || (res.ok ? 'Credentials sent!' : 'Failed to send');
+      if (!data.emailSent && data.adminUsername) {
+        text += `\nUsername: ${data.adminUsername}\nPassword: ${data.temporaryPassword}`;
+      }
+      setResendMsg({ id: sdpId, text, ok: res.ok });
+    } catch {
+      setResendMsg({ id: sdpId, text: 'Network error — please try again', ok: false });
+    } finally {
+      setResendingId(null);
+    }
+  };
   
   // SDP Form State
   const [selectedProvince, setSelectedProvince] = useState<string>('');
@@ -403,8 +431,26 @@ const ClientDashboard: React.FC = () => {
                             <div><small className="text-muted">Contact: {sdp.contactPerson}</small></div>
                           )}
                         </div>
-                        <small className="text-muted">ID: {sdp.id}</small>
+                        <div className="d-flex flex-column align-items-end gap-1">
+                          <small className="text-muted">ID: {sdp.id}</small>
+                          <button
+                            className="btn btn-outline-primary btn-sm"
+                            onClick={() => resendSdpCredentials(sdp.id)}
+                            disabled={resendingId === sdp.id}
+                            title="Reset password and resend login credentials"
+                          >
+                            {resendingId === sdp.id
+                              ? <><span className="spinner-border spinner-border-sm me-1"/>Sending...</>
+                              : '📧 Resend Credentials'}
+                          </button>
+                        </div>
                       </div>
+                      {resendMsg?.id === sdp.id && (
+                        <div className={`alert ${resendMsg.ok ? 'alert-success' : 'alert-danger'} mt-2 mb-0 py-2 small`}
+                          style={{ whiteSpace: 'pre-line' }}>
+                          {resendMsg.text}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
