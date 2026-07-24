@@ -80,7 +80,7 @@ const PersonalInfoForm: React.FC<PersonalInfoFormProps> = ({
     }
 
     // Phone Number validation (optional but if provided, should be valid)
-    if (formData.phoneNumber && !/^[\d\s\-\+\(\)]+$/.test(formData.phoneNumber)) {
+    if (formData.phoneNumber && !/^[\d\s()+-]+$/.test(formData.phoneNumber)) {
       newErrors.phoneNumber = 'Please enter a valid phone number';
     }
 

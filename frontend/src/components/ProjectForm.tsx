@@ -78,6 +78,9 @@ interface ProjectFormProps {
   skillsDevelopmentProviderId?: number; // Optional prop to pre-select SDP
 }
 
+type ProjectFormFieldValue = ProjectFormData[keyof ProjectFormData];
+type ProjectQualificationFieldValue = ProjectQualificationData[keyof ProjectQualificationData];
+
 const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId, skillsDevelopmentProviderId }) => {
   const [formData, setFormData] = useState<ProjectFormData>({
     projectName: '',
@@ -169,7 +172,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
 
   // Current qualification for adding unit standards
   const [currentQualificationIdForUnitStandard, setCurrentQualificationIdForUnitStandard] = useState<number | null>(null);
-  const [currentQualificationTypeForUnitStandard, setCurrentQualificationTypeForUnitStandard] = useState<'occupational' | 'legacy' | null>(null);
 
   // Location state management
   const [availableDistricts, setAvailableDistricts] = useState<District[]>([]);
@@ -224,105 +226,110 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
     loadInitialData();
   }, [clientId]);
 
-  const validateField = (name: keyof ProjectFormData, value: any): string => {
+  const validateField = (name: keyof ProjectFormData, value: ProjectFormFieldValue): string => {
+    const stringValue = typeof value === 'string' ? value : '';
+    const numericValue = typeof value === 'number' ? value : 0;
+    const arrayValue = Array.isArray(value) ? value : [];
+
     switch (name) {
       case 'projectName':
-        if (!value || value.trim().length < 2) {
+        if (!stringValue || stringValue.trim().length < 2) {
           return 'Project name must be at least 2 characters long';
         }
-        if (value.trim().length > 200) {
+        if (stringValue.trim().length > 200) {
           return 'Project name cannot exceed 200 characters';
         }
         break;
 
       case 'contractNumber':
-        if (!value || value.trim().length < 1) {
+        if (!stringValue || stringValue.trim().length < 1) {
           return 'Contract number is required';
         }
-        if (value.trim().length > 50) {
+        if (stringValue.trim().length > 50) {
           return 'Contract number cannot exceed 50 characters';
         }
         break;
 
-      case 'financialYear':
-        if (!value) {
+      case 'financialYear': {
+        if (!stringValue) {
           return 'Financial year is required';
         }
-        const year = parseInt(value);
+        const year = parseInt(stringValue, 10);
         const currentYear = new Date().getFullYear();
         if (year < currentYear - 5 || year > currentYear + 5) {
           return 'Financial year must be within 5 years of current year';
         }
         break;
+      }
 
       case 'startDate':
-        if (!value) {
+        if (!stringValue) {
           return 'Start date is required';
         }
         break;
 
       case 'endDate':
-        if (!value) {
+        if (!stringValue) {
           return 'End date is required';
         }
-        if (formData.startDate && new Date(value) <= new Date(formData.startDate)) {
+        if (formData.startDate && new Date(stringValue) <= new Date(formData.startDate)) {
           return 'End date must be after start date';
         }
         break;
 
       case 'numberOfBeneficiaries':
-        if (!value || value < 1) {
+        if (!numericValue || numericValue < 1) {
           return 'Number of beneficiaries must be at least 1';
         }
-        if (value > 10000) {
+        if (numericValue > 10000) {
           return 'Number of beneficiaries cannot exceed 10,000';
         }
         break;
 
       case 'province':
-        if (!value) {
+        if (!stringValue) {
           return 'Province is required';
         }
         break;
 
       case 'district':
-        if (!value) {
+        if (!stringValue) {
           return 'District is required';
         }
         break;
 
       case 'municipality':
-        if (!value) {
+        if (!stringValue) {
           return 'Municipality is required';
         }
         break;
 
       case 'projectFunder':
-        if (!value || value.trim().length < 2) {
+        if (!stringValue || stringValue.trim().length < 2) {
           return 'Project funder is required';
         }
         break;
 
       case 'leadEmployerPartner':
-        if (!value || value.trim().length < 2) {
+        if (!stringValue || stringValue.trim().length < 2) {
           return 'Lead employer partner is required';
         }
         break;
 
       case 'skillsDevelopmentProviderId':
-        if (!value || value === 0) {
+        if (!numericValue || numericValue === 0) {
           return 'Skills development provider is required';
         }
         break;
 
       case 'budgetAmount':
-        if (!value || value < 0) {
+        if (!numericValue || numericValue < 0) {
           return 'Budget amount must be a positive number';
         }
         break;
 
       case 'learningPathways':
-        if (!value || value.length === 0) {
+        if (!arrayValue || arrayValue.length === 0) {
           return 'At least one learning pathway is required';
         }
         break;
@@ -330,7 +337,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
     return '';
   };
 
-  const handleInputChange = (name: keyof ProjectFormData, value: any) => {
+  const handleInputChange = (name: keyof ProjectFormData, value: ProjectFormFieldValue) => {
     setFormData(prev => ({ ...prev, [name]: value }));
     
     // Handle cascading dropdowns for location
@@ -639,7 +646,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
       )
     : legacyQualifications;
 
-  const updateQualification = (pathwayIndex: number, qualificationIndex: number, field: keyof ProjectQualificationData, value: any) => {
+  const updateQualification = (pathwayIndex: number, qualificationIndex: number, field: keyof ProjectQualificationData, value: ProjectQualificationFieldValue) => {
     setFormData(prev => ({
       ...prev,
       learningPathways: prev.learningPathways.map((pathway, i) => 
@@ -757,11 +764,12 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
         setSubmitMessage(null);
       }, 3000);
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error submitting form:', error);
+      const message = error instanceof Error ? error.message : 'Failed to create project. Please try again.';
       setSubmitMessage({
         type: 'error',
-        text: error.message || 'Failed to create project. Please try again.'
+        text: message
       });
     } finally {
       setIsSubmitting(false);
@@ -769,7 +777,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
   };
 
   const getFieldClassName = (fieldName: keyof ProjectFormErrors, hasValue?: boolean) => {
-    let baseClass = "form-control form-control-lg";
+    const baseClass = "form-control form-control-lg";
     
     if (errors[fieldName]) {
       return `${baseClass} is-invalid`;
@@ -1530,7 +1538,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
                                         className="btn btn-sm btn-outline-success"
                                         onClick={() => {
                                           setCurrentQualificationIdForUnitStandard(qualification.occupationalQualificationId);
-                                          setCurrentQualificationTypeForUnitStandard('occupational');
                                           setShowOccupationalUnitStandardModal(true);
                                         }}
                                       >
@@ -1661,7 +1668,6 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
                                               className="btn btn-sm btn-outline-success"
                                               onClick={() => {
                                                 setCurrentQualificationIdForUnitStandard(actualQualificationId);
-                                                setCurrentQualificationTypeForUnitStandard('legacy');
                                                 setShowLegacyUnitStandardModal(true);
                                               }}
                                             >

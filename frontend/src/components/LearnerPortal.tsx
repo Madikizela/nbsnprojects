@@ -192,21 +192,22 @@ export default function LearnerPortal() {
             </button>
           </div>
         )}
-      </nav>{/* Responsive CSS */}
-        <style>{`
-          @media (max-width: 768px) {
-            .desktop-menu {
-              display: none !important;
-            }
-            .mobile-menu-btn {
-              display: block !important;
-            }
-            .mobile-menu {
-              display: flex !important;
-            }
-          }
-        `}</style>
       </nav>
+
+      {/* Responsive CSS */}
+      <style>{`
+        @media (max-width: 768px) {
+          .desktop-menu {
+            display: none !important;
+          }
+          .mobile-menu-btn {
+            display: block !important;
+          }
+          .mobile-menu {
+            display: flex !important;
+          }
+        }
+      `}</style>
 
       <div style={{ padding: 24, maxWidth: 1100, margin: '0 auto' }}>
         {section === 'dashboard'         && <LearnerDashboard token={token} user={user} setSection={setSection} />}

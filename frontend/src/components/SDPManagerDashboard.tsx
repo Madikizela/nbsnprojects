@@ -2426,7 +2426,7 @@ const SDPManagerDashboard: React.FC = () => {
     if (!newTeacherForm.email.trim()) {
       errors.email = 'Email is required';
       isValid = false;
-    } else if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(newTeacherForm.email)) {
+    } else if (!/^[\w.-]+@([\w-]+\.)+[\w-]{2,4}$/.test(newTeacherForm.email)) {
       errors.email = 'Enter a valid email address';
       isValid = false;
     }
