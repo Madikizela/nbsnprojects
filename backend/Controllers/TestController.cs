@@ -23,8 +23,36 @@ namespace backend.Controllers
         }
 
         /// <summary>
-        /// Tests SMTP configuration by sending a test email.
-        /// Usage: POST /api/test/email?to=you@example.com
+        /// Returns SMTP config status (no password values exposed).
+        /// Usage: GET /api/test/email-config
+        /// </summary>
+        [HttpGet("email-config")]
+        public ActionResult EmailConfig()
+        {
+            var smtpHost     = Environment.GetEnvironmentVariable("SMTP_HOST")  ?? "(not set)";
+            var smtpPort     = Environment.GetEnvironmentVariable("SMTP_PORT")  ?? "(not set)";
+            var smtpUser     = Environment.GetEnvironmentVariable("SMTP_USER")  ?? "(not set)";
+            var smtpPassSet  = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SMTP_PASS"));
+            var fromEmail    = Environment.GetEnvironmentVariable("FROM_EMAIL") ?? "(not set)";
+            var fromName     = Environment.GetEnvironmentVariable("FROM_NAME")  ?? "(not set)";
+
+            var configured = smtpUser != "(not set)" && smtpPassSet;
+
+            return Ok(new
+            {
+                configured,
+                smtpHost,
+                smtpPort,
+                smtpUser,
+                smtpPassConfigured = smtpPassSet,
+                fromEmail,
+                fromName,
+                hint = configured ? "Credentials look set. Use POST /api/test/email?to=you@email.com to send a test." : "Set SMTP_USER and SMTP_PASS in Railway Variables."
+            });
+        }
+
+        /// <summary>
+        /// Sends a test email. Usage: POST /api/test/email?to=you@example.com
         /// </summary>
         [HttpPost("email")]
         public async Task<ActionResult> TestEmail([FromQuery] string to)
