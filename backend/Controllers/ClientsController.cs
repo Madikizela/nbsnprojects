@@ -143,7 +143,16 @@ namespace backend.Controllers
                 _logger.LogInformation("Request data: {RequestData}", JsonSerializer.Serialize(request));
                 
                 // Decrypt the client data
-                var clientData = _dataEncryptionService.DecryptObject<ClientRegistrationData>(request.EncryptedClientData);
+                ClientRegistrationData clientData;
+                try
+                {
+                    clientData = _dataEncryptionService.DecryptObject<ClientRegistrationData>(request.EncryptedClientData);
+                }
+                catch (Exception decryptEx)
+                {
+                    _logger.LogError(decryptEx, "Failed to decrypt client registration data. Check that ENCRYPTION_DATA_KEY matches the frontend key.");
+                    return BadRequest(new { message = "Failed to decrypt registration data. Encryption key mismatch — check ENCRYPTION_DATA_KEY environment variable on the server.", error = decryptEx.Message });
+                }
                 
                 _logger.LogInformation("Decrypted client data: {ClientData}", JsonSerializer.Serialize(clientData));
                 
