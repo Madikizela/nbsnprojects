@@ -83,17 +83,15 @@ namespace backend.Controllers
             return Ok(new
             {
                 success  = false,
-                message  = $"❌ Email failed via {transport}",
+                message  = $"❌ Email failed via {transport}. Check Railway logs for the Resend API error response (look for 'Resend response' or 'Resend API rejected').",
                 transport,
                 resendConfigured = !string.IsNullOrWhiteSpace(resendKey),
-                smtpUser,
-                smtpPassConfigured = smtpPassSet,
                 fromEmail,
-                tips = new[]
+                commonCauses = new[]
                 {
-                    "RECOMMENDED: Add RESEND_API_KEY to Railway Variables (free at resend.com) — Railway blocks outbound SMTP",
-                    "If using Resend: make sure FROM_EMAIL is a verified sender in your Resend account",
-                    "If FROM_EMAIL is not verified in Resend, use onboarding@resend.dev as FROM_EMAIL for testing"
+                    "403: FROM_EMAIL domain not verified in Resend — use onboarding@resend.dev for testing",
+                    "401: Invalid RESEND_API_KEY — check the key in Railway Variables",
+                    "422: Bad request — invalid 'to' address or missing fields"
                 }
             });
         }
