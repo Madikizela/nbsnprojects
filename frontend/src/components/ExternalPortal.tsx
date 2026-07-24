@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:5213';
+const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
 
 interface Demographics { totalLearners:number; male:number; female:number; youth:number; above35:number; ageUnknown:number; }
 interface DocSummaryItem { documentType:string; count:number; }

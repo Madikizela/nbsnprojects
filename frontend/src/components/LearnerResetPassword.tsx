@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const API = 'http://localhost:5213';
+const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
 
 export default function LearnerResetPassword() {
   const [step, setStep] = useState<'email' | 'token' | 'reset' | 'success'>('email');

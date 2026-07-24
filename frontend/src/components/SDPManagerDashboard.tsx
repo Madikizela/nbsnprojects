@@ -546,7 +546,7 @@ const SDPManagerDashboard: React.FC = () => {
   console.log('SDPManagerDashboard: Component rendered/re-rendered');
   
   // API base URL constant
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:5213';
+  const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -898,7 +898,7 @@ const SDPManagerDashboard: React.FC = () => {
     };
 
     // Prepend API base URL if it doesn't already start with http
-    const apiUrl = url.startsWith('http') ? url : `${import.meta.env.VITE_API_URL || 'http://localhost:5213'}${url}`;
+    const apiUrl = url.startsWith('http') ? url : `${(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}${url}`;
     console.log('Using apiUrl:', apiUrl);
 
     try {
@@ -12564,7 +12564,7 @@ const SDPManagerDashboard: React.FC = () => {
                                   <>
                                     {console.log('🖼️ Displaying profile photo for:', selectedLearner.firstName, selectedLearner.lastName, 'Path:', selectedLearner.profilePhotoPath)}
                                     <img 
-                                      src={`http://localhost:5213/api/Learners/${selectedLearner.id}/profile-photo`}
+                                      src={`${(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}/api/Learners/${selectedLearner.id}/profile-photo`}
                                       alt={`${selectedLearner.firstName} ${selectedLearner.lastName}`}
                                       style={{
                                         width: '100%',
