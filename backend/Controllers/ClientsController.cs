@@ -140,21 +140,45 @@ namespace backend.Controllers
             try
             {
                 _logger.LogInformation("Received client registration request");
-                _logger.LogInformation("Request data: {RequestData}", JsonSerializer.Serialize(request));
-                
-                // Decrypt the client data
+
+                // Resolve client data — prefer plain fields, fall back to legacy encrypted payload
                 ClientRegistrationData clientData;
-                try
+
+                if (!string.IsNullOrWhiteSpace(request.Name) && !string.IsNullOrWhiteSpace(request.Email))
                 {
-                    clientData = _dataEncryptionService.DecryptObject<ClientRegistrationData>(request.EncryptedClientData);
+                    // Plain JSON path (current)
+                    clientData = new ClientRegistrationData
+                    {
+                        Name          = request.Name,
+                        Email         = request.Email,
+                        Description   = request.Description,
+                        Address       = request.Address,
+                        PhoneNumber   = request.PhoneNumber,
+                        ContactPerson = request.ContactPerson,
+                        WebsiteLink   = request.WebsiteLink,
+                        AttendanceType = request.AttendanceType,
+                        LogoUrl       = request.LogoUrl
+                    };
                 }
-                catch (Exception decryptEx)
+                else if (!string.IsNullOrWhiteSpace(request.EncryptedClientData))
                 {
-                    _logger.LogError(decryptEx, "Failed to decrypt client registration data. Check that ENCRYPTION_DATA_KEY matches the frontend key.");
-                    return BadRequest(new { message = "Failed to decrypt registration data. Encryption key mismatch — check ENCRYPTION_DATA_KEY environment variable on the server.", error = decryptEx.Message });
+                    // Legacy encrypted path
+                    try
+                    {
+                        clientData = _dataEncryptionService.DecryptObject<ClientRegistrationData>(request.EncryptedClientData);
+                    }
+                    catch (Exception decryptEx)
+                    {
+                        _logger.LogError(decryptEx, "Failed to decrypt client registration data.");
+                        return BadRequest(new { message = "Failed to decrypt registration data. Please ensure the encryption key matches, or send plain JSON fields instead.", error = decryptEx.Message });
+                    }
                 }
-                
-                _logger.LogInformation("Decrypted client data: {ClientData}", JsonSerializer.Serialize(clientData));
+                else
+                {
+                    return BadRequest(new { message = "Client name and email are required." });
+                }
+
+                _logger.LogInformation("Client data resolved: Name={Name}, Email={Email}", clientData.Name, clientData.Email);
                 
                 // Validate required fields
                 if (string.IsNullOrWhiteSpace(clientData.Name) || string.IsNullOrWhiteSpace(clientData.Email))

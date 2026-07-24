@@ -3,16 +3,28 @@ using System.ComponentModel.DataAnnotations;
 namespace backend.Models
 {
     /// <summary>
-    /// Data Transfer Object for client registration requests with encrypted data
+    /// Data Transfer Object for client registration requests.
+    /// Data is sent as plain JSON over HTTPS — TLS provides transport-layer security.
     /// </summary>
     public class ClientRegistrationRequest
     {
-        [Required(ErrorMessage = "Encrypted client data is required")]
-        public string EncryptedClientData { get; set; } = string.Empty;
+        // Plain fields — used by current clients
+        public string? Name { get; set; }
+        public string? Description { get; set; }
+        public string? Address { get; set; }
+        public string? PhoneNumber { get; set; }
+        public string? Email { get; set; }
+        public string? ContactPerson { get; set; }
+        public string? WebsiteLink { get; set; }
+        public string? AttendanceType { get; set; }
+        public string? LogoUrl { get; set; }
+
+        // Legacy encrypted field — kept for backwards compatibility
+        public string? EncryptedClientData { get; set; }
     }
 
     /// <summary>
-    /// Plain client data structure for encryption/decryption
+    /// Plain client data structure (used internally after decryption or direct mapping)
     /// </summary>
     public class ClientRegistrationData
     {
@@ -36,6 +48,10 @@ namespace backend.Models
 
         [StringLength(100, MinimumLength = 2, ErrorMessage = "Contact person name must be between 2 and 100 characters")]
         public string? ContactPerson { get; set; }
+
+        public string? WebsiteLink { get; set; }
+        public string? AttendanceType { get; set; }
+        public string? LogoUrl { get; set; }
     }
 
     /// <summary>

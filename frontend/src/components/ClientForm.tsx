@@ -232,6 +232,9 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
         description: formData.businessDescription || '',
         phoneNumber: formData.phoneNumber || '',
         contactPerson: formData.contactPerson || '',
+        websiteLink: formData.websiteLink || '',
+        attendanceType: formData.attendanceType || '',
+        logoUrl: logoPreview || undefined,
       };
 
       console.log('Sending client data:', clientData);
