@@ -73,29 +73,10 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy Backend to Railway
-        run: railway up --service backend --detach --yes --ci
+        run: railway up --service nbsnprojects --detach --yes --ci
         working-directory: backend
         env:
           CI: true
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
   # ──────────────────────────────────────────────
-  # 4. Deploy Frontend to Railway
-  # ──────────────────────────────────────────────
-  deploy-frontend:
-    name: Deploy Frontend
-    runs-on: ubuntu-latest
-    needs: deploy-backend
-    if: github.ref == 'refs/heads/main'
-    steps:
-      - uses: actions/checkout@v5
-
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Deploy Frontend to Railway
-        run: railway up --service frontend --detach --yes --ci
-        working-directory: frontend
-        env:
-          CI: true
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
