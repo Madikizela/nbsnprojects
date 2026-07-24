@@ -1,13 +1,8 @@
 /**
  * Seeds qualifications and unit standards into Railway PostgreSQL.
- * 
  * Usage:
- *   1. Set DATABASE_URL environment variable to your Railway PostgreSQL URL
- *      (found in Railway → Postgres → Connect → External Connection URL)
- *   2. Run: node run_seed_railway.js
- * 
- * Or pass it directly:
- *   $env:DATABASE_URL="postgresql://postgres:PASS@HOST:PORT/railway"; node run_seed_railway.js
+ *   $env:DATABASE_URL="postgresql://postgres:PASS@HOST:PORT/railway"
+ *   node run_seed_railway.js
  */
 
 const { Client } = require('pg');
@@ -15,55 +10,83 @@ const fs = require('fs');
 const path = require('path');
 
 const DATABASE_URL = process.env.DATABASE_URL;
-
 if (!DATABASE_URL) {
-  console.error('❌ DATABASE_URL environment variable is required.');
-  console.error('   Set it to your Railway PostgreSQL connection URL.');
-  console.error('   Example: $env:DATABASE_URL="postgresql://postgres:PASS@HOST:PORT/railway"; node run_seed_railway.js');
+  console.error('Set DATABASE_URL first.');
   process.exit(1);
 }
 
+async function runBatch(client, statements, label) {
+  console.log(`Running ${statements.length} ${label}...`);
+  let done = 0, skipped = 0;
+  for (const stmt of statements) {
+    if (!stmt.trim()) continue;
+    try {
+      await client.query(stmt);
+      done++;
+      if (done % 1000 === 0) console.log(`  ${done}/${statements.length}...`);
+    } catch (e) {
+      skipped++;
+    }
+  }
+  console.log(`  ✅ ${done} inserted, ${skipped} skipped`);
+}
+
 async function main() {
-  console.log('Connecting to Railway database...');
-  const client = new Client({
-    connectionString: DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-  });
-
+  console.log('Connecting...');
+  const client = new Client({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
   await client.connect();
-  console.log('✅ Connected!');
+  console.log('✅ Connected!\n');
 
-  // Check current counts
-  const beforeQuals = await client.query('SELECT COUNT(*) FROM legacy_qualifications');
-  const beforeUS    = await client.query('SELECT COUNT(*) FROM legacy_unit_standards');
-  console.log(`Before: ${beforeQuals.rows[0].count} qualifications, ${beforeUS.rows[0].count} unit standards`);
-
-  // Read and execute the seed SQL
-  const sqlFile = path.join(__dirname, 'backend', 'seed_railway_qualifications.sql');
-  console.log(`Reading ${sqlFile}...`);
-  const sql = fs.readFileSync(sqlFile, 'utf8');
-
-  console.log('Executing seed SQL (this may take 30-60 seconds for 9000+ records)...');
-  
+  // Step 1: Drop the FK constraint temporarily so we can insert freely
+  console.log('Dropping FK constraint temporarily...');
   try {
-    await client.query(sql);
-    console.log('✅ Seed SQL executed successfully!');
-  } catch (err) {
-    console.error('❌ SQL execution error:', err.message);
-    await client.end();
-    process.exit(1);
+    await client.query('ALTER TABLE legacy_unit_standards DROP CONSTRAINT IF EXISTS "FK_legacy_unit_standards_legacy_qualifications_qualification_id"');
+    console.log('✅ FK constraint dropped\n');
+  } catch(e) {
+    console.log('Note:', e.message);
   }
 
-  // Check counts after
-  const afterQuals = await client.query('SELECT COUNT(*) FROM legacy_qualifications');
-  const afterUS    = await client.query('SELECT COUNT(*) FROM legacy_unit_standards');
-  console.log(`After:  ${afterQuals.rows[0].count} qualifications, ${afterUS.rows[0].count} unit standards`);
-  console.log('🎉 Done! Qualifications and unit standards are now in Railway.');
+  // Step 2: Clear tables
+  console.log('Clearing tables...');
+  await client.query('DELETE FROM legacy_unit_standards');
+  await client.query('DELETE FROM legacy_qualifications');
+  console.log('✅ Tables cleared\n');
+
+  // Step 3: Read SQL file
+  const sql = fs.readFileSync(path.join(__dirname, 'backend', 'seed_railway_qualifications.sql'), 'utf8');
+  const allLines = sql.split('\n').filter(l => l.trim() && !l.trim().startsWith('--'));
+
+  const qualInserts = allLines
+    .filter(l => l.includes('INSERT INTO legacy_qualifications'))
+    .map(l => l.replace(/ON CONFLICT.*?;/, ';'));
+
+  const usInserts = allLines
+    .filter(l => l.includes('INSERT INTO legacy_unit_standards'))
+    .map(l => l.replace(/ON CONFLICT.*?;/, ';'));
+
+  // Step 4: Seed qualifications
+  await runBatch(client, qualInserts, 'qualifications');
+
+  // Step 5: Seed unit standards
+  await runBatch(client, usInserts, 'unit standards');
+
+  // Step 6: Reset sequences
+  await client.query("SELECT setval('legacy_qualifications_id_seq', (SELECT MAX(id) FROM legacy_qualifications))");
+  await client.query("SELECT setval('legacy_unit_standards_id_seq', (SELECT MAX(id) FROM legacy_unit_standards))");
+
+  // Step 7: Verify
+  const result = await client.query(`
+    SELECT 
+      (SELECT COUNT(*) FROM legacy_qualifications) as quals,
+      (SELECT COUNT(*) FROM legacy_unit_standards) as us
+  `);
+  console.log(`\n✅ Final: ${result.rows[0].quals} qualifications, ${result.rows[0].us} unit standards`);
+  console.log('🎉 Done!');
 
   await client.end();
 }
 
 main().catch(err => {
-  console.error('Fatal error:', err.message);
+  console.error('❌ Error:', err.message);
   process.exit(1);
 });

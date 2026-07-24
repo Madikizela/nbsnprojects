@@ -1,4 +1,3 @@
-﻿BEGIN;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (8443, 113824, 48435, 'Apply a basic training and enrichment programme for captive animals', 'NQF Level 04', 8, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (8444, 113820, 48435, 'Care for animals in facility', 'NQF Level 04', 40, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (8445, 113815, 48435, 'Demonstrate a basic knowledge of legislation applicable to captive animals', 'NQF Level 04', 4, 0) ON CONFLICT (id) DO NOTHING;
@@ -3083,6 +3082,4 @@ INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_s
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (27087, 12470, 24133, 'Write for a variety of different purposes', 'NQF Level 01', 6, NULL) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (27088, 8963, 24133, 'Access and use information from texts', 'NQF Level 02', 5, NULL) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (27089, 9009, 24133, 'Apply basic knowledge of statistics and probability to influence the use of data and procedures in order to investigate life related problems', 'NQF Level 02', NULL, NULL) ON CONFLICT (id) DO NOTHING;
-
 SELECT setval('legacy_unit_standards_id_seq', (SELECT MAX(id) FROM legacy_unit_standards));
-COMMIT;

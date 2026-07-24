@@ -1,6 +1,4 @@
-﻿BEGIN;
 TRUNCATE TABLE legacy_qualifications RESTART IDENTITY CASCADE;
-
 INSERT INTO legacy_qualifications (id, qualification_id, name, description, level, credits, qualification_type, has_cat) VALUES (1, 49197, 'Further Education and Training Certificate: Social Housing Supervision', 'Services', 'Level: 4', 146, 'Legacy', 'NO') ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_qualifications (id, qualification_id, name, description, level, credits, qualification_type, has_cat) VALUES (2, 21148, 'Advanced Certificate: Assistant Quantity Surveying: Construction', 'Physical Planning and Construction', 'Level: 4', 180, 'Legacy', 'NO') ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_qualifications (id, qualification_id, name, description, level, credits, qualification_type, has_cat) VALUES (3, 21031, 'Certificate: Accounting Administration', 'Business, Commerce and Management Studies', 'Level: 4', 120, 'Legacy', 'NO') ON CONFLICT (id) DO NOTHING;
@@ -530,6 +528,4 @@ INSERT INTO legacy_qualifications (id, qualification_id, name, description, leve
 INSERT INTO legacy_qualifications (id, qualification_id, name, description, level, credits, qualification_type, has_cat) VALUES (527, 24133, 'National Certificate: Construction Roadworks', '', 'Level 02', 120, 'Legacy', 'NO') ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_qualifications (id, qualification_id, name, description, level, credits, qualification_type, has_cat) VALUES (529, 65409, 'Building and Civil Construction', 'National Certificate: Building and Civil Construction', '3', 140, 'Legacy', 'NO') ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_qualifications (id, qualification_id, name, description, level, credits, qualification_type, has_cat) VALUES (530, 22672, 'National Certificate: Wastewater Process Control', '', 'Level 04', 145, 'Legacy', 'NO') ON CONFLICT (id) DO NOTHING;
-
 SELECT setval('legacy_qualifications_id_seq', (SELECT MAX(id) FROM legacy_qualifications));
-COMMIT;

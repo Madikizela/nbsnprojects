@@ -1,4 +1,3 @@
-﻿BEGIN;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (5230, 119465, 58780, 'Write/present/sign texts for a range of communicative contexts', 'NQF Level 03', 5, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (5231, 9015, 58780, 'Apply knowledge of statistics and probability to critically interrogate and effectively communicate findings on life related problems', 'NQF Level 04', 6, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (5232, 119462, 58780, 'Engage in sustained oral/signed communication and evaluate spoken/signed texts', 'NQF Level 04', 5, 0) ON CONFLICT (id) DO NOTHING;
@@ -2999,4 +2998,3 @@ INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_s
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (8440, 114877, 58204, 'Formulate and implement an action plan to improve productivity within an organisational unit', 'NQF Level 04', 8, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (8441, 116692, 58204, 'Plan, organise and control the erection, alteration/repositioning and dismantling of access scaffolding', 'NQF Level 04', 12, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (8442, 119257, 58204, 'Produce and maintain work activity reports', 'NQF Level 04', 8, 0) ON CONFLICT (id) DO NOTHING;
-COMMIT;

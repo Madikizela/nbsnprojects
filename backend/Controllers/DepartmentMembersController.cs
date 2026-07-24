@@ -415,7 +415,7 @@ namespace backend.Controllers
                                 </div>
                                 
                                 <div style='text-align: center; margin: 30px 0;'>
-                                    <a href='http://localhost:5173/login' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;'>
+                                    <a href='https://frontend-production-91f1.up.railway.app/login' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;'>
                                         🚀 Login to Your Account
                                     </a>
                                 </div>

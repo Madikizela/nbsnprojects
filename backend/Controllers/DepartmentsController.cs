@@ -234,9 +234,10 @@ namespace backend.Controllers
                     _logger.LogInformation("Manager user created with ID: {UserId} for department {DepartmentId}", managerUser.Id, department.Id);
 
                     // Send welcome email with credentials
+                    bool emailSent = false;
                     try 
                     {
-                        var emailSent = await _emailService.SendWelcomeEmailAsync(
+                        emailSent = await _emailService.SendWelcomeEmailAsync(
                             department.ManagerEmail,
                             $"{department.ManagerFirstName} {department.ManagerSurname}",
                             username,
@@ -252,7 +253,24 @@ namespace backend.Controllers
                     catch (Exception emailEx)
                     {
                         _logger.LogError(emailEx, "Exception while sending welcome email to {Email}", department.ManagerEmail);
-                        // Don't fail the whole request if email fails
+                    }
+
+                    // Include credentials in response if email failed so admin can share manually
+                    if (!emailSent)
+                    {
+                        var createdWithCreds = await _context.Departments
+                            .Include(d => d.SkillsDevelopmentProvider)
+                            .Include(d => d.Users)
+                            .FirstOrDefaultAsync(d => d.Id == department.Id);
+
+                        return CreatedAtAction("GetDepartment", new { id = department.Id }, new
+                        {
+                            department = createdWithCreds ?? (object)department,
+                            emailSent = false,
+                            message = "Department created. Email could not be sent — save these credentials:",
+                            adminUsername = username,
+                            temporaryPassword = password
+                        });
                     }
                 }
 
@@ -290,6 +308,54 @@ namespace backend.Controllers
         private bool DepartmentExists(int id)
         {
             return _context.Departments.Any(e => e.Id == id);
+        }
+
+        // POST: api/Departments/{id}/resend-credentials
+        [HttpPost("{id}/resend-credentials")]
+        public async Task<IActionResult> ResendCredentials(int id)
+        {
+            try
+            {
+                var department = await _context.Departments.FindAsync(id);
+                if (department == null)
+                    return NotFound(new { message = "Department not found" });
+
+                if (string.IsNullOrEmpty(department.ManagerEmail))
+                    return BadRequest(new { message = "No manager email on record for this department" });
+
+                var managerUser = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email == department.ManagerEmail && u.DepartmentId == id);
+
+                if (managerUser == null)
+                    return NotFound(new { message = "No user account found for this department manager" });
+
+                var newPassword = _dataEncryptionService.GenerateSecurePassword();
+                managerUser.PasswordHash = _passwordHashingService.HashPassword(newPassword);
+                managerUser.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+                await _context.SaveChangesAsync();
+
+                var emailSent = await _emailService.SendWelcomeEmailAsync(
+                    managerUser.Email!,
+                    $"{department.ManagerFirstName} {department.ManagerSurname}",
+                    managerUser.Username ?? managerUser.Email!,
+                    newPassword);
+
+                if (emailSent)
+                    return Ok(new { message = $"Credentials resent to {managerUser.Email}", emailSent = true });
+
+                return Ok(new
+                {
+                    message = "Password reset but email could not be sent. Save these credentials:",
+                    emailSent = false,
+                    adminUsername = managerUser.Username ?? managerUser.Email,
+                    temporaryPassword = newPassword
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resending credentials for department {DepartmentId}", id);
+                return StatusCode(500, new { message = "An error occurred" });
+            }
         }
     }
 }

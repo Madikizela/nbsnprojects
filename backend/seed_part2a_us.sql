@@ -1,6 +1,4 @@
-﻿BEGIN;
 TRUNCATE TABLE legacy_unit_standards RESTART IDENTITY CASCADE;
-
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (1, 14999, 49129, 'Analyse people related risks in an organisation in order to control the risk', 'NQF Level 04', 3, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (2, 117495, 49129, 'Assess legal contracts for business', 'NQF Level 04', 8, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (3, 117494, 49129, 'Comply to legal requirements in business', 'NQF Level 04', 7, 0) ON CONFLICT (id) DO NOTHING;
@@ -3001,4 +2999,3 @@ INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_s
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (5227, 119472, 58780, 'Accommodate audience and context needs in oral/signed communication', 'NQF Level 03', 5, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (5228, 119457, 58780, 'Interpret and use information from texts', 'NQF Level 03', 5, 0) ON CONFLICT (id) DO NOTHING;
 INSERT INTO legacy_unit_standards (id, unitstandard_id, qualification_id, unit_standard_name, level, credits, synced) VALUES (5229, 119467, 58780, 'Use language and communication in occupational learning programmes', 'NQF Level 03', 5, 0) ON CONFLICT (id) DO NOTHING;
-COMMIT;
