@@ -60,60 +60,40 @@ namespace backend.Controllers
             if (string.IsNullOrWhiteSpace(to))
                 return BadRequest(new { message = "Provide ?to=recipient@email.com in the query string" });
 
-            var smtpHost    = Environment.GetEnvironmentVariable("SMTP_HOST")  ?? "(not set)";
-            var smtpPort    = Environment.GetEnvironmentVariable("SMTP_PORT")  ?? "(not set)";
-            var smtpUser    = Environment.GetEnvironmentVariable("SMTP_USER")  ?? "(not set)";
+            var resendKey   = Environment.GetEnvironmentVariable("RESEND_API_KEY");
+            var smtpUser    = Environment.GetEnvironmentVariable("SMTP_USER") ?? "(not set)";
             var smtpPassSet = !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("SMTP_PASS"));
             var fromEmail   = Environment.GetEnvironmentVariable("FROM_EMAIL") ?? "(not set)";
 
-            var config = new { smtpHost, smtpPort, smtpUser, smtpPassConfigured = smtpPassSet, fromEmail };
+            var transport = !string.IsNullOrWhiteSpace(resendKey) ? "Resend API"
+                : smtpUser != "(not set)" ? "SMTP"
+                : "none";
 
-            if (!smtpPassSet || smtpUser == "(not set)")
-                return Ok(new { success = false, message = "SMTP credentials not configured.", config });
+            _logger.LogInformation("Email test to {To} via {Transport}", to, transport);
 
-            // Send directly with SmtpClient so we can capture the exact error
-            string? errorDetail = null;
-            bool sent = false;
-            try
-            {
-                using var client = new System.Net.Mail.SmtpClient(smtpHost, int.Parse(smtpPort == "(not set)" ? "587" : smtpPort));
-                client.EnableSsl = true;
-                client.UseDefaultCredentials = false;
-                client.Credentials = new System.Net.NetworkCredential(
-                    smtpUser,
-                    Environment.GetEnvironmentVariable("SMTP_PASS"));
-
-                using var msg = new System.Net.Mail.MailMessage();
-                msg.From = new System.Net.Mail.MailAddress(fromEmail, "NBSN Test");
-                msg.To.Add(to);
-                msg.Subject = "NBSN Email Test ✅";
-                msg.Body = $"<h2>Email test successful!</h2><p>Sent at {DateTime.UtcNow:u}</p>";
-                msg.IsBodyHtml = true;
-
-                await client.SendMailAsync(msg);
-                sent = true;
-            }
-            catch (Exception ex)
-            {
-                errorDetail = ex.InnerException?.Message ?? ex.Message;
-                _logger.LogError(ex, "Test email failed: {Error}", errorDetail);
-            }
+            var sent = await _emailService.SendEmailAsync(
+                to,
+                "NBSN Email Test ✅",
+                $"<h2>Email test successful!</h2><p>Sent at {DateTime.UtcNow:u} via {transport}</p>"
+            );
 
             if (sent)
-                return Ok(new { success = true, message = $"✅ Email sent to {to}. Check your inbox.", config });
+                return Ok(new { success = true, message = $"✅ Email sent to {to} via {transport}. Check your inbox.", transport });
 
             return Ok(new
             {
-                success = false,
-                message = "❌ Email failed",
-                error = errorDetail,
-                config,
+                success  = false,
+                message  = $"❌ Email failed via {transport}",
+                transport,
+                resendConfigured = !string.IsNullOrWhiteSpace(resendKey),
+                smtpUser,
+                smtpPassConfigured = smtpPassSet,
+                fromEmail,
                 tips = new[]
                 {
-                    "If error contains '5.7.8' or 'BadCredentials' → wrong App Password",
-                    "If error contains '5.7.0' or 'not enabled' → enable 2FA and create an App Password",
-                    "If error contains 'connection' → port 587 may be blocked, try SMTP_PORT=465",
-                    "Make sure SMTP_PASS is the 16-char App Password (no spaces), NOT your Gmail login password"
+                    "RECOMMENDED: Add RESEND_API_KEY to Railway Variables (free at resend.com) — Railway blocks outbound SMTP",
+                    "If using Resend: make sure FROM_EMAIL is a verified sender in your Resend account",
+                    "If FROM_EMAIL is not verified in Resend, use onboarding@resend.dev as FROM_EMAIL for testing"
                 }
             });
         }

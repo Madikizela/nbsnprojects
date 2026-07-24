@@ -153,8 +153,9 @@ builder.Services.AddScoped<ILearnerDocumentEncryptionService, LearnerDocumentEnc
 builder.Services.AddScoped<IDataEncryptionService, DataEncryptionService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 
-// Add WhatsApp Business API service
+// Add HTTP clients
 builder.Services.AddHttpClient("WhatsApp");
+builder.Services.AddHttpClient("Resend");
 builder.Services.AddScoped<IWhatsAppService, WhatsAppService>();
 
 // Add SDP authorization service
