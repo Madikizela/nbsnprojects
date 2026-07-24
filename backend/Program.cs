@@ -254,11 +254,22 @@ if (app.Environment.IsDevelopment())
 // Use CORS
 app.UseCors("AllowReactApp");
 
+// Create uploads directory if it doesn't exist
+var uploadsPath = Path.Combine(builder.Environment.ContentRootPath, "uploads");
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+    Console.WriteLine($"✅ Created uploads directory: {uploadsPath}");
+}
+else
+{
+    Console.WriteLine($"✅ Uploads directory exists: {uploadsPath}");
+}
+
 // Serve static files from uploads directory
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(
-        Path.Combine(builder.Environment.ContentRootPath, "uploads")),
+    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
     RequestPath = "/uploads"
 });
 
