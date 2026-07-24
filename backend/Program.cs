@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using DotNetEnv;
+using Npgsql;
 
 // Load environment variables from .env file
 var root = Directory.GetCurrentDirectory();
@@ -56,16 +57,31 @@ builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     
-    // Check for environment variables to override connection string
-    var dbHost = Environment.GetEnvironmentVariable("DB_HOST");
-    var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? "5432";
-    var dbName = Environment.GetEnvironmentVariable("DB_NAME");
-    var dbUser = Environment.GetEnvironmentVariable("DB_USER");
-    var dbPass = Environment.GetEnvironmentVariable("DB_PASS");
+    // Support both the application's DB_* names and Railway's standard PG* names.
+    var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? Environment.GetEnvironmentVariable("PGHOST");
+    var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? Environment.GetEnvironmentVariable("PGPORT") ?? "5432";
+    var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? Environment.GetEnvironmentVariable("PGDATABASE");
+    var dbUser = Environment.GetEnvironmentVariable("DB_USER") ?? Environment.GetEnvironmentVariable("PGUSER");
+    var dbPass = Environment.GetEnvironmentVariable("DB_PASS") ?? Environment.GetEnvironmentVariable("PGPASSWORD");
+    var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 
     if (!string.IsNullOrEmpty(dbHost) && !string.IsNullOrEmpty(dbName))
     {
         connectionString = $"Host={dbHost};Port={dbPort};Database={dbName};Username={dbUser};Password={dbPass}";
+    }
+    else if (!string.IsNullOrWhiteSpace(databaseUrl) && Uri.TryCreate(databaseUrl, UriKind.Absolute, out var databaseUri))
+    {
+        var userInfo = databaseUri.UserInfo.Split(':', 2);
+        var railwayConnection = new NpgsqlConnectionStringBuilder
+        {
+            Host = databaseUri.Host,
+            Port = databaseUri.Port > 0 ? databaseUri.Port : 5432,
+            Database = databaseUri.AbsolutePath.TrimStart('/'),
+            Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty,
+            Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
+            SslMode = SslMode.Require
+        };
+        connectionString = railwayConnection.ConnectionString;
     }
 
     options.UseNpgsql(connectionString, npgsqlOptions =>
