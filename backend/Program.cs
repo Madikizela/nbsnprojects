@@ -35,10 +35,16 @@ var builder = WebApplication.CreateBuilder(args);
 // Configure QuestPDF license
 QuestPDF.Settings.License = LicenseType.Community;
 
-// Configure Kestrel to listen on all network interfaces
+// Configure Kestrel to listen on the PORT environment variable (Railway sets this)
+// Default to 5213 for local development
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5213";
+var portNumber = int.Parse(port);
+
+Console.WriteLine($"🎯 Configuring server to listen on port {portNumber}");
+
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
-    serverOptions.ListenAnyIP(5213); // Listen on all network interfaces on port 5213
+    serverOptions.ListenAnyIP(portNumber); // Listen on the PORT env var or fallback to 5213
     
     // Increase timeouts for long-running operations like POE compilation
     serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMinutes(5);
