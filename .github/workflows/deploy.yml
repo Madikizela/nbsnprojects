@@ -15,10 +15,10 @@ jobs:
     name: Build & Lint Backend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 9.0.x
 
@@ -37,10 +37,10 @@ jobs:
     name: Build & Lint Frontend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: 'npm'
@@ -67,15 +67,16 @@ jobs:
     needs: [build-backend, build-frontend]
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
       - name: Deploy Backend to Railway
-        run: railway up --service backend --detach
+        run: railway up --service backend --detach --yes --ci
         working-directory: backend
         env:
+          CI: true
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
   # ──────────────────────────────────────────────
@@ -87,13 +88,14 @@ jobs:
     needs: deploy-backend
     if: github.ref == 'refs/heads/main'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
       - name: Deploy Frontend to Railway
-        run: railway up --service frontend --detach
+        run: railway up --service frontend --detach --yes --ci
         working-directory: frontend
         env:
+          CI: true
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
