@@ -240,10 +240,19 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
       console.log('Sending client data:', clientData);
       const response = await registerClient(clientData);
       console.log('Registration response:', response);
-      
+
+      let successText = `Client registered successfully!`;
+      if (response.emailSent) {
+        successText += ` Login credentials have been sent to ${clientData.email}.`;
+      } else if (response.adminUsername && response.temporaryPassword) {
+        successText += ` ⚠️ Email could not be sent. Save these credentials now:\n\nUsername: ${response.adminUsername}\nPassword: ${response.temporaryPassword}`;
+      } else {
+        successText += ` Note: Welcome email could not be sent — check SMTP settings.`;
+      }
+
       setSubmitMessage({
         type: 'success',
-        text: `Client registered successfully! Admin credentials have been sent to ${clientData.email}`
+        text: successText
       });
 
       // Call the optional onSubmit prop if provided

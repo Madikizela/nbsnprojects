@@ -279,9 +279,13 @@ namespace backend.Controllers
                 {
                     ClientId = client.Id,
                     ClientName = client.Name,
-                    Message = "Client registered successfully",
+                    Message = emailSent
+                        ? "Client registered successfully. Login credentials have been sent to the provided email."
+                        : "Client registered successfully. Email could not be sent — SMTP not configured. Credentials are shown below.",
                     EmailSent = emailSent,
-                    CreatedAt = client.CreatedAt
+                    CreatedAt = client.CreatedAt,
+                    AdminUsername = !emailSent ? username : null,
+                    TemporaryPassword = !emailSent ? password : null
                 };
 
                 return CreatedAtAction("GetClient", new { id = client.Id }, response);

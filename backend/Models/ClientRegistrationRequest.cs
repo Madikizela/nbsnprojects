@@ -64,5 +64,11 @@ namespace backend.Models
         public string Message { get; set; } = string.Empty;
         public bool EmailSent { get; set; }
         public DateTime CreatedAt { get; set; }
+        /// <summary>
+        /// Temporary: shown in response when email fails, so admin can manually share credentials.
+        /// Remove this once SMTP is confirmed working.
+        /// </summary>
+        public string? AdminUsername { get; set; }
+        public string? TemporaryPassword { get; set; }
     }
 }

@@ -20,6 +20,8 @@ export interface ClientRegistrationResponse {
   emailSent: boolean;
   createdAt: string;
   adminEmail?: string;
+  adminUsername?: string;
+  temporaryPassword?: string;
 }
 
 /**

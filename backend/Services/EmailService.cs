@@ -43,6 +43,9 @@ namespace backend.Services
             {
                 _logger.LogWarning("SMTP credentials contain placeholder values. Email sending may fail.");
             }
+
+            _logger.LogInformation("EmailService initialized — SMTP: {Host}:{Port}, User: {User}, Configured: {Configured}",
+                _smtpHost, _smtpPort, _smtpUsername, !string.IsNullOrWhiteSpace(_smtpUsername) && !string.IsNullOrWhiteSpace(_smtpPassword));
         }
 
         /// <summary>
@@ -161,6 +164,14 @@ namespace backend.Services
                 return false;
             }
 
+            // Fail fast with a clear log if SMTP is not configured
+            if (string.IsNullOrWhiteSpace(_smtpUsername) || string.IsNullOrWhiteSpace(_smtpPassword))
+            {
+                _logger.LogError("Email NOT sent to {Email} — SMTP credentials are missing. " +
+                    "Set SMTP_USER and SMTP_PASS environment variables in Railway.", to);
+                return false;
+            }
+
             try
             {
                 using var client = new SmtpClient(_smtpHost, _smtpPort);
@@ -168,8 +179,8 @@ namespace backend.Services
                 client.UseDefaultCredentials = false;
                 client.Credentials = new NetworkCredential(_smtpUsername, _smtpPassword);
                 
-                // Enable verbose debug output for troubleshooting
-                _logger.LogInformation("Attempting to send email to {Email} via {SmtpHost}:{SmtpPort}", to, _smtpHost, _smtpPort);
+                _logger.LogInformation("Sending email to {Email} via {SmtpHost}:{SmtpPort} as {From}", 
+                    to, _smtpHost, _smtpPort, _smtpUsername);
 
                 using var message = new MailMessage();
                 message.From = new MailAddress(_fromEmail, _fromName);
@@ -180,17 +191,18 @@ namespace backend.Services
 
                 await client.SendMailAsync(message);
                 
-                _logger.LogInformation("Email sent successfully to {Email}", to);
+                _logger.LogInformation("✅ Email sent successfully to {Email}", to);
                 return true;
             }
             catch (SmtpException ex)
             {
-                _logger.LogError(ex, "SMTP error sending email to {Email}: {Message}", to, ex.Message);
+                _logger.LogError(ex, "❌ SMTP error sending email to {Email}: StatusCode={StatusCode} Message={Message}", 
+                    to, ex.StatusCode, ex.Message);
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Unexpected error sending email to {Email}", to);
+                _logger.LogError(ex, "❌ Unexpected error sending email to {Email}", to);
                 return false;
             }
         }
@@ -312,7 +324,12 @@ namespace backend.Services
         private string GenerateWelcomeEmailBody(string clientName, string username, string password)
         {
             _logger.LogInformation("Generating welcome email body for {Username}. Password length: {PassLen}", username, password?.Length ?? 0);
-            
+
+            // Use configured frontend URL, fall back to production Railway URL
+            var portalUrl = Environment.GetEnvironmentVariable("FRONTEND_URL")
+                ?? _configuration["LearnerPortal:Url"]?.Replace("/learner", "")
+                ?? "https://frontend-production-91f1.up.railway.app";
+
             return $@"
 <!DOCTYPE html>
 <html>
@@ -344,7 +361,7 @@ namespace backend.Services
             <div class='credentials'>
                 <h3 style='margin-top: 0;'>Your Login Credentials:</h3>
                 <div class='credential-item'>
-                    <strong>Username:</strong><br/>
+                    <strong>Username / Email:</strong><br/>
                     <span>{username}</span>
                 </div>
                 <div class='credential-item'>
@@ -360,9 +377,9 @@ namespace backend.Services
                 <li>Contact support if you suspect unauthorized access</li>
             </ul>
             
-            <p>You can access the system at: <a href='http://localhost:5173' style='color: #007bff; text-decoration: none; font-weight: bold;'>NBSN Portal</a></p>
+            <p>You can access the system at: <a href='{portalUrl}' style='color: #007bff; text-decoration: none; font-weight: bold;'>{portalUrl}</a></p>
             
-            <p>If you have any questions or need assistance, please don't hesitate to contact our support team.</p>
+            <p>If you have any questions or need assistance, please contact our support team.</p>
             
             <p>Best regards,<br>NBSN Team</p>
         </div>
