@@ -1,5 +1,6 @@
-// API base URL - using relative URL to go through Vite proxy
-const API_BASE_URL = '/api';
+// API base URL - reads from VITE_API_URL (baked in at build time by Vite)
+// Falls back to relative path which works in local dev via Vite proxy
+const API_BASE_URL = `${(import.meta.env.VITE_API_URL as string | undefined ?? '').replace(/\/$/, '')}/api`;
 
 export interface Project {
   id: number;
