@@ -1137,18 +1137,35 @@ app.delete('/api/Departments/:id', async (req, res) => {
     const client = await pgClient.connect();
     try {
         const { id } = req.params;
-        
-        const result = await client.query(`
-            DELETE FROM "Departments" WHERE "Id" = $1
-            RETURNING "Id", "Name"
+
+        await client.query('BEGIN');
+
+        // Get the department's manager email before deleting
+        const deptResult = await client.query(`
+            SELECT "ManagerEmail" FROM "Departments" WHERE "Id" = $1
         `, [id]);
 
-        if (result.rows.length === 0) {
+        if (deptResult.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ message: 'Department not found' });
         }
 
+        const managerEmail = deptResult.rows[0].ManagerEmail;
+
+        // Delete the associated manager user account if it exists
+        if (managerEmail) {
+            await client.query(`
+                DELETE FROM "Users" WHERE "Email" = $1 AND "DepartmentId" = $2
+            `, [managerEmail, id]);
+        }
+
+        // Delete the department
+        await client.query(`DELETE FROM "Departments" WHERE "Id" = $1`, [id]);
+
+        await client.query('COMMIT');
         res.json({ message: 'Department deleted successfully' });
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('❌ Error deleting department:', error);
         res.status(500).json({ message: 'Failed to delete department' });
     } finally {

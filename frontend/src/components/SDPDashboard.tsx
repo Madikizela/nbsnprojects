@@ -614,6 +614,28 @@ const SDPDashboard: React.FC = () => {
     }
   };
 
+  // Handle deleting a department and its associated user
+  const handleDeleteDepartment = async (departmentId: number, departmentName: string) => {
+    if (!confirm(`Delete the "${departmentName}" department?\n\nThis will also delete the associated manager user account.`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/Departments/${departmentId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        setDepartments(prev => prev.filter(d => d.id !== departmentId));
+        alert(`✅ "${departmentName}" department deleted successfully.`);
+      } else {
+        const data = await response.json().catch(() => ({}));
+        alert(`Failed to delete: ${data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      alert('An error occurred while deleting the department.');
+      console.error(error);
+    }
+  };
+
   // Handle resending credentials to department manager
   const handleResendCredentials = async (departmentId: number, departmentName: string) => {
     if (!confirm(`Resend login credentials to the manager of "${departmentName}"?`)) return;
@@ -1214,15 +1236,24 @@ const SDPDashboard: React.FC = () => {
                     <small className="opacity-75">
                       Created: {new Date(department.createdAt).toLocaleDateString()}
                     </small>
-                    {department.managerEmail && (
+                    <div className="d-flex gap-2">
+                      {department.managerEmail && (
+                        <button
+                          className="btn btn-sm btn-light"
+                          style={{ fontSize: '0.75rem' }}
+                          onClick={() => handleResendCredentials(department.id, department.name)}
+                        >
+                          📧 Resend Credentials
+                        </button>
+                      )}
                       <button
-                        className="btn btn-sm btn-light"
+                        className="btn btn-sm btn-danger"
                         style={{ fontSize: '0.75rem' }}
-                        onClick={() => handleResendCredentials(department.id, department.name)}
+                        onClick={() => handleDeleteDepartment(department.id, department.name)}
                       >
-                        📧 Resend Credentials
+                        🗑️ Delete
                       </button>
-                    )}
+                    </div>
                   </div>
                 </div>
               </div>
