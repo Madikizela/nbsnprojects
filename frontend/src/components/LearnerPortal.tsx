@@ -231,6 +231,7 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
 
   async function submit(e: React.FormEvent) {
@@ -255,37 +256,228 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, width: 380, boxShadow: '0 20px 40px rgba(0,0,0,.4)' }}>
-        <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <img
-            src={productIcon}
-            alt="NBSN Mobile"
-            style={{ width: 96, height: 96, borderRadius: 20, objectFit: 'contain', marginBottom: 12 }}
-          />
-          <h2 style={{ color: '#fff', margin: 0 }}>Learner Portal</h2>
-          <p style={{ color: '#94a3b8', margin: '4px 0 0', fontSize: 14 }}>National Building Skills Network</p>
+    <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+      <style>{`
+        @keyframes learnerFloat {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-14px); }
+        }
+        @keyframes learnerFadeIn {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .l-input {
+          width: 100%;
+          padding: 13px 44px;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 12px;
+          font-size: 15px;
+          background: #f8fafc;
+          color: #1e293b;
+          transition: all 0.2s;
+          outline: none;
+          box-sizing: border-box;
+        }
+        .l-input:focus {
+          border-color: #10b981;
+          background: #fff;
+          box-shadow: 0 0 0 4px rgba(16,185,129,0.12);
+        }
+        .l-btn {
+          width: 100%;
+          padding: 14px;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          color: #fff;
+          border: none;
+          border-radius: 12px;
+          font-size: 16px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+        }
+        .l-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(16,185,129,0.4);
+        }
+        .l-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .l-feature {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 14px 18px;
+          background: rgba(255,255,255,0.08);
+          border-radius: 14px;
+          border: 1px solid rgba(255,255,255,0.15);
+          margin-bottom: 12px;
+          animation: learnerFadeIn 0.5s ease both;
+        }
+        .l-feature-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          background: rgba(16,185,129,0.25);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 20px;
+          flex-shrink: 0;
+        }
+        @media (max-width: 768px) {
+          .l-left { display: none !important; }
+          .l-right { width: 100% !important; }
+        }
+      `}</style>
+
+      {/* ── LEFT PANEL ── */}
+      <div className="l-left" style={{
+        width: '50%',
+        background: 'linear-gradient(145deg, #064e3b 0%, #065f46 40%, #047857 100%)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '60px 48px',
+        position: 'relative',
+        overflow: 'hidden',
+      }}>
+        {/* Glow circles */}
+        <div style={{ position:'absolute', width:350, height:350, borderRadius:'50%', background:'rgba(16,185,129,0.15)', top:'-80px', left:'-80px', filter:'blur(50px)' }} />
+        <div style={{ position:'absolute', width:280, height:280, borderRadius:'50%', background:'rgba(5,150,105,0.2)', bottom:'-60px', right:'-60px', filter:'blur(40px)' }} />
+
+        {/* Icon + title */}
+        <div style={{ textAlign:'center', marginBottom:48, animation:'learnerFloat 4s ease-in-out infinite' }}>
+          <img src={productIcon} alt="Learner Portal" style={{
+            width: 120, height: 120, borderRadius: 28, objectFit: 'contain',
+            filter: 'drop-shadow(0 12px 32px rgba(16,185,129,0.5))'
+          }} />
+          <h1 style={{ color:'#fff', fontSize:30, fontWeight:800, margin:'20px 0 6px' }}>Learner Portal</h1>
+          <p style={{ color:'rgba(255,255,255,0.6)', fontSize:15, margin:0 }}>National Building Skills Network</p>
         </div>
-        <form onSubmit={submit}>
-          <label style={labelStyle}>Email Address</label>
-          <input style={inputStyle} type="email" value={login} onChange={e => setLogin(e.target.value)} required placeholder="your.email@example.com" />
-          <label style={labelStyle}>Password</label>
-          <input style={inputStyle} type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="Your password" />
-          {error && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{error}</p>}
-          <button type="submit" disabled={loading}
-            style={{ width: '100%', background: '#0EA5E9', color: '#fff', border: 'none', borderRadius: 8, padding: '12px 0', fontWeight: 700, fontSize: 16, cursor: 'pointer', marginTop: 8 }}>
-            {loading ? 'Logging in…' : 'Login →'}
-          </button>
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <button 
-              type="button"
-              onClick={() => setShowForgotPassword(true)}
-              style={{ background: 'transparent', border: 'none', color: '#0EA5E9', fontSize: 14, cursor: 'pointer', textDecoration: 'underline' }}
-            >
-              Forgot Password?
-            </button>
+
+        {/* Features */}
+        <div style={{ width:'100%', maxWidth:340 }}>
+          {[
+            { icon:'📚', title:'Study Materials',    desc:'Access course content anytime' },
+            { icon:'📝', title:'Assessments',         desc:'Submit formative & summative work' },
+            { icon:'📅', title:'Attendance Records',  desc:'View your attendance calendar' },
+            { icon:'📄', title:'Documents & POE',     desc:'Upload and track your documents' },
+          ].map((f, i) => (
+            <div key={i} className="l-feature" style={{ animationDelay:`${i * 0.1}s` }}>
+              <div className="l-feature-icon">{f.icon}</div>
+              <div>
+                <div style={{ color:'#fff', fontWeight:600, fontSize:14 }}>{f.title}</div>
+                <div style={{ color:'rgba(255,255,255,0.5)', fontSize:12, marginTop:2 }}>{f.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <p style={{ position:'absolute', bottom:24, color:'rgba(255,255,255,0.3)', fontSize:12 }}>
+          © {new Date().getFullYear()} National Building Skills Network
+        </p>
+      </div>
+
+      {/* ── RIGHT PANEL ── */}
+      <div className="l-right" style={{
+        width: '50%',
+        background: '#f8fafc',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '40px 32px',
+        overflowY: 'auto',
+      }}>
+        <div style={{ width:'100%', maxWidth:420, animation:'learnerFadeIn 0.5s ease' }}>
+
+          {/* Header */}
+          <div style={{ marginBottom:36 }}>
+            <h2 style={{ fontSize:28, fontWeight:800, color:'#1e293b', margin:'0 0 6px' }}>Welcome, Learner 🎓</h2>
+            <p style={{ color:'#64748b', fontSize:15, margin:0 }}>Sign in to access your learning dashboard</p>
           </div>
-        </form>
+
+          {/* Error */}
+          {error && (
+            <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:12, padding:'12px 16px', marginBottom:20, color:'#dc2626', fontSize:14 }}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          <form onSubmit={submit} noValidate>
+            {/* Email */}
+            <div style={{ marginBottom:20 }}>
+              <label style={{ display:'block', fontSize:14, fontWeight:600, color:'#374151', marginBottom:8 }}>
+                Email Address
+              </label>
+              <div style={{ position:'relative' }}>
+                <i className="bi bi-envelope" style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', fontSize:16 }}></i>
+                <input
+                  className="l-input"
+                  type="email"
+                  value={login}
+                  onChange={e => setLogin(e.target.value)}
+                  required
+                  placeholder="your.email@example.com"
+                />
+              </div>
+            </div>
+
+            {/* Password */}
+            <div style={{ marginBottom:28 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                <label style={{ fontSize:14, fontWeight:600, color:'#374151' }}>Password</label>
+                <button type="button" onClick={() => setShowForgotPassword(true)}
+                  style={{ background:'none', border:'none', color:'#10b981', fontSize:13, cursor:'pointer', fontWeight:500, padding:0 }}>
+                  Forgot password?
+                </button>
+              </div>
+              <div style={{ position:'relative' }}>
+                <i className="bi bi-lock" style={{ position:'absolute', left:14, top:'50%', transform:'translateY(-50%)', color:'#94a3b8', fontSize:16 }}></i>
+                <input
+                  className="l-input"
+                  type={showPw ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  placeholder="Enter your password"
+                  style={{ paddingRight:48 }}
+                />
+                <button type="button" onClick={() => setShowPw(!showPw)}
+                  style={{ position:'absolute', right:12, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', cursor:'pointer', color:'#94a3b8', padding:4, fontSize:16 }}>
+                  <i className={`bi bi-eye${showPw ? '-slash' : ''}`}></i>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" className="l-btn" disabled={loading}>
+              {loading ? <><span className="spinner-border spinner-border-sm me-2"></span>Signing in…</> : 'Sign In →'}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div style={{ display:'flex', alignItems:'center', gap:12, margin:'28px 0' }}>
+            <div style={{ flex:1, height:1, background:'#e2e8f0' }} />
+            <span style={{ color:'#94a3b8', fontSize:13 }}>staff?</span>
+            <div style={{ flex:1, height:1, background:'#e2e8f0' }} />
+          </div>
+
+          {/* Back to staff login */}
+          <a href="/login" style={{
+            display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+            width:'100%', padding:'13px', borderRadius:12, border:'2px solid #e2e8f0',
+            background:'#fff', textDecoration:'none', fontSize:15, fontWeight:600, color:'#374151',
+            transition:'all 0.2s',
+          }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#667eea'; (e.currentTarget as HTMLElement).style.color='#667eea'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor='#e2e8f0'; (e.currentTarget as HTMLElement).style.color='#374151'; }}
+          >
+            <i className="bi bi-arrow-left-circle" style={{ fontSize:18 }}></i>
+            Back to Staff Login
+          </a>
+
+          <p style={{ textAlign:'center', color:'#94a3b8', fontSize:12, marginTop:32 }}>
+            © {new Date().getFullYear()} National Building Skills Network. All rights reserved.
+          </p>
+        </div>
       </div>
     </div>
   );
