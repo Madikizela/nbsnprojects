@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Main background gradient: deep blue to cyan -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0052CC;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00A3E0;stop-opacity:1" />
+    </linearGradient>
+    <!-- Inner glow for the eye -->
+    <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#00E5FF;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#00E5FF;stop-opacity:0" />
+    </radialGradient>
+    <!-- Pupil gradient -->
+    <radialGradient id="pupilGrad" cx="40%" cy="35%" r="60%">
+      <stop offset="0%" style="stop-color:#003080;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#001840;stop-opacity:1" />
+    </radialGradient>
+  </defs>
+
+  <!-- Rounded square background -->
+  <rect width="1024" height="1024" rx="220" ry="220" fill="url(#bgGrad)" />
+
+  <!-- Subtle radial overlay for depth -->
+  <rect width="1024" height="1024" rx="220" ry="220" fill="url(#eyeGlow)" />
+
+  <!-- === EYE SHAPE === -->
+  <!-- Eye outline (white with slight transparency) -->
+  <path d="M 512 280
+             C 300 280, 140 512, 140 512
+             C 140 512, 300 744, 512 744
+             C 724 744, 884 512, 884 512
+             C 884 512, 724 280, 512 280 Z"
+        fill="white" opacity="0.95" />
+
+  <!-- Eye inner fill (slightly off-white for depth) -->
+  <path d="M 512 305
+             C 315 305, 175 512, 175 512
+             C 175 512, 315 719, 512 719
+             C 709 719, 849 512, 849 512
+             C 849 512, 709 305, 512 305 Z"
+        fill="#E8F4FD" />
+
+  <!-- Pupil (dark circle) -->
+  <circle cx="512" cy="512" r="168" fill="url(#pupilGrad)" />
+
+  <!-- === FINGERPRINT LINES INSIDE PUPIL (circuit/code feel) === -->
+  <!-- Concentric arc lines representing fingerprint ridges -->
+  <g stroke="#00E5FF" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.85">
+    <!-- Innermost arc -->
+    <path d="M 462 512 Q 512 462, 562 512 Q 512 562, 462 512 Z" />
+    <!-- Second arc -->
+    <path d="M 437 490 Q 470 455, 512 448 Q 554 455, 587 490" />
+    <path d="M 437 534 Q 470 569, 512 576 Q 554 569, 587 534" />
+    <!-- Third arc -->
+    <path d="M 415 470 Q 455 428, 512 420 Q 569 428, 609 470" />
+    <path d="M 415 554 Q 455 596, 512 604 Q 569 596, 609 554" />
+    <!-- Outer arc -->
+    <path d="M 398 450 Q 443 405, 512 396 Q 581 405, 626 450" />
+    <path d="M 398 574 Q 443 619, 512 628 Q 581 619, 626 574" />
+    <!-- Left vertical connector -->
+    <line x1="398" y1="450" x2="398" y2="574" />
+    <!-- Right vertical connector -->
+    <line x1="626" y1="450" x2="626" y2="574" />
+  </g>
+
+  <!-- Small circuit dots at key points -->
+  <g fill="#00E5FF" opacity="0.9">
+    <circle cx="512" cy="396" r="8" />
+    <circle cx="512" cy="628" r="8" />
+    <circle cx="398" cy="512" r="8" />
+    <circle cx="626" cy="512" r="8" />
+    <circle cx="443" cy="415" r="6" />
+    <circle cx="581" cy="415" r="6" />
+    <circle cx="443" cy="609" r="6" />
+    <circle cx="581" cy="609" r="6" />
+  </g>
+
+  <!-- Pupil highlight (gives depth) -->
+  <circle cx="468" cy="468" r="30" fill="white" opacity="0.12" />
+
+  <!-- === EYE LASHES / EYELID LINES for style === -->
+  <path d="M 512 280 L 512 230" stroke="white" stroke-width="12" stroke-linecap="round" opacity="0.5" />
+  <path d="M 420 305 L 395 260" stroke="white" stroke-width="10" stroke-linecap="round" opacity="0.4" />
+  <path d="M 604 305 L 629 260" stroke="white" stroke-width="10" stroke-linecap="round" opacity="0.4" />
+  <path d="M 340 360 L 308 325" stroke="white" stroke-width="9" stroke-linecap="round" opacity="0.3" />
+  <path d="M 684 360 L 716 325" stroke="white" stroke-width="9" stroke-linecap="round" opacity="0.3" />
+
+  <!-- === SMALL CIRCUIT LINES OUTSIDE EYE (code element) === -->
+  <g stroke="white" stroke-width="6" fill="none" opacity="0.35" stroke-linecap="round">
+    <!-- Bottom left circuit -->
+    <polyline points="180,680 180,760 260,760" />
+    <circle cx="260" cy="760" r="8" fill="white" stroke="none" />
+    <polyline points="260,760 340,760 340,820" />
+    <circle cx="340" cy="820" r="8" fill="white" stroke="none" />
+    <!-- Bottom right circuit -->
+    <polyline points="844,680 844,760 764,760" />
+    <circle cx="764" cy="760" r="8" fill="white" stroke="none" />
+    <polyline points="764,760 684,760 684,820" />
+    <circle cx="684" cy="820" r="8" fill="white" stroke="none" />
+    <!-- Top left -->
+    <polyline points="200,344 150,344 150,264" />
+    <circle cx="150" cy="264" r="8" fill="white" stroke="none" />
+    <!-- Top right -->
+    <polyline points="824,344 874,344 874,264" />
+    <circle cx="874" cy="264" r="8" fill="white" stroke="none" />
+  </g>
+</svg>
