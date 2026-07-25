@@ -10,11 +10,11 @@ import ForgotPassword from './ForgotPassword';
 import { encryptData } from '../utils/encryption';
 import { apiCall } from '../utils/api';
 
-const Login: React.FC = () => {
+const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(expiredMessage || '');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [showPassword, setShowPassword] = useState(false);

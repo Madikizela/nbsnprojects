@@ -12,6 +12,35 @@ const getApiUrl = (): string => {
   return apiUrl ? apiUrl.replace(/\/$/, '') : '';
 };
 
+/** Decode JWT payload without a library */
+function decodeJwtPayload(token: string): { exp?: number } | null {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
+
+/** Returns true if the token is missing or expired */
+export function isTokenExpired(token: string | null): boolean {
+  if (!token) return true;
+  const payload = decodeJwtPayload(token);
+  if (!payload?.exp) return true;
+  // exp is in seconds, Date.now() is in ms
+  return payload.exp * 1000 < Date.now();
+}
+
+/** Clear all auth state and redirect to login */
+export function forceLogout(reason = 'session_expired') {
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  localStorage.removeItem('learner_token');
+  localStorage.removeItem('learner_user');
+  // Redirect to login with reason so the login page can show a message
+  window.location.href = `/login?reason=${reason}`;
+}
+
 export const apiCall = async (
   endpoint: string,
   options: RequestInit = {}
@@ -19,13 +48,28 @@ export const apiCall = async (
   const apiUrl = getApiUrl();
   const url = apiUrl ? `${apiUrl}${endpoint}` : endpoint;
 
-  return fetch(url, {
+  // Check token expiry before making the request
+  const token = localStorage.getItem('token');
+  if (token && isTokenExpired(token)) {
+    forceLogout('session_expired');
+    return new Response(null, { status: 401 });
+  }
+
+  const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
   });
+
+  // If the server returns 401, force logout
+  if (response.status === 401) {
+    forceLogout('session_expired');
+  }
+
+  return response;
 };
 
 export default getApiUrl;
