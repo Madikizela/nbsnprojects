@@ -139,6 +139,7 @@ interface ProjectBudget {
 
 const SDPDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sdps, setSdps] = useState<SkillsDevelopmentProvider[]>([]);
@@ -493,7 +494,7 @@ const SDPDashboard: React.FC = () => {
         try {
           const token = localStorage.getItem('token');
           // Match backend route: GET api/Departments/BySDP/{sdpId}
-          const response = await fetch(`/api/Departments/BySDP/${selectedSdp.id}`, {
+          const response = await fetch(`${API}/api/Departments/BySDP/${selectedSdp.id}`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -556,7 +557,7 @@ const SDPDashboard: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/Departments', {
+      const response = await fetch(`${API}/api/Departments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -619,7 +620,7 @@ const SDPDashboard: React.FC = () => {
     if (!confirm(`Delete the "${departmentName}" department?\n\nThis will also delete the associated manager user account.`)) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/Departments/${departmentId}`, {
+      const response = await fetch(`${API}/api/Departments/${departmentId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -641,7 +642,7 @@ const SDPDashboard: React.FC = () => {
     if (!confirm(`Resend login credentials to the manager of "${departmentName}"?`)) return;
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/Departments/${departmentId}/resend-credentials`, {
+      const response = await fetch(`${API}/api/Departments/${departmentId}/resend-credentials`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
