@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ClientForm from './ClientForm';
 import PersonalInfoForm from './PersonalInfoForm';
-import nbsnLogo from '../assets/nbsn-logo.png';
+import productIcon from '../assets/mobile_icon.png';
 
 interface User {
   id: number;
@@ -119,78 +119,60 @@ const Dashboard = () => {
     switch (activeSection) {
       case 'clients':
         return (
-          <div className="container-fluid">
-            <div className="card text-white mb-4 border-0 shadow-lg" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', backdropFilter: 'blur(10px)'}}>
-              <div className="card-body p-4">
-                <h2 className="card-title h3 mb-2">Client Management 🏢</h2>
-                <p className="card-text opacity-90">Manage your clients and their information</p>
+          <div>
+            {/* Header */}
+            <div className="dash-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+              <div>
+                <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>Client Management 🏢</h2>
+                <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Manage your clients and their information</p>
               </div>
-            </div>
-            
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h3 className="h4 mb-0 text-white">Client Operations</h3>
-              <button 
-                onClick={() => setActiveSection('add-client')}
-                className="btn btn-success d-flex align-items-center shadow-lg hover-lift"
-                style={{background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)', border: 'none', transform: 'translateY(0)', transition: 'all 0.3s ease'}}
-              >
-                <svg className="me-2" width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
-                </svg>
-                Add New Client
+              <button onClick={() => setActiveSection('add-client')}
+                style={{ background:'linear-gradient(135deg,#10b981,#059669)', color:'#fff', border:'none', borderRadius:10, padding:'10px 20px', fontWeight:700, fontSize:14, cursor:'pointer', display:'flex', alignItems:'center', gap:8 }}>
+                + Add New Client
               </button>
             </div>
-            
-            <div className="row g-4">
-              <div className="col-md-6">
-                <div className="card h-100 shadow-lg border-0" style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
-                  <div className="card-body">
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                      <h4 className="card-title h5 text-white">View All Clients</h4>
-                      <div className="p-3 rounded-circle" style={{background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)'}}>
-                        <svg width="24" height="24" fill="white" viewBox="0 0 20 20">
-                          <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z"/>
-                        </svg>
-                      </div>
+
+            {/* Stat cards */}
+            <div className="row g-3 mb-4">
+              {[
+                { label:'Total Clients', value: clients.length || 24, color:'linear-gradient(135deg,#667eea,#764ba2)', icon:'🏢' },
+                { label:'Active Clients', value: clients.filter(c => c.status === 'Active' || c.status === '1').length || 22, color:'linear-gradient(135deg,#10b981,#059669)', icon:'✅' },
+                { label:'New This Month', value: 3, color:'linear-gradient(135deg,#f97316,#ea580c)', icon:'🆕' },
+              ].map((s, i) => (
+                <div key={i} className="col-md-4">
+                  <div className="dash-stat dash-card" style={{ background: s.color }}>
+                    <span style={{ fontSize:'2rem' }}>{s.icon}</span>
+                    <div>
+                      <div style={{ color:'#fff', fontSize:'1.6rem', fontWeight:800, lineHeight:1 }}>{s.value}</div>
+                      <div style={{ color:'rgba(255,255,255,0.75)', fontSize:13, marginTop:2 }}>{s.label}</div>
                     </div>
-                    <p className="card-text text-white opacity-75 mb-3">Browse and manage all registered clients in the system.</p>
-                    <button 
-                      onClick={() => setActiveSection('view-clients')}
-                      className="btn btn-primary w-100 shadow"
-                      style={{background: 'linear-gradient(135deg, #007bff 0%, #0056b3 100%)', border: 'none'}}
-                    >
-                      View Client List
-                    </button>
                   </div>
                 </div>
-              </div>
-              
+              ))}
+            </div>
+
+            {/* Action cards */}
+            <div className="row g-3">
               <div className="col-md-6">
-                <div className="card h-100 shadow-lg border-0" style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
-                  <div className="card-body">
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                      <h4 className="card-title h5 text-white">Client Statistics</h4>
-                      <div className="p-3 rounded-circle" style={{background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)'}}>
-                        <svg width="24" height="24" fill="white" viewBox="0 0 20 20">
-                          <path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z"/>
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="d-flex flex-column gap-3">
-                      <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{background: 'rgba(255, 255, 255, 0.1)'}}>
-                        <span className="text-white opacity-75">Total Clients:</span>
-                        <span className="fw-bold text-white fs-5">24</span>
-                      </div>
-                      <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{background: 'rgba(40, 167, 69, 0.2)'}}>
-                        <span className="text-white opacity-75">Active Clients:</span>
-                        <span className="fw-bold text-success fs-5">22</span>
-                      </div>
-                      <div className="d-flex justify-content-between align-items-center p-2 rounded" style={{background: 'rgba(0, 123, 255, 0.2)'}}>
-                        <span className="text-white opacity-75">New This Month:</span>
-                        <span className="fw-bold text-primary fs-5">3</span>
-                      </div>
-                    </div>
-                  </div>
+                <div className="dash-card p-4">
+                  <div style={{ fontSize:'2rem', marginBottom:12 }}>📋</div>
+                  <h5 style={{ fontWeight:700, color:'#1e293b', margin:'0 0 8px' }}>View All Clients</h5>
+                  <p style={{ color:'#64748b', fontSize:14, margin:'0 0 16px' }}>Browse and manage all registered clients in the system.</p>
+                  <button onClick={() => setActiveSection('view-clients')}
+                    style={{ background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontWeight:600, fontSize:14, cursor:'pointer' }}>
+                    View Client List →
+                  </button>
+                </div>
+              </div>
+              <div className="col-md-6">
+                <div className="dash-card p-4">
+                  <div style={{ fontSize:'2rem', marginBottom:12 }}>➕</div>
+                  <h5 style={{ fontWeight:700, color:'#1e293b', margin:'0 0 8px' }}>Register New Client</h5>
+                  <p style={{ color:'#64748b', fontSize:14, margin:'0 0 16px' }}>Add a new client organisation to the system.</p>
+                  <button onClick={() => setActiveSection('add-client')}
+                    style={{ background:'linear-gradient(135deg,#10b981,#059669)', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontWeight:600, fontSize:14, cursor:'pointer' }}>
+                    Add New Client →
+                  </button>
                 </div>
               </div>
             </div>
@@ -351,62 +333,40 @@ const Dashboard = () => {
         );
       case 'sdp':
         return (
-          <div className="container-fluid">
-            <div className="card text-white mb-4 border-0 shadow-lg" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', backdropFilter: 'blur(10px)'}}>
-              <div className="card-body p-4">
-                <h2 className="card-title h3 mb-2">SDP Management 🎓</h2>
-                <p className="card-text opacity-90">Manage Skills Development Providers</p>
+          <div>
+            {/* Header */}
+            <div className="dash-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+              <div>
+                <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>SDP Management 🎓</h2>
+                <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Manage Skills Development Providers</p>
               </div>
-            </div>
-            
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h3 className="h4 mb-0 text-white">SDP Operations</h3>
-              <button 
-                onClick={() => navigate('/sdp-dashboard')}
-                className="btn btn-primary d-flex align-items-center shadow-lg hover-lift"
-                style={{background: 'linear-gradient(135deg, #007bff 0%, #6610f2 100%)', border: 'none', transform: 'translateY(0)', transition: 'all 0.3s ease'}}
-              >
-                <svg className="me-2" width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
-                </svg>
-                Open SDP Dashboard
+              <button onClick={() => navigate('/sdp-dashboard')}
+                style={{ background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', border:'none', borderRadius:10, padding:'10px 20px', fontWeight:700, fontSize:14, cursor:'pointer' }}>
+                + Open SDP Dashboard
               </button>
             </div>
-            
-            <div className="row g-4">
+
+            <div className="row g-3">
               <div className="col-md-6">
-                <div className="card h-100 shadow-lg border-0" style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
-                  <div className="card-body">
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                      <h4 className="card-title h5 text-white">Manage SDPs</h4>
-                      <span className="badge bg-primary">Active</span>
-                    </div>
-                    <p className="card-text text-white-50 mb-3">View, edit, and manage all Skills Development Providers in the system.</p>
-                    <button 
-                      onClick={() => navigate('/sdp-dashboard')}
-                      className="btn btn-outline-light btn-sm"
-                    >
-                      View All SDPs
-                    </button>
-                  </div>
+                <div className="dash-card p-4">
+                  <div style={{ fontSize:'2rem', marginBottom:12 }}>🏫</div>
+                  <h5 style={{ fontWeight:700, color:'#1e293b', margin:'0 0 8px' }}>Manage SDPs</h5>
+                  <p style={{ color:'#64748b', fontSize:14, margin:'0 0 16px' }}>View, edit, and manage all Skills Development Providers in the system.</p>
+                  <button onClick={() => navigate('/sdp-dashboard')}
+                    style={{ background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontWeight:600, fontSize:14, cursor:'pointer' }}>
+                    View All SDPs →
+                  </button>
                 </div>
               </div>
-              
               <div className="col-md-6">
-                <div className="card h-100 shadow-lg border-0" style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
-                  <div className="card-body">
-                    <div className="d-flex justify-content-between align-items-center mb-3">
-                      <h4 className="card-title h5 text-white">Add New SDP</h4>
-                      <span className="badge bg-success">Create</span>
-                    </div>
-                    <p className="card-text text-white-50 mb-3">Register new Skills Development Providers to expand your network.</p>
-                    <button 
-                      onClick={() => navigate('/sdp-dashboard')}
-                      className="btn btn-outline-light btn-sm"
-                    >
-                      Add SDP
-                    </button>
-                  </div>
+                <div className="dash-card p-4">
+                  <div style={{ fontSize:'2rem', marginBottom:12 }}>➕</div>
+                  <h5 style={{ fontWeight:700, color:'#1e293b', margin:'0 0 8px' }}>Add New SDP</h5>
+                  <p style={{ color:'#64748b', fontSize:14, margin:'0 0 16px' }}>Register new Skills Development Providers to expand your network.</p>
+                  <button onClick={() => navigate('/sdp-dashboard')}
+                    style={{ background:'linear-gradient(135deg,#10b981,#059669)', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontWeight:600, fontSize:14, cursor:'pointer' }}>
+                    Add SDP →
+                  </button>
                 </div>
               </div>
             </div>
@@ -471,86 +431,56 @@ const Dashboard = () => {
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: `
-        .hover-lift:hover {
-          transform: translateY(-2px) !important;
-        }
+        .dash-nav-btn { color: rgba(255,255,255,0.65); background: transparent; border: none; border-radius: 10px; padding: 11px 16px; display: flex; align-items: center; gap: 10px; font-size: 0.92rem; font-weight: 500; transition: all 0.18s; width: 100%; text-align: left; cursor: pointer; }
+        .dash-nav-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
+        .dash-nav-btn.active { background: linear-gradient(135deg,#667eea,#764ba2); color: #fff; font-weight: 700; box-shadow: 0 4px 14px rgba(102,126,234,0.35); }
+        .dash-card { background: #fff; border-radius: 14px; border: none; box-shadow: 0 2px 8px rgba(0,0,0,0.07); transition: box-shadow 0.2s; }
+        .dash-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.1); }
+        .dash-stat { border-radius: 12px; padding: 20px; display: flex; align-items: center; gap: 16px; }
+        @media (max-width: 768px) { .dash-sidebar { display: none !important; } .dash-main { width: 100% !important; } }
       `}} />
-      <div className="min-vh-100 w-100 d-flex flex-column" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
-      {/* Bootstrap Navigation */}
-      <nav className="navbar navbar-expand-lg navbar-dark shadow-lg flex-shrink-0" style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(255, 255, 255, 0.2)'}}>
-        <div className="container-fluid">
-          <div className="navbar-brand d-flex align-items-center">
-            <img 
-              src={nbsnLogo} 
-              alt="NBSN Logo" 
-              width="40" 
-              height="40" 
-              className="me-3"
-              style={{objectFit: 'contain', borderRadius: '4px'}}
-            />
-            <h1 className="h3 mb-0 fw-bold text-white">
-              NBSN
-            </h1>
-          </div>
-          <div className="d-flex align-items-center">
-            <div className="dropdown me-3">
-              <button className="btn btn-light dropdown-toggle d-flex align-items-center" type="button" data-bs-toggle="dropdown" style={{background: 'rgba(255, 255, 255, 0.2)', border: '1px solid rgba(255, 255, 255, 0.3)', color: 'white'}}>
-                <div className="bg-white rounded-circle d-flex align-items-center justify-content-center me-2" style={{width: '32px', height: '32px'}}>
-                  <span className="text-primary small fw-bold">
-                    {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
-                  </span>
-                </div>
-                {user?.firstName} {user?.lastName}
-              </button>
-              <ul className="dropdown-menu">
-                <li><a className="dropdown-item" href="#" onClick={() => setActiveSection('profile')}>Profile</a></li>
-                <li><hr className="dropdown-divider" /></li>
-                <li><a className="dropdown-item text-danger" href="#" onClick={handleLogout}>Logout</a></li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </nav>
 
-      <div className="container-fluid flex-grow-1 d-flex p-0" style={{minHeight: 'calc(100vh - 76px)'}}>
-        <div className="row w-100 g-0 flex-grow-1">
-          {/* Bootstrap Sidebar */}
-          <div className="col-md-3 col-lg-2 d-flex">
-            <div className="shadow-lg w-100" style={{background: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)', borderRight: '1px solid rgba(255, 255, 255, 0.2)'}}>
-              <div className="p-3">
-                <nav className="nav flex-column">
-                  {menuItems.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => setActiveSection(item.id)}
-                      className={`nav-link btn text-start border-0 rounded-3 mb-3 d-flex align-items-center transition-all ${
-                        activeSection === item.id
-                          ? 'btn-primary'
-                          : 'text-white'
-                      }`}
-                      style={activeSection === item.id 
-                        ? { backgroundColor: '#0d6efd', color: 'white', transform: 'translateX(5px)', boxShadow: '0 4px 15px rgba(13, 110, 253, 0.4)' } 
-                        : { background: 'rgba(255, 255, 255, 0.1)', border: '1px solid rgba(255, 255, 255, 0.2)' }
-                      }
-                    >
-                      <span className="me-3 fs-5">{item.icon}</span>
-                      <span className="fw-medium">{item.label}</span>
-                    </button>
-                  ))}
-                </nav>
+      <div style={{ display:'flex', flexDirection:'column', minHeight:'100vh', background:'#f1f5f9', fontFamily:"'Segoe UI', system-ui, sans-serif" }}>
+
+        {/* ── NAVBAR ── */}
+        <nav style={{ background:'linear-gradient(135deg,#0f172a 0%,#1e293b 100%)', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 24px', height:56, display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <img src={productIcon} alt="NBSN" style={{ width:32, height:32, borderRadius:8, objectFit:'contain' }} />
+            <span style={{ color:'#fff', fontWeight:800, fontSize:'1rem', letterSpacing:0.3 }}>NBSN Portal</span>
+            <span style={{ color:'rgba(255,255,255,0.35)', fontSize:12, marginLeft:4 }}>System Admin</span>
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#667eea,#764ba2)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13 }}>
+                {user?.firstName?.charAt(0)}{user?.lastName?.charAt(0)}
               </div>
+              <span style={{ color:'rgba(255,255,255,0.8)', fontSize:'0.88rem' }}>{user?.firstName} {user?.lastName}</span>
             </div>
+            <button onClick={handleLogout} style={{ background:'rgba(255,255,255,0.1)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:8, padding:'6px 14px', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+              Logout
+            </button>
+          </div>
+        </nav>
+
+        <div style={{ display:'flex', flex:1, overflow:'hidden' }}>
+          {/* ── SIDEBAR ── */}
+          <div className="dash-sidebar" style={{ width:220, background:'#1e293b', display:'flex', flexDirection:'column', padding:'20px 12px', flexShrink:0 }}>
+            <p style={{ color:'rgba(255,255,255,0.3)', fontSize:'0.68rem', letterSpacing:'1.5px', fontWeight:700, textTransform:'uppercase', margin:'0 0 12px 4px' }}>Navigation</p>
+            {menuItems.map(item => (
+              <button key={item.id} className={`dash-nav-btn${activeSection === item.id || (item.id === 'clients' && ['add-client','view-clients'].includes(activeSection)) ? ' active' : ''}`}
+                onClick={() => setActiveSection(item.id)}>
+                <span style={{ fontSize:'1.1rem' }}>{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
           </div>
 
-          {/* Bootstrap Main Content */}
-          <div className="col-md-9 col-lg-10 d-flex">
-            <div className="p-4 w-100" style={{background: 'rgba(255, 255, 255, 0.05)', borderRadius: '20px', margin: '20px', backdropFilter: 'blur(10px)', border: '1px solid rgba(255, 255, 255, 0.1)', maxHeight: 'calc(100vh - 116px)', overflowY: 'auto'}}>
-              {renderContent()}
-            </div>
+          {/* ── MAIN CONTENT ── */}
+          <div className="dash-main" style={{ flex:1, overflowY:'auto', padding:28 }}>
+            {renderContent()}
           </div>
         </div>
       </div>
-    </div>
     </>
   );
 };
