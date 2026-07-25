@@ -2378,6 +2378,31 @@ const SDPManagerDashboard: React.FC = () => {
     }
   };
 
+  const handleResendTeacherCredentials = async (teacherId: number, teacherName: string) => {
+    if (!confirm(`Resend login credentials to ${teacherName}?`)) return;
+    try {
+      const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API}/api/Attendance/teacher/${teacherId}/resend-credentials`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        if (data.emailSent) {
+          alert(`✅ Credentials sent to ${teacherName}'s email.`);
+        } else {
+          alert(`⚠️ Email could not be sent.\n\nUsername: ${data.username}\nPassword: ${data.temporaryPassword}\n\nShare these manually.`);
+        }
+      } else {
+        alert(`Failed: ${data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      alert('An error occurred while resending credentials.');
+      console.error(error);
+    }
+  };
+
   const handleRemoveTeacher = async (assignmentId: number, teacherName: string) => {
     if (!confirm(`Remove ${teacherName} from this class?`)) {
       return;
@@ -13105,12 +13130,21 @@ const SDPManagerDashboard: React.FC = () => {
                                 Assigned: {new Date(teacher.assignedDate).toLocaleDateString()}
                               </small>
                             </div>
-                            <button
-                              className="btn btn-sm btn-danger"
-                              onClick={() => handleRemoveTeacher(teacher.id, teacher.teacherName)}
-                            >
-                              Remove
-                            </button>
+                            <div className="d-flex gap-2">
+                              <button
+                                className="btn btn-sm btn-outline-light"
+                                title="Resend login credentials"
+                                onClick={() => handleResendTeacherCredentials(teacher.teacherId, teacher.teacherName)}
+                              >
+                                📧 Resend
+                              </button>
+                              <button
+                                className="btn btn-sm btn-danger"
+                                onClick={() => handleRemoveTeacher(teacher.id, teacher.teacherName)}
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>

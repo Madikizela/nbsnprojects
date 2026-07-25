@@ -346,6 +346,50 @@ namespace backend.Controllers
             return new string(random.Select(b => chars[b % chars.Length]).ToArray());
         }
 
+        // POST: api/Attendance/teacher/{teacherId}/resend-credentials
+        [HttpPost("teacher/{teacherId}/resend-credentials")]
+        public async Task<IActionResult> ResendTeacherCredentials(int teacherId)
+        {
+            try
+            {
+                var teacher = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Id == teacherId && u.Role == UserRole.Teacher);
+
+                if (teacher == null)
+                    return NotFound(new { message = "Teacher not found" });
+
+                var newPassword = GenerateRandomPassword();
+                teacher.PasswordHash = _passwordHashingService.HashPassword(newPassword);
+                teacher.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+
+                var emailSent = await _emailService.SendWelcomeEmailAsync(
+                    teacher.Email,
+                    $"{teacher.FirstName} {teacher.LastName}",
+                    teacher.Email,
+                    newPassword);
+
+                if (emailSent)
+                {
+                    _logger.LogInformation("Credentials resent to teacher {Email}", teacher.Email);
+                    return Ok(new { message = $"Credentials resent to {teacher.Email}", emailSent = true });
+                }
+
+                return Ok(new
+                {
+                    message = "Password reset but email could not be sent. Save these credentials:",
+                    emailSent = false,
+                    username = teacher.Email,
+                    temporaryPassword = newPassword
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resending credentials for teacher {TeacherId}", teacherId);
+                return StatusCode(500, new { message = "An error occurred" });
+            }
+        }
+
         private double CalculateTemplateSimilarity(string template1, string template2)
         {
             if (string.IsNullOrEmpty(template1) || string.IsNullOrEmpty(template2))
