@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logoImage from '../assets/nbsn-logo.png';
+import productIcon from '../assets/mobile_icon.png';
 import {
   EyeIcon,
   EyeOffIcon,
@@ -279,26 +280,33 @@ const Login: React.FC = () => {
                 <div className="text-center mb-3">
                    <div style={{ animation: 'pulse 3s ease-in-out infinite' }}>
                      <img 
-                       src={logoImage} 
-                       alt="Company Logo" 
+                       src={productIcon} 
+                       alt="NBSN Mobile" 
                        style={{ 
-                         width: '120px', 
-                         height: '120px', 
+                         width: '100px', 
+                         height: '100px', 
                          objectFit: 'contain',
-                         borderRadius: '12px'
+                         borderRadius: '20px'
                        }} 
                      />
                    </div>
-                  <h2 className="fw-bold mb-1 mt-2" style={{ 
-                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                    WebkitBackgroundClip: 'text',
-                    WebkitTextFillColor: 'transparent',
-                    backgroundClip: 'text',
-                    fontSize: '1.75rem',
-                    letterSpacing: '0.5px'
-                  }}>
-                    NBSN
-                  </h2>
+                  <div className="d-flex align-items-center justify-content-center gap-2 mt-2 mb-1">
+                    <img 
+                      src={logoImage} 
+                      alt="NBSN Logo" 
+                      style={{ width: '32px', height: '32px', objectFit: 'contain' }} 
+                    />
+                    <h2 className="fw-bold mb-0" style={{ 
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                      fontSize: '1.6rem',
+                      letterSpacing: '0.5px'
+                    }}>
+                      NBSN
+                    </h2>
+                  </div>
                   <p className="text-muted fw-medium mb-0" style={{ fontSize: '0.85rem' }}>
                     Skills Development & Training Portal
                   </p>

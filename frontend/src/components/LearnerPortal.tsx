@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import productIcon from '../assets/mobile_icon.png';
 
 const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
 
@@ -257,7 +258,11 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
     <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ background: '#1e293b', borderRadius: 16, padding: 40, width: 380, boxShadow: '0 20px 40px rgba(0,0,0,.4)' }}>
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{ background: '#0EA5E9', borderRadius: '50%', width: 64, height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 700, margin: '0 auto 12px' }}>🎓</div>
+          <img
+            src={productIcon}
+            alt="NBSN Mobile"
+            style={{ width: 96, height: 96, borderRadius: 20, objectFit: 'contain', marginBottom: 12 }}
+          />
           <h2 style={{ color: '#fff', margin: 0 }}>Learner Portal</h2>
           <p style={{ color: '#94a3b8', margin: '4px 0 0', fontSize: 14 }}>National Building Skills Network</p>
         </div>
