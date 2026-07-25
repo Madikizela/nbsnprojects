@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { southAfricaData, type District, type Municipality } from '../data/southAfricaData';
 import { getClientSDPs, getClientProjects, type SkillsDevelopmentProvider, type Project } from '../services/projectService';
-import nbsnLogo from '../assets/nbsn-logo.png';
+import productIcon from '../assets/mobile_icon.png';
 
 interface User {
   id: number;
@@ -377,93 +377,71 @@ const ClientDashboard: React.FC = () => {
   ];
 
   const renderOverview = () => (
-    <div className="container-fluid">
-      <div className="card text-white mb-4 border-0 shadow-lg" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
-        <div className="card-body p-4">
-          <h2 className="card-title h3 mb-2">Welcome to {user?.clientName} Dashboard 🏢</h2>
-          <p className="card-text opacity-90">Manage your organization's skills development and projects</p>
-        </div>
+    <div>
+      {/* Welcome header */}
+      <div className="cd-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px' }}>
+        <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>Welcome to {user?.clientName} Dashboard 🏢</h2>
+        <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Manage your organisation's skills development and projects</p>
       </div>
-      
-      <div className="row g-4 mb-4">
-        <div className="col-md-12">
-          <div className="card border-0 shadow-lg h-100" style={{background: 'linear-gradient(135deg, #28a745 0%, #20c997 100%)'}}>
-            <div className="card-body text-white text-center">
-              <div className="display-4 mb-3">🎓</div>
-              <h5 className="card-title">Skills Development</h5>
-              <p className="card-text opacity-90">Add and manage Skills Development Providers for your organization</p>
-              <button 
-                onClick={() => setActiveSection('add-sdp')}
-                className="btn btn-light mt-3"
-              >
-                Add SDP
-              </button>
+
+      {/* Stat cards */}
+      <div className="row g-3 mb-4">
+        <div className="col-md-4">
+          <div className="cd-card p-4" style={{ background:'linear-gradient(135deg,#667eea,#764ba2)' }}>
+            <div style={{ fontSize:'2rem', marginBottom:8 }}>🏫</div>
+            <div style={{ color:'#fff', fontSize:'1.8rem', fontWeight:800 }}>{sdps.length}</div>
+            <div style={{ color:'rgba(255,255,255,0.75)', fontSize:13 }}>Skills Development Providers</div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="cd-card p-4" style={{ background:'linear-gradient(135deg,#10b981,#059669)' }}>
+            <div style={{ fontSize:'2rem', marginBottom:8 }}>📋</div>
+            <div style={{ color:'#fff', fontSize:'1.8rem', fontWeight:800 }}>{projects.length}</div>
+            <div style={{ color:'rgba(255,255,255,0.75)', fontSize:13 }}>Projects</div>
+          </div>
+        </div>
+        <div className="col-md-4">
+          <div className="cd-card p-4 d-flex align-items-center justify-content-center" style={{ background:'linear-gradient(135deg,#f97316,#ea580c)', cursor:'pointer' }} onClick={() => setActiveSection('add-sdp')}>
+            <div className="text-center">
+              <div style={{ fontSize:'2rem', marginBottom:8 }}>➕</div>
+              <div style={{ color:'#fff', fontWeight:700, fontSize:15 }}>Add New SDP</div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* SDPs and Projects Lists */}
-      <div className="row g-4">
+      {/* SDPs and Projects */}
+      <div className="row g-3">
         <div className="col-md-6">
-          <div className="card border-0 shadow-lg">
-            <div className="card-header bg-success text-white">
-              <h5 className="mb-0">Skills Development Providers ({sdps.length})</h5>
+          <div className="cd-card" style={{ overflow:'hidden' }}>
+            <div style={{ padding:'14px 20px', borderBottom:'1px solid #f1f5f9', background:'linear-gradient(135deg,#667eea,#764ba2)' }}>
+              <span style={{ fontWeight:700, color:'#fff', fontSize:15 }}>Skills Development Providers ({sdps.length})</span>
             </div>
-            <div className="card-body">
+            <div style={{ padding:'8px 0' }}>
               {dataLoading ? (
-                <div className="text-center py-3">
-                  <div className="spinner-border text-success" role="status">
-                    <span className="visually-hidden">Loading...</span>
-                  </div>
-                </div>
-              ) : sdps.length > 0 ? (
-                <div className="list-group list-group-flush">
-                  {sdps.map((sdp) => (
-                    <div key={sdp.id} className="list-group-item border-0 px-0">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div>
-                          <h6 className="mb-1 text-success">{sdp.name}</h6>
-                          {sdp.accreditationNumber && (
-                            <small className="text-muted">Accreditation: {sdp.accreditationNumber}</small>
-                          )}
-                          {sdp.contactPerson && (
-                            <div><small className="text-muted">Contact: {sdp.contactPerson}</small></div>
-                          )}
-                        </div>
-                        <div className="d-flex flex-column align-items-end gap-1">
-                          <small className="text-muted">ID: {sdp.id}</small>
-                          <button
-                            className="btn btn-outline-primary btn-sm"
-                            onClick={() => resendSdpCredentials(sdp.id)}
-                            disabled={resendingId === sdp.id}
-                            title="Reset password and resend login credentials"
-                          >
-                            {resendingId === sdp.id
-                              ? <><span className="spinner-border spinner-border-sm me-1"/>Sending...</>
-                              : '📧 Resend Credentials'}
-                          </button>
-                        </div>
-                      </div>
-                      {resendMsg?.id === sdp.id && (
-                        <div className={`alert ${resendMsg.ok ? 'alert-success' : 'alert-danger'} mt-2 mb-0 py-2 small`}
-                          style={{ whiteSpace: 'pre-line' }}>
-                          {resendMsg.text}
-                        </div>
-                      )}
+                <div className="text-center py-4"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>
+              ) : sdps.length > 0 ? sdps.map(sdp => (
+                <div key={sdp.id} style={{ padding:'12px 20px', borderBottom:'1px solid #f8fafc' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
+                    <div>
+                      <div style={{ fontWeight:600, color:'#1e293b', fontSize:14 }}>{sdp.name}</div>
+                      {sdp.contactPerson && <div style={{ color:'#64748b', fontSize:12, marginTop:2 }}>Contact: {sdp.contactPerson}</div>}
+                      <div style={{ color:'#94a3b8', fontSize:11 }}>ID: {sdp.id}</div>
                     </div>
-                  ))}
+                    <button onClick={() => resendSdpCredentials(sdp.id)} disabled={resendingId === sdp.id}
+                      style={{ padding:'5px 10px', borderRadius:8, border:'1.5px solid #667eea', background:'#fff', color:'#667eea', fontWeight:600, fontSize:11, cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}>
+                      {resendingId === sdp.id ? 'Sending...' : '📧 Resend'}
+                    </button>
+                  </div>
+                  {resendMsg?.id === sdp.id && (
+                    <div className={`alert ${resendMsg.ok ? 'alert-success' : 'alert-danger'} mt-2 mb-0 py-2 small`} style={{ whiteSpace:'pre-line' }}>{resendMsg.text}</div>
+                  )}
                 </div>
-              ) : (
+              )) : (
                 <div className="text-center py-4 text-muted">
-                  <div className="display-6 mb-2">🎓</div>
-                  <p>No Skills Development Providers found</p>
-                  <button 
-                    onClick={() => setActiveSection('add-sdp')}
-                    className="btn btn-success btn-sm"
-                  >
-                    Add Your First SDP
-                  </button>
+                  <div style={{ fontSize:'2rem', marginBottom:8 }}>🎓</div>
+                  <p style={{ fontSize:14 }}>No SDPs yet</p>
+                  <button onClick={() => setActiveSection('add-sdp')} style={{ padding:'7px 16px', borderRadius:8, border:'none', background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', fontWeight:600, fontSize:13, cursor:'pointer' }}>Add Your First SDP</button>
                 </div>
               )}
             </div>
@@ -471,45 +449,29 @@ const ClientDashboard: React.FC = () => {
         </div>
 
         <div className="col-md-6">
-          <div className="card border-0 shadow-lg">
-            <div className="card-header bg-info text-white">
-              <h5 className="mb-0">Projects ({projects.length})</h5>
+          <div className="cd-card" style={{ overflow:'hidden' }}>
+            <div style={{ padding:'14px 20px', borderBottom:'1px solid #f1f5f9', background:'linear-gradient(135deg,#0ea5e9,#0284c7)' }}>
+              <span style={{ fontWeight:700, color:'#fff', fontSize:15 }}>Projects ({projects.length})</span>
             </div>
-            <div className="card-body">
+            <div style={{ padding:'8px 0' }}>
               {dataLoading ? (
-                <div className="text-center py-3">
-                  <div className="spinner-border text-info" role="status">
-                    <span className="visually-hidden">Loading...</span>
+                <div className="text-center py-4"><div className="spinner-border text-info" role="status"><span className="visually-hidden">Loading...</span></div></div>
+              ) : projects.length > 0 ? projects.map(project => (
+                <div key={project.id} style={{ padding:'12px 20px', borderBottom:'1px solid #f8fafc' }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight:600, color:'#1e293b', fontSize:14 }}>{project.projectName}</div>
+                      <div style={{ color:'#64748b', fontSize:12, marginTop:2 }}>Contract: {project.contractNumber}</div>
+                      <div style={{ color:'#64748b', fontSize:12 }}>Financial Year: {project.financialYear}</div>
+                      {project.skillsDevelopmentProvider && <div style={{ color:'#94a3b8', fontSize:11 }}>SDP: {project.skillsDevelopmentProvider.name}</div>}
+                    </div>
+                    <div style={{ color:'#94a3b8', fontSize:11 }}>ID: {project.id}</div>
                   </div>
                 </div>
-              ) : projects.length > 0 ? (
-                <div className="list-group list-group-flush">
-                  {projects.map((project) => (
-                    <div key={project.id} className="list-group-item border-0 px-0">
-                      <div className="d-flex justify-content-between align-items-start">
-                        <div>
-                          <h6 className="mb-1 text-info">{project.projectName}</h6>
-                          <small className="text-muted">Contract: {project.contractNumber}</small>
-                          <div><small className="text-muted">Financial Year: {project.financialYear}</small></div>
-                          {project.skillsDevelopmentProvider && (
-                            <div><small className="text-muted">SDP: {project.skillsDevelopmentProvider.name}</small></div>
-                          )}
-                        </div>
-                        <small className="text-muted">ID: {project.id}</small>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
+              )) : (
                 <div className="text-center py-4 text-muted">
-                  <div className="display-6 mb-2">📋</div>
-                  <p>No Projects found</p>
-                  <button 
-                    onClick={() => setActiveSection('add-project')}
-                    className="btn btn-info btn-sm"
-                  >
-                    Add Your First Project
-                  </button>
+                  <div style={{ fontSize:'2rem', marginBottom:8 }}>📋</div>
+                  <p style={{ fontSize:14 }}>No projects yet</p>
                 </div>
               )}
             </div>
@@ -518,60 +480,34 @@ const ClientDashboard: React.FC = () => {
       </div>
     </div>
   );
-
-  const renderProfile = () => (
-    <div className="container-fluid">
-      <div className="card text-white mb-4 border-0 shadow-lg" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
-        <div className="card-body p-4">
-          <h2 className="card-title h3 mb-2">Profile Information 👤</h2>
-          <p className="card-text opacity-90">Your account details and organization information</p>
-        </div>
-      </div>
       
-      <div className="row g-4">
+  const renderProfile = () => (
+    <div>
+      <div className="cd-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px' }}>
+        <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>Profile Information 👤</h2>
+        <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Your account details and organisation information</p>
+      </div>
+      <div className="row g-3">
         <div className="col-md-6">
-          <div className="card border-0 shadow-lg">
-            <div className="card-header bg-primary text-white">
-              <h5 className="mb-0">Personal Information</h5>
-            </div>
-            <div className="card-body">
-              <div className="mb-3">
-                <label className="form-label fw-bold">Name</label>
-                <p className="form-control-plaintext">{user?.name}</p>
+          <div className="cd-card p-4">
+            <h6 style={{ fontWeight:700, color:'#64748b', fontSize:11, textTransform:'uppercase', letterSpacing:'1px', marginBottom:16 }}>Personal Information</h6>
+            {[['Name', user?.name], ['Email', user?.email], ['Role', user?.role]].map(([label, val]) => (
+              <div key={label} style={{ marginBottom:16 }}>
+                <div style={{ fontSize:12, color:'#94a3b8', marginBottom:4 }}>{label}</div>
+                <div style={{ fontWeight:600, color:'#1e293b' }}>{val}</div>
               </div>
-              <div className="mb-3">
-                <label className="form-label fw-bold">Email</label>
-                <p className="form-control-plaintext">{user?.email}</p>
-              </div>
-              <div className="mb-3">
-                <label className="form-label fw-bold">Role</label>
-                <p className="form-control-plaintext">
-                  <span className="badge bg-success">{user?.role}</span>
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
-        
         <div className="col-md-6">
-          <div className="card border-0 shadow-lg">
-            <div className="card-header bg-info text-white">
-              <h5 className="mb-0">Organization Information</h5>
-            </div>
-            <div className="card-body">
-              <div className="mb-3">
-                <label className="form-label fw-bold">Organization</label>
-                <p className="form-control-plaintext">{user?.clientName}</p>
+          <div className="cd-card p-4">
+            <h6 style={{ fontWeight:700, color:'#64748b', fontSize:11, textTransform:'uppercase', letterSpacing:'1px', marginBottom:16 }}>Organisation Information</h6>
+            {[['Organisation', user?.clientName], ['Status', user?.status]].map(([label, val]) => (
+              <div key={label} style={{ marginBottom:16 }}>
+                <div style={{ fontSize:12, color:'#94a3b8', marginBottom:4 }}>{label}</div>
+                <div style={{ fontWeight:600, color:'#1e293b' }}>{val}</div>
               </div>
-              <div className="mb-3">
-                <label className="form-label fw-bold">Status</label>
-                <p className="form-control-plaintext">
-                  <span className={`badge ${user?.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}>
-                    {user?.status}
-                  </span>
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </div>
@@ -579,17 +515,19 @@ const ClientDashboard: React.FC = () => {
   );
 
   const renderAddSDP = () => (
-    <div className="container-fluid">
-      <div className="card text-white mb-4 border-0 shadow-lg" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
-        <div className="card-body p-4">
-          <h2 className="card-title h3 mb-2">Add Skills Development Provider 🎓</h2>
-          <p className="card-text opacity-90">Register a new skills development provider for your organization</p>
+    <div>
+      <div className="cd-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>Add Skills Development Provider 🎓</h2>
+          <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Register a new SDP for your organisation</p>
         </div>
+        <button onClick={() => setActiveSection('overview')} style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:10, padding:'8px 18px', fontWeight:600, fontSize:13, cursor:'pointer' }}>
+          ← Back
+        </button>
       </div>
-      
-      <div className="card border-0 shadow-lg">
-        <div className="card-body">
-          <form onSubmit={handleSdpSubmit}>
+
+      <div className="cd-card p-4">
+        <form onSubmit={handleSdpSubmit}>
             <div className="row g-3">
               {/* SDP Information Section */}
               <div className="col-12">
@@ -893,68 +831,50 @@ const ClientDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-vh-100" style={{background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)'}}>
-      <nav className="navbar navbar-expand-lg navbar-dark shadow-lg" style={{background: 'rgba(0,0,0,0.2)', backdropFilter: 'blur(10px)'}}>
-        <div className="container-fluid">
-          <a className="navbar-brand d-flex align-items-center fw-bold" href="#">
-            <img 
-              src={nbsnLogo} 
-              alt="NBSN Logo" 
-              width="40" 
-              height="40" 
-              className="me-2"
-              style={{objectFit: 'contain', borderRadius: '4px'}}
-            />
-            NBSN - {user.clientName}
-          </a>
-          
-          <div className="d-flex align-items-center">
-            <span className="text-white me-3">
-              <span className="me-2">👤</span>
-              {user.name}
-            </span>
-            <button 
-              onClick={handleLogout} 
-              className="btn btn-outline-light btn-sm"
-            >
-              Logout
-            </button>
+    <div style={{ display:'flex', flexDirection:'column', minHeight:'100vh', background:'#f1f5f9', fontFamily:"'Segoe UI', system-ui, sans-serif" }}>
+      <style>{`
+        .cd-nav-btn { color:rgba(255,255,255,0.65); background:transparent; border:none; border-radius:10px; padding:11px 16px; display:flex; align-items:center; gap:10px; font-size:0.92rem; font-weight:500; transition:all 0.18s; width:100%; text-align:left; cursor:pointer; }
+        .cd-nav-btn:hover { background:rgba(255,255,255,0.08); color:#fff; }
+        .cd-nav-btn.active { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; font-weight:700; box-shadow:0 4px 14px rgba(102,126,234,0.35); }
+        .cd-card { background:#fff; border-radius:14px; border:none; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
+        @media (max-width:768px) { .cd-sidebar { display:none !important; } .cd-main { width:100% !important; } }
+      `}</style>
+
+      {/* Navbar */}
+      <nav style={{ background:'linear-gradient(135deg,#0f172a,#1e293b)', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 24px', height:56, display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <img src={productIcon} alt="NBSN" style={{ width:32, height:32, borderRadius:8, objectFit:'contain' }} />
+          <span style={{ color:'#fff', fontWeight:800, fontSize:'0.95rem' }}>NBSN</span>
+          <span style={{ color:'rgba(255,255,255,0.4)', fontSize:13 }}>— {user.clientName}</span>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#667eea,#764ba2)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13 }}>
+              {user.name?.charAt(0)?.toUpperCase()}
+            </div>
+            <span style={{ color:'rgba(255,255,255,0.8)', fontSize:'0.88rem' }}>{user.name}</span>
           </div>
+          <button onClick={handleLogout} style={{ background:'rgba(255,255,255,0.1)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:8, padding:'6px 14px', fontSize:13, fontWeight:600, cursor:'pointer' }}>
+            Logout
+          </button>
         </div>
       </nav>
 
-      <div className="container-fluid">
-        <div className="row">
-          <nav className="col-md-3 col-lg-2 sidebar" style={{background: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', minHeight: 'calc(100vh - 76px)'}}>
-            <div className="position-sticky pt-3">
-              <ul className="nav flex-column">
-                {menuItems.map((item) => (
-                  <li key={item.id} className="nav-item">
-                    <a
-                      className={`nav-link text-white ${activeSection === item.id ? 'active bg-primary rounded' : ''}`}
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setActiveSection(item.id);
-                      }}
-                      style={{
-                        transition: 'all 0.3s ease',
-                        margin: '2px 0',
-                        padding: '12px 16px'
-                      }}
-                    >
-                      <span className="me-2">{item.icon}</span>
-                      {item.label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </nav>
+      <div style={{ display:'flex', flex:1, overflow:'hidden', height:'calc(100vh - 56px)' }}>
+        {/* Sidebar */}
+        <div className="cd-sidebar" style={{ width:200, background:'#1e293b', display:'flex', flexDirection:'column', padding:'20px 12px', flexShrink:0 }}>
+          <p style={{ color:'rgba(255,255,255,0.3)', fontSize:'0.68rem', letterSpacing:'1.5px', fontWeight:700, textTransform:'uppercase', margin:'0 0 12px 4px' }}>Navigation</p>
+          {menuItems.map(item => (
+            <button key={item.id} className={`cd-nav-btn${activeSection === item.id ? ' active' : ''}`} onClick={() => setActiveSection(item.id)}>
+              <span style={{ fontSize:'1.1rem' }}>{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </div>
 
-          <main className="col-md-9 ms-sm-auto col-lg-10 px-md-4 py-4" style={{maxHeight: 'calc(100vh - 76px)', overflowY: 'auto'}}>
-            {renderContent()}
-          </main>
+        {/* Main content */}
+        <div className="cd-main" style={{ flex:1, overflowY:'auto', padding:28 }}>
+          {renderContent()}
         </div>
       </div>
     </div>
