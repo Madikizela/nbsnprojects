@@ -419,7 +419,7 @@ const Dashboard = () => {
           </div>
         </nav>
 
-        <div style={{ display:'flex', flex:1, overflow:'hidden' }}>
+        <div style={{ display:'flex', flex:1, overflow:'hidden', height:'calc(100vh - 56px)' }}>
           {/* ── SIDEBAR ── */}
           <div className="dash-sidebar" style={{ width:220, background:'#1e293b', display:'flex', flexDirection:'column', padding:'20px 12px', flexShrink:0 }}>
             <p style={{ color:'rgba(255,255,255,0.3)', fontSize:'0.68rem', letterSpacing:'1.5px', fontWeight:700, textTransform:'uppercase', margin:'0 0 12px 4px' }}>Navigation</p>
@@ -433,7 +433,7 @@ const Dashboard = () => {
           </div>
 
           {/* ── MAIN CONTENT ── */}
-          <div className="dash-main" style={{ flex:1, overflowY:'auto', padding:28 }}>
+          <div className="dash-main" style={{ flex:1, overflowY:'auto', padding:28, height:'calc(100vh - 56px)' }}>
             {renderContent()}
           </div>
         </div>
