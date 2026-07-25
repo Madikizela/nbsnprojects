@@ -18,6 +18,7 @@ namespace backend.Controllers
         private readonly IEmailService _emailService;
         private readonly IWhatsAppService _whatsApp;
         private readonly IConfiguration _configuration;
+        private readonly ILogger<LearnersController> _logger;
 
         public LearnersController(
             ApplicationDbContext context,
@@ -25,7 +26,8 @@ namespace backend.Controllers
             IPasswordHashingService passwordHashingService,
             IEmailService emailService,
             IWhatsAppService whatsApp,
-            IConfiguration configuration)
+            IConfiguration configuration,
+            ILogger<LearnersController> logger)
         {
             _context = context;
             _environment = environment;
@@ -33,6 +35,7 @@ namespace backend.Controllers
             _emailService = emailService;
             _whatsApp = whatsApp;
             _configuration = configuration;
+            _logger = logger;
         }
 
         /// <summary>
@@ -369,8 +372,13 @@ namespace backend.Controllers
                         // Send welcome email if email exists
                         if (!string.IsNullOrWhiteSpace(learner.Email))
                         {
-                            _ = _emailService.SendLearnerWelcomeEmailAsync(
+                            var emailSent = await _emailService.SendLearnerWelcomeEmailAsync(
                                 learner.Email, learnerFullName, username, plainPassword, portalUrl);
+
+                            if (emailSent)
+                                _logger.LogInformation("Welcome email sent to learner {LearnerId} at {Email}", learner.Id, learner.Email);
+                            else
+                                _logger.LogWarning("Failed to send welcome email to learner {LearnerId} at {Email}", learner.Id, learner.Email);
                         }
 
                         // Send WhatsApp welcome if phone exists
@@ -382,7 +390,7 @@ namespace backend.Controllers
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Warning: Could not send welcome notifications to learner {learner.Id}: {ex.Message}");
+                        _logger.LogError(ex, "Could not send welcome notifications to learner {LearnerId}: {Message}", learner.Id, ex.Message);
                     }
                 }
             } // end else (new learner)

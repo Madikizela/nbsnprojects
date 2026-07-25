@@ -39,17 +39,17 @@ const JWT_SECRET = process.env.JWT_SECRET || 'YourSuperSecretKeyThatIsAtLeast32C
 
 // Email Configuration - Gmail SMTP
 const emailConfig = {
-    host: 'smtp.gmail.com',
-    port: 587,
+    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
     secure: false,
     auth: {
-        user: 'madikizela21517799@gmail.com',
-        pass: 'quqeqfrygbypxoun'
+        user: process.env.SMTP_USER || 'madikizela21517799@gmail.com',
+        pass: process.env.SMTP_PASS || 'quqeqfrygbypxoun'
     }
 };
 
-const FROM_EMAIL = 'madikizela21517799@gmail.com';
-const FROM_NAME = 'LITO Team';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'madikizela21517799@gmail.com';
+const FROM_NAME = process.env.FROM_NAME || 'NBSN Team';
 
 // Create email transporter with debug enabled
 const transporter = nodemailer.createTransport(emailConfig);
@@ -96,36 +96,33 @@ function generateSecurePassword(length = 12) {
 
 // Generate welcome email HTML
 function generateWelcomeEmailBody(clientName, username, password) {
+    const loginUrl = process.env.VITE_API_URL
+        ? process.env.VITE_API_URL.replace('/api', '').replace(':5213', ':5174')
+        : 'http://localhost:5174';
     return `
         <!DOCTYPE html>
         <html>
         <head>
             <meta charset="utf-8">
-            <title>Welcome to Learning Management System</title>
+            <title>Welcome to NBSN</title>
         </head>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #2c3e50;">Welcome to Learning Management System!</h2>
+                <h2 style="color: #007bff;">Welcome to NBSN!</h2>
                 
                 <p>Dear ${clientName},</p>
                 
                 <p>Your account has been successfully created. Below are your login credentials:</p>
                 
-                <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                    <p><strong>Username:</strong> ${username}</p>
-                    <p><strong>Password:</strong> ${password}</p>
-                    <p><strong>Login URL:</strong> <a href="http://localhost:5174/login">http://localhost:5174/login</a></p>
+                <div style="background-color: #f0f9ff; border: 1px solid #bae6fd; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>Username / Email:</strong> ${username}</p>
+                    <p><strong>Password:</strong> <code style="background:#fff;padding:4px 8px;border:1px dashed #007bff;font-size:16px;color:#007bff">${password}</code></p>
+                    <p><strong>Login URL:</strong> <a href="${loginUrl}/login">${loginUrl}/login</a></p>
                 </div>
                 
-                <p><strong>Important Security Notes:</strong></p>
-                <ul>
-                    <li>Please change your password after your first login</li>
-                    <li>Do not share your credentials with anyone</li>
-                    <li>Contact support if you did not request this account</li>
-                </ul>
+                <p style="color: #dc3545;"><strong>Please change your password after your first login.</strong></p>
                 
-                <p>Best regards,<br>
-                Learning Management System Team</p>
+                <p>Best regards,<br><strong>NBSN Team</strong></p>
                 
                 <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
                 <p style="font-size: 12px; color: #666;">
@@ -155,20 +152,9 @@ async function sendWelcomeEmail(clientEmail, clientName, username, password) {
     };
 
     try {
-        // For now, just log the email instead of sending
-        // This prevents issues with SMTP configuration
-        console.log('📧 Email would be sent:');
-        console.log(`📧 From: ${FROM_NAME} <${FROM_EMAIL}>`);
-        console.log(`📧 To: ${clientEmail}`);
-        console.log(`📧 Subject: ${subject}`);
-        console.log(`📧 Body: ${body}`);
-        console.log(`✅ Email logged successfully (SMTP not configured)`);
-        return true; // Return true since we "sent" it (logged it)
-        
-        // Uncomment below to actually send emails when SMTP is properly configured
-        // const info = await transporter.sendMail(mailOptions);
-        // console.log(`✅ Welcome email sent to ${clientEmail}: ${info.messageId}`);
-        // return true;
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`✅ Welcome email sent to ${clientEmail}: ${info.messageId}`);
+        return true;
     } catch (error) {
         console.error(`❌ Failed to send welcome email to ${clientEmail}:`, error);
         return false;
