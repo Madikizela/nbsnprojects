@@ -343,6 +343,11 @@ namespace backend.Controllers
                 if (emailSent)
                     return Ok(new { message = $"Credentials resent to {managerUser.Email}", emailSent = true });
 
+                _logger.LogWarning("Email failed for department manager {Email} — RESEND_API_KEY set: {HasKey}, FROM_EMAIL: {From}",
+                    managerUser.Email,
+                    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RESEND_API_KEY")),
+                    Environment.GetEnvironmentVariable("FROM_EMAIL") ?? "(not set)");
+
                 return Ok(new
                 {
                     message = "Password reset but email could not be sent. Save these credentials:",

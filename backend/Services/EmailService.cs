@@ -134,7 +134,33 @@ namespace backend.Services
                     return true;
                 }
 
-                _logger.LogError("Resend API rejected email to {To}: {Status} {Body}", to, (int)response.StatusCode, responseBody);
+                // If Resend rejects because FROM domain is not verified, fall back to resend.dev test domain
+                if ((int)response.StatusCode == 403 || responseBody.Contains("domain") || responseBody.Contains("not verified") || responseBody.Contains("testing"))
+                {
+                    _logger.LogWarning("Resend rejected from={From}, retrying with onboarding@resend.dev", _fromEmail);
+                    var fallbackPayload = JsonSerializer.Serialize(new
+                    {
+                        from    = $"{_fromName} <onboarding@resend.dev>",
+                        to      = new[] { to },
+                        subject = subject,
+                        html    = body
+                    });
+                    var fallbackResponse = await client.PostAsync(
+                        "https://api.resend.com/emails",
+                        new StringContent(fallbackPayload, Encoding.UTF8, "application/json"));
+                    var fallbackBody = await fallbackResponse.Content.ReadAsStringAsync();
+                    _logger.LogInformation("Resend fallback response {Status}: {Body}", (int)fallbackResponse.StatusCode, fallbackBody);
+                    if (fallbackResponse.IsSuccessStatusCode)
+                    {
+                        _logger.LogInformation("Email sent via Resend (fallback from) to {To}", to);
+                        return true;
+                    }
+                    _logger.LogError("Resend fallback also failed to {To}: {Status} {Body}", to, (int)fallbackResponse.StatusCode, fallbackBody);
+                }
+                else
+                {
+                    _logger.LogError("Resend API rejected email to {To}: {Status} {Body}", to, (int)response.StatusCode, responseBody);
+                }
                 return false;
             }
             catch (Exception ex)
@@ -151,27 +177,34 @@ namespace backend.Services
                 _logger.LogError("No email transport configured for {To}", to);
                 return false;
             }
-            try
+            // Try port 465 (SSL) first as Railway blocks 587 (STARTTLS)
+            var ports = new[] { 465, 587 };
+            foreach (var port in ports)
             {
-                using var client = new System.Net.Mail.SmtpClient(_smtpHost, _smtpPort);
-                client.EnableSsl = true;
-                client.UseDefaultCredentials = false;
-                client.Credentials = new System.Net.NetworkCredential(_smtpUsername, _smtpPassword);
-                using var msg = new System.Net.Mail.MailMessage();
-                msg.From = new System.Net.Mail.MailAddress(_fromEmail, _fromName);
-                msg.To.Add(to);
-                msg.Subject = subject;
-                msg.Body = body;
-                msg.IsBodyHtml = true;
-                await client.SendMailAsync(msg);
-                _logger.LogInformation("Email sent via SMTP to {To}", to);
-                return true;
+                try
+                {
+                    using var client = new System.Net.Mail.SmtpClient(_smtpHost, port);
+                    client.EnableSsl = true;
+                    client.UseDefaultCredentials = false;
+                    client.Credentials = new System.Net.NetworkCredential(_smtpUsername, _smtpPassword);
+                    client.Timeout = 15000;
+                    using var msg = new System.Net.Mail.MailMessage();
+                    msg.From = new System.Net.Mail.MailAddress(_fromEmail, _fromName);
+                    msg.To.Add(to);
+                    msg.Subject = subject;
+                    msg.Body = body;
+                    msg.IsBodyHtml = true;
+                    await client.SendMailAsync(msg);
+                    _logger.LogInformation("Email sent via SMTP (port {Port}) to {To}", port, to);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("SMTP port {Port} failed to {To}: {Error}", port, to, ex.InnerException?.Message ?? ex.Message);
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "SMTP send failed to {To}: {Error}", to, ex.InnerException?.Message ?? ex.Message);
-                return false;
-            }
+            _logger.LogError("All SMTP ports failed for {To}", to);
+            return false;
         }
     }
 }
