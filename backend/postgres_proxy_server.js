@@ -1156,6 +1156,66 @@ app.delete('/api/Departments/:id', async (req, res) => {
     }
 });
 
+// POST: api/Departments/{id}/resend-credentials
+app.post('/api/Departments/:id/resend-credentials', async (req, res) => {
+    const client = await pgClient.connect();
+    try {
+        const deptId = parseInt(req.params.id);
+
+        const deptResult = await client.query(`
+            SELECT "Id", "Name", "ManagerEmail", "ManagerFirstName", "ManagerSurname"
+            FROM "Departments" WHERE "Id" = $1
+        `, [deptId]);
+
+        if (deptResult.rows.length === 0)
+            return res.status(404).json({ message: 'Department not found' });
+
+        const dept = deptResult.rows[0];
+
+        if (!dept.ManagerEmail)
+            return res.status(400).json({ message: 'No manager email on record for this department' });
+
+        const userResult = await client.query(`
+            SELECT "Id", "Username", "Email"
+            FROM "Users" WHERE "Email" = $1 AND "DepartmentId" = $2
+        `, [dept.ManagerEmail, deptId]);
+
+        if (userResult.rows.length === 0)
+            return res.status(404).json({ message: 'No user account found for this department manager' });
+
+        const user = userResult.rows[0];
+        const newPassword = generateSecurePassword();
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        await client.query(`
+            UPDATE "Users" SET "PasswordHash" = $1, "UpdatedAt" = NOW() WHERE "Id" = $2
+        `, [hashedPassword, user.Id]);
+
+        const emailSent = await sendWelcomeEmail(
+            user.Email,
+            `${dept.ManagerFirstName} ${dept.ManagerSurname}`,
+            user.Username || user.Email,
+            newPassword
+        );
+
+        if (emailSent) {
+            return res.json({ message: `Credentials resent to ${user.Email}`, emailSent: true });
+        } else {
+            return res.json({
+                message: 'Password reset but email could not be sent. Save these credentials:',
+                emailSent: false,
+                adminUsername: user.Username || user.Email,
+                temporaryPassword: newPassword
+            });
+        }
+    } catch (error) {
+        console.error('❌ Error resending credentials:', error);
+        res.status(500).json({ message: 'An error occurred' });
+    } finally {
+        client.release();
+    }
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
     res.json({ status: 'healthy', service: 'PostgreSQL Proxy Server' });

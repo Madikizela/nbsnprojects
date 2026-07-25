@@ -614,6 +614,31 @@ const SDPDashboard: React.FC = () => {
     }
   };
 
+  // Handle resending credentials to department manager
+  const handleResendCredentials = async (departmentId: number, departmentName: string) => {
+    if (!confirm(`Resend login credentials to the manager of "${departmentName}"?`)) return;
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/Departments/${departmentId}/resend-credentials`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      if (response.ok) {
+        if (data.emailSent) {
+          alert(`✅ Credentials sent to ${data.message?.replace('Credentials resent to ', '') || 'the manager'}`);
+        } else {
+          alert(`⚠️ Email could not be sent.\n\nUsername: ${data.adminUsername}\nPassword: ${data.temporaryPassword}\n\nPlease share these manually.`);
+        }
+      } else {
+        alert(`Failed: ${data.message || 'Unknown error'}`);
+      }
+    } catch (error) {
+      alert('An error occurred while resending credentials.');
+      console.error(error);
+    }
+  };
+
   // Handle updating project
   const handleUpdateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1185,10 +1210,19 @@ const SDPDashboard: React.FC = () => {
                       <strong>Email:</strong> {department.managerEmail}
                     </small>
                   </div>
-                  <div className="mt-auto">
+                  <div className="mt-auto d-flex justify-content-between align-items-center">
                     <small className="opacity-75">
                       Created: {new Date(department.createdAt).toLocaleDateString()}
                     </small>
+                    {department.managerEmail && (
+                      <button
+                        className="btn btn-sm btn-light"
+                        style={{ fontSize: '0.75rem' }}
+                        onClick={() => handleResendCredentials(department.id, department.name)}
+                      >
+                        📧 Resend Credentials
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
