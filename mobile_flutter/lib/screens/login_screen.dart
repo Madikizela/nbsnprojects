@@ -27,9 +27,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _handleLogin() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
@@ -43,23 +41,19 @@ class _LoginScreenState extends State<LoginScreen> {
       if (success) {
         if (!mounted) return;
 
-        final authService = context.read<AuthService>();
-        final user = authService.user;
+        final user = context.read<AuthService>().user;
         debugPrint('DEBUG: Login successful. User role: ${user?['role']}');
 
         if (user != null &&
             (user['role'] == 'Teacher' || user['role'] == '16')) {
-          debugPrint('DEBUG: Navigating to Teacher Dashboard');
           context.go('/teacher-dashboard');
         } else if (user != null &&
             (user['role'] == 'LogisticsSupport' ||
                 user['role'] == '12' ||
                 user['role'] == 'SDPLogistics' ||
                 user['role'] == '5')) {
-          debugPrint('DEBUG: Navigating to Logistics Dashboard');
           context.go('/logistics-dashboard');
         } else {
-          debugPrint('DEBUG: Navigating to Projects');
           context.go('/projects');
         }
       } else {
@@ -85,18 +79,13 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       _showError(errorMessage);
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -104,126 +93,74 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF0f172a),
-      // Settings gear in top-right corner
-      floatingActionButton: FloatingActionButton.small(
-        onPressed: () => context.push('/settings/server'),
-        backgroundColor: const Color(0xFF1e293b),
-        foregroundColor: const Color(0xFF64748b),
-        elevation: 0,
-        tooltip: 'Server Settings',
-        child: const Icon(Icons.settings),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endTop,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
+            padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 32),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF0EA5E9),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Center(
-                      child: Text(
-                        'NBSN',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
+                  // ── App Icon ──────────────────────────────────
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.asset(
+                      'assets/app_icon.png',
+                      width: 110,
+                      height: 110,
+                      fit: BoxFit.cover,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
 
-                  // Title
+                  // ── Title ────────────────────────────────────
                   const Text(
-                    'Administrator Portal',
+                    'NBSN Mobile',
                     style: TextStyle(
-                      fontSize: 24,
+                      fontSize: 28,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
 
-                  // Subtitle
+                  // ── Subtitle ─────────────────────────────────
                   const Text(
-                    'Learner Management System',
+                    'Skills Development Management',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 15,
                       color: Color(0xFF94a3b8),
                     ),
                   ),
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 44),
 
-                  // Email Field
+                  // ── Email Field ──────────────────────────────
                   TextFormField(
                     controller: _emailController,
                     enabled: !_isLoading,
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Email',
-                      hintStyle: const TextStyle(color: Color(0xFF94a3b8)),
-                      filled: true,
-                      fillColor: const Color(0xFF1e293b),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF334155)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF334155)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF0EA5E9)),
-                      ),
-                    ),
+                    decoration: _inputDecoration('Email', Icons.email_outlined),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
+                      if (value == null || value.isEmpty)
                         return 'Please enter your email';
-                      }
-                      if (!value.contains('@')) {
+                      if (!value.contains('@'))
                         return 'Please enter a valid email';
-                      }
                       return null;
                     },
                   ),
                   const SizedBox(height: 16),
 
-                  // Password Field
+                  // ── Password Field ───────────────────────────
                   TextFormField(
                     controller: _passwordController,
                     enabled: !_isLoading,
                     obscureText: _obscurePassword,
                     style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'Password',
-                      hintStyle: const TextStyle(color: Color(0xFF94a3b8)),
-                      filled: true,
-                      fillColor: const Color(0xFF1e293b),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF334155)),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF334155)),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFF0EA5E9)),
-                      ),
+                    decoration: _inputDecoration('Password', Icons.lock_outline)
+                        .copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
@@ -231,73 +168,68 @@ class _LoginScreenState extends State<LoginScreen> {
                               : Icons.visibility_off,
                           color: const Color(0xFF94a3b8),
                         ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
+                      if (value == null || value.isEmpty)
                         return 'Please enter your password';
-                      }
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
 
-                  // Login Button
+                  // ── Login Button ─────────────────────────────
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 52,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0EA5E9),
                         disabledBackgroundColor:
-                            const Color(0xFF0EA5E9).withOpacity(0.6),
+                            const Color(0xFF0EA5E9).withValues(alpha: 0.6),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
                         ),
+                        elevation: 0,
                       ),
                       child: _isLoading
                           ? const SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: 22,
+                              height: 22,
                               child: CircularProgressIndicator(
-                                strokeWidth: 2,
+                                strokeWidth: 2.5,
                                 valueColor:
                                     AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
                           : const Text(
-                              'Login',
+                              'Sign In',
                               style: TextStyle(
-                                fontSize: 16,
+                                fontSize: 17,
                                 fontWeight: FontWeight.bold,
                                 color: Colors.white,
                               ),
                             ),
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 36),
 
-                  // Footer
+                  // ── Footer ───────────────────────────────────
                   const Text(
                     'National Building Skills Network',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF64748b),
-                    ),
+                    style: TextStyle(fontSize: 12, color: Color(0xFF64748b)),
                   ),
-                  const SizedBox(height: 16),
-                  // Learner portal link
+                  const SizedBox(height: 14),
+
+                  // ── Learner Login Link ───────────────────────
                   TextButton(
                     onPressed: () => context.go('/learner/login'),
                     child: const Text(
-                      '🎓 Learner? Login here',
-                      style: TextStyle(color: Color(0xFF10b981), fontSize: 13),
+                      '🎓  Learner? Login here',
+                      style: TextStyle(color: Color(0xFF10b981), fontSize: 14),
                     ),
                   ),
                 ],
@@ -305,6 +237,36 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  InputDecoration _inputDecoration(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF94a3b8)),
+      prefixIcon: Icon(icon, color: const Color(0xFF64748b), size: 20),
+      filled: true,
+      fillColor: const Color(0xFF1e293b),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF334155)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF334155)),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Color(0xFF0EA5E9), width: 1.5),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
       ),
     );
   }
