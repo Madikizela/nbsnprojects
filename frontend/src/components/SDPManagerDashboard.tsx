@@ -4553,15 +4553,23 @@ const SDPManagerDashboard: React.FC = () => {
     <div className="row g-4">
       {/* Welcome Header */}
       <div className="col-12">
-        <div className="card border-0 shadow-lg" style={{
-          backgroundColor: "#4facfe",
-          color: "#ffffff"
+        <div className="card border-0 shadow-sm overflow-hidden" style={{
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0e4d8a 100%)',
+          borderRadius: 16
         }}>
-          <div className="card-body text-center text-white py-5">
-            <div className="display-1 mb-3">{managerInfo.icon}</div>
-            <h2 className="mb-3">Welcome, {user?.name}</h2>
-            <p className="mb-2 opacity-75">{managerInfo.title} Dashboard</p>
-            <p className="mb-0 opacity-75">{managerInfo.description}</p>
+          <div className="card-body py-4 px-4 d-flex align-items-center justify-content-between flex-wrap gap-3">
+            <div className="d-flex align-items-center gap-3">
+              <div style={{ fontSize: '3rem', filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}>{managerInfo.icon}</div>
+              <div>
+                <h4 className="mb-1 text-white fw-bold">Welcome back, {user?.name} 👋</h4>
+                <p className="mb-0" style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.9rem' }}>{managerInfo.description}</p>
+              </div>
+            </div>
+            <div className="d-flex align-items-center gap-2">
+              <span style={{ background:'rgba(255,255,255,0.12)', color:'#fff', padding:'6px 14px', borderRadius:20, fontSize:13, fontWeight:600, border:'1px solid rgba(255,255,255,0.2)' }}>
+                📅 {new Date().toLocaleDateString('en-ZA', { weekday:'short', day:'numeric', month:'short', year:'numeric' })}
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -4609,14 +4617,11 @@ const SDPManagerDashboard: React.FC = () => {
 
       {/* Quick Stats Cards */}
       <div className="col-md-3">
-        <div className="card border-0 shadow-lg h-100" style={{
-          backgroundColor: "#4facfe",
-          color: "#ffffff"
-        }}>
-          <div className="card-body text-center text-white d-flex flex-column justify-content-center">
-            <div className="display-4 mb-3">📁</div>
-            <h4 className="mb-2">{filteredProjects.length}</h4>
-            <p className="mb-0 opacity-75">Active Projects</p>
+        <div className="card border-0 shadow-sm h-100" style={{ borderRadius:14, background:'linear-gradient(135deg,#667eea,#764ba2)' }}>
+          <div className="card-body text-center text-white d-flex flex-column justify-content-center py-4">
+            <div style={{ fontSize:'2.2rem', marginBottom:8 }}>📁</div>
+            <h3 className="mb-1 fw-bold">{filteredProjects.length}</h3>
+            <p className="mb-0" style={{ opacity:0.8, fontSize:'0.85rem' }}>Active Projects</p>
           </div>
         </div>
       </div>
@@ -4624,14 +4629,11 @@ const SDPManagerDashboard: React.FC = () => {
       {/* Team Members Stat - Hidden for Assessors and Moderators */}
       {(!isAssessor && (!isModerator || isQA || isIT)) && (
         <div className="col-md-3">
-          <div className="card border-0 shadow-lg h-100" style={{
-            backgroundColor: "#4facfe",
-            color: "#ffffff"
-          }}>
-            <div className="card-body text-center text-white d-flex flex-column justify-content-center">
-              <div className="display-4 mb-3">👥</div>
-              <h4 className="mb-2">{isIT ? allSdpUsers.length : teamMembers.length}</h4>
-              <p className="mb-0 opacity-75">{isIT ? 'Total System Users' : 'Team Members'}</p>
+          <div className="card border-0 shadow-sm h-100" style={{ borderRadius:14, background:'linear-gradient(135deg,#0ea5e9,#0284c7)' }}>
+            <div className="card-body text-center text-white d-flex flex-column justify-content-center py-4">
+              <div style={{ fontSize:'2.2rem', marginBottom:8 }}>👥</div>
+              <h3 className="mb-1 fw-bold">{isIT ? allSdpUsers.length : teamMembers.length}</h3>
+              <p className="mb-0" style={{ opacity:0.8, fontSize:'0.85rem' }}>{isIT ? 'Total System Users' : 'Team Members'}</p>
             </div>
           </div>
         </div>
@@ -4639,14 +4641,11 @@ const SDPManagerDashboard: React.FC = () => {
       
       {isIT && (
         <div className="col-md-3">
-          <div className="card border-0 shadow-lg h-100" style={{
-            backgroundColor: "#f59e0b",
-            color: "#ffffff"
-          }}>
-            <div className="card-body text-center text-white d-flex flex-column justify-content-center">
-              <div className="display-4 mb-3">📜</div>
-              <h4 className="mb-2">{systemLogs.length}</h4>
-              <p className="mb-0 opacity-75">Recent Logs</p>
+          <div className="card border-0 shadow-sm h-100" style={{ borderRadius:14, background:'linear-gradient(135deg,#f59e0b,#d97706)' }}>
+            <div className="card-body text-center text-white d-flex flex-column justify-content-center py-4">
+              <div style={{ fontSize:'2.2rem', marginBottom:8 }}>📜</div>
+              <h3 className="mb-1 fw-bold">{systemLogs.length}</h3>
+              <p className="mb-0" style={{ opacity:0.8, fontSize:'0.85rem' }}>Recent Logs</p>
             </div>
           </div>
         </div>
@@ -4654,62 +4653,51 @@ const SDPManagerDashboard: React.FC = () => {
 
       {!isIT && (
         <div className="col-md-3">
-          <div className="card border-0 shadow-lg h-100" style={{
-            backgroundColor: "#4facfe",
-            color: "#ffffff"
-          }}>
-            <div className="card-body text-center text-white d-flex flex-column justify-content-center">
-              <div className="display-4 mb-3">✅</div>
-              <h4 className="mb-2">{projectTasks.length}</h4>
-              <p className="mb-0 opacity-75">Active Tasks</p>
+          <div className="card border-0 shadow-sm h-100" style={{ borderRadius:14, background:'linear-gradient(135deg,#10b981,#059669)' }}>
+            <div className="card-body text-center text-white d-flex flex-column justify-content-center py-4">
+              <div style={{ fontSize:'2.2rem', marginBottom:8 }}>✅</div>
+              <h3 className="mb-1 fw-bold">{projectTasks.length}</h3>
+              <p className="mb-0" style={{ opacity:0.8, fontSize:'0.85rem' }}>Active Tasks</p>
             </div>
           </div>
         </div>
       )}
       
       <div className="col-md-3">
-        <div className="card border-0 shadow-lg h-100" style={{
-          backgroundColor: isIT ? "#10b981" : "#4facfe",
-          color: "#ffffff"
-        }}>
-          <div className="card-body text-center text-white d-flex flex-column justify-content-center">
-            <div className="display-4 mb-3">{isIT ? '🛠️' : '📊'}</div>
+        <div className="card border-0 shadow-sm h-100" style={{ borderRadius:14, background: isIT ? 'linear-gradient(135deg,#10b981,#059669)' : 'linear-gradient(135deg,#f97316,#ea580c)' }}>
+          <div className="card-body text-center text-white d-flex flex-column justify-content-center py-4">
+            <div style={{ fontSize:'2.2rem', marginBottom:8 }}>{isIT ? '🛠️' : '📊'}</div>
             {isIT ? (
               <>
-                <h4 className="mb-2">Active</h4>
-                <p className="mb-0 opacity-75">System Support</p>
+                <h3 className="mb-1 fw-bold">Active</h3>
+                <p className="mb-0" style={{ opacity:0.8, fontSize:'0.85rem' }}>System Support</p>
               </>
             ) : isAdmin ? (
               <>
-                <h6 className="mb-2">Today's Attendance</h6>
+                <h6 className="mb-2 fw-bold">Today's Attendance</h6>
                 {attendanceLoading ? (
-                  <p className="mb-0 opacity-75">Loading...</p>
+                  <p className="mb-0" style={{ opacity:0.8 }}>Loading...</p>
                 ) : attendanceProjects.length > 0 ? (
                   <div className="text-start">
-                    {attendanceProjects.map((project, index) => (
+                    {attendanceProjects.map((project) => (
                       <div key={project.projectId} className="mb-1">
-                        <small className="opacity-75">
-                          {project.projectName.length > 15 ? 
-                            `${project.projectName.substring(0, 15)}...` : 
-                            project.projectName
-                          }: {project.presentToday} present
+                        <small style={{ opacity:0.85 }}>
+                          {project.projectName.length > 15 ? `${project.projectName.substring(0, 15)}...` : project.projectName}: {project.presentToday} present
                         </small>
                       </div>
                     ))}
                     {attendanceProjects.length > 3 && (
-                      <small className="opacity-75">
-                        +{attendanceProjects.length - 3} more projects
-                      </small>
+                      <small style={{ opacity:0.8 }}>+{attendanceProjects.length - 3} more projects</small>
                     )}
                   </div>
                 ) : (
-                  <p className="mb-0 opacity-75">No attendance data</p>
+                  <p className="mb-0" style={{ opacity:0.8, fontSize:'0.85rem' }}>No attendance data</p>
                 )}
               </>
             ) : (
               <>
-                <h4 className="mb-2">{filteredProjects.length}</h4>
-                <p className="mb-0 opacity-75">Active Projects</p>
+                <h3 className="mb-1 fw-bold">{filteredProjects.length}</h3>
+                <p className="mb-0" style={{ opacity:0.8, fontSize:'0.85rem' }}>Active Projects</p>
               </>
             )}
           </div>
@@ -10475,15 +10463,30 @@ const SDPManagerDashboard: React.FC = () => {
   );
 
   return (
-    <div className="d-flex flex-column min-vh-100" style={{ backgroundColor: '#ffffff' }}>
+    <div className="d-flex flex-column min-vh-100" style={{ backgroundColor: '#f1f5f9' }}>
       
       {/* Header */}
-      <nav className="navbar navbar-expand-lg navbar-light shadow-sm" style={{ backgroundColor: '#4facfe' }}>
+      <nav className="navbar navbar-expand-lg shadow-sm" style={{ 
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
+        borderBottom: '1px solid rgba(255,255,255,0.08)'
+      }}>
         <div className="container-fluid">
-          <span className="navbar-brand mb-0 h1 text-white">{managerInfo.icon} {managerInfo.title}</span>
-          <div className="d-flex align-items-center">
-            <span className="text-white me-3">Welcome, {user?.name}</span>
-            <button onClick={handleLogout} className="btn btn-light btn-sm">
+          <div className="d-flex align-items-center gap-2">
+            <span style={{ fontSize: '1.4rem' }}>{managerInfo.icon}</span>
+            <span className="navbar-brand mb-0 h1 text-white fw-bold" style={{ fontSize: '1rem', letterSpacing: '0.3px' }}>
+              {managerInfo.title}
+            </span>
+          </div>
+          <div className="d-flex align-items-center gap-3">
+            <div className="d-flex align-items-center gap-2">
+              <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#667eea,#764ba2)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13 }}>
+                {user?.name?.charAt(0)?.toUpperCase()}
+              </div>
+              <span className="text-white" style={{ fontSize:'0.9rem', opacity:0.85 }}>
+                {user?.name}
+              </span>
+            </div>
+            <button onClick={handleLogout} className="btn btn-sm" style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:8, fontWeight:600 }}>
               Logout
             </button>
           </div>
@@ -10493,9 +10496,9 @@ const SDPManagerDashboard: React.FC = () => {
       <div className="container-fluid flex-grow-1 d-flex">
         <div className="row flex-grow-1 g-0">
           {/* Side Panel */}
-          <div className="col-md-3 col-lg-2 shadow-sm d-flex flex-column" style={{ backgroundColor: '#4facfe' }}>
+          <div className="col-md-3 col-lg-2 d-flex flex-column" style={{ background: '#1e293b', minHeight:'calc(100vh - 56px)' }}>
             <div className="p-3 flex-grow-1">
-              <h6 className="text-white text-uppercase mb-4" style={{ fontSize: '0.75rem', letterSpacing: '1px', fontWeight: 600 }}>Navigation</h6>
+              <h6 className="text-uppercase mb-3 mt-2" style={{ fontSize: '0.7rem', letterSpacing: '1.5px', fontWeight: 700, color:'rgba(255,255,255,0.35)' }}>Navigation</h6>
               <div className="nav flex-column gap-2">
                 {/* Overview - Visible for everyone except strictly Assessor/Moderator (QA Managers can see it) */}
                 {(!isAssessor && (!isModerator || isQA)) && (
@@ -11073,7 +11076,7 @@ const SDPManagerDashboard: React.FC = () => {
 
           {/* Main Content */}
           <div className="col-md-9 col-lg-10 d-flex flex-column">
-            <div className="p-4 flex-grow-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 76px)', backgroundColor: '#ffffff' }}>
+            <div className="p-4 flex-grow-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 76px)', backgroundColor: '#f1f5f9' }}>
               {activeSection === 'overview' && renderOverview()}
               {activeSection === 'projects' && renderProjects()}
               {activeSection === 'team' && renderTeam()}
