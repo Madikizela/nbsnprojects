@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ClientForm from './ClientForm';
 import PersonalInfoForm from './PersonalInfoForm';
@@ -25,6 +25,72 @@ interface ClientRecord {
 }
 
 const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
+
+// ── Read-only SDP list for system admin ──────────────────────────────────────
+interface SdpRecord {
+  id: number;
+  name: string;
+  contactPerson?: string;
+  address?: string;
+  status: string;
+  createdAt?: string;
+}
+
+const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
+  const [sdps, setSdps] = React.useState<SdpRecord[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
+
+  React.useEffect(() => {
+    fetch(`${apiUrl}/api/SkillsDevelopmentProviders`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then(r => r.json())
+      .then(data => { setSdps(Array.isArray(data) ? data : []); setLoading(false); })
+      .catch(() => { setError('Failed to load SDPs'); setLoading(false); });
+  }, [token, apiUrl]);
+
+  if (loading) return <div className="text-center p-4"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>;
+  if (error) return <div className="alert alert-danger">{error}</div>;
+
+  return (
+    <div className="dash-card" style={{ overflow:'hidden' }}>
+      <div style={{ padding:'14px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <span style={{ fontWeight:700, color:'#1e293b', fontSize:15 }}>Skills Development Providers ({sdps.length})</span>
+      </div>
+      <div className="table-responsive">
+        <table className="table table-hover mb-0">
+          <thead style={{ background:'#f8fafc' }}>
+            <tr>
+              {['Name','Contact Person','Address','Status','Registered'].map(h => (
+                <th key={h} style={{ fontSize:13, fontWeight:600, color:'#64748b', padding:'12px 16px', borderBottom:'1px solid #e2e8f0' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {sdps.length === 0 ? (
+              <tr><td colSpan={5} className="text-center text-muted py-4">No SDPs registered yet.</td></tr>
+            ) : sdps.map(sdp => (
+              <tr key={sdp.id}>
+                <td style={{ padding:'12px 16px', fontWeight:600, color:'#1e293b' }}>{sdp.name}</td>
+                <td style={{ padding:'12px 16px', color:'#64748b', fontSize:14 }}>{sdp.contactPerson || '—'}</td>
+                <td style={{ padding:'12px 16px', color:'#64748b', fontSize:14, maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{sdp.address || '—'}</td>
+                <td style={{ padding:'12px 16px' }}>
+                  <span style={{ padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:600, background: sdp.status === 'Active' || sdp.status === '1' ? '#dcfce7' : '#f1f5f9', color: sdp.status === 'Active' || sdp.status === '1' ? '#16a34a' : '#64748b' }}>
+                    {sdp.status === '1' ? 'Active' : sdp.status || 'Pending'}
+                  </span>
+                </td>
+                <td style={{ padding:'12px 16px', color:'#64748b', fontSize:13 }}>
+                  {sdp.createdAt ? new Date(sdp.createdAt).toLocaleDateString('en-ZA') : '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -292,41 +358,12 @@ const Dashboard = () => {
         return (
           <div>
             {/* Header */}
-            <div className="dash-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
-              <div>
-                <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>SDP Management 🎓</h2>
-                <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Manage Skills Development Providers</p>
-              </div>
-              <button onClick={() => navigate('/sdp-dashboard')}
-                style={{ background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', border:'none', borderRadius:10, padding:'10px 20px', fontWeight:700, fontSize:14, cursor:'pointer' }}>
-                + Open SDP Dashboard
-              </button>
+            <div className="dash-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px' }}>
+              <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>SDP Management 🎓</h2>
+              <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>View Skills Development Providers</p>
             </div>
 
-            <div className="row g-3">
-              <div className="col-md-6">
-                <div className="dash-card p-4">
-                  <div style={{ fontSize:'2rem', marginBottom:12 }}>🏫</div>
-                  <h5 style={{ fontWeight:700, color:'#1e293b', margin:'0 0 8px' }}>Manage SDPs</h5>
-                  <p style={{ color:'#64748b', fontSize:14, margin:'0 0 16px' }}>View, edit, and manage all Skills Development Providers in the system.</p>
-                  <button onClick={() => navigate('/sdp-dashboard')}
-                    style={{ background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontWeight:600, fontSize:14, cursor:'pointer' }}>
-                    View All SDPs →
-                  </button>
-                </div>
-              </div>
-              <div className="col-md-6">
-                <div className="dash-card p-4">
-                  <div style={{ fontSize:'2rem', marginBottom:12 }}>➕</div>
-                  <h5 style={{ fontWeight:700, color:'#1e293b', margin:'0 0 8px' }}>Add New SDP</h5>
-                  <p style={{ color:'#64748b', fontSize:14, margin:'0 0 16px' }}>Register new Skills Development Providers to expand your network.</p>
-                  <button onClick={() => navigate('/sdp-dashboard')}
-                    style={{ background:'linear-gradient(135deg,#10b981,#059669)', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontWeight:600, fontSize:14, cursor:'pointer' }}>
-                    Add SDP →
-                  </button>
-                </div>
-              </div>
-            </div>
+            <SDPListView token={localStorage.getItem('token') || ''} apiUrl={API} />
           </div>
         );
       case 'profile':
