@@ -67,70 +67,110 @@ class _LearnerLoginScreenState extends State<LearnerLoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 32),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF10b981),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Center(
-                    child: Text('🎓', style: TextStyle(fontSize: 36)),
+                // ── App Icon ──────────────────────────────────
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: Image.asset(
+                    'assets/app_icon.png',
+                    width: 110,
+                    height: 110,
+                    fit: BoxFit.cover,
                   ),
                 ),
+                const SizedBox(height: 20),
+
+                // ── Title ────────────────────────────────────
+                const Text(
+                  'Learner Portal',
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // ── Subtitle ─────────────────────────────────
+                const Text(
+                  'National Building Skills Network',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF94a3b8)),
+                ),
+                const SizedBox(height: 44),
+
+                // ── Username / Email Field ───────────────────
+                _field(
+                  _loginCtrl,
+                  'Username or Email',
+                  Icons.person_outline,
+                ),
                 const SizedBox(height: 16),
-                const Text('Learner Portal',
-                    style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white)),
-                const SizedBox(height: 4),
-                const Text('National Building Skills Network',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF94a3b8))),
-                const SizedBox(height: 40),
-                _field(_loginCtrl, 'Username or Email', Icons.person_outline),
-                const SizedBox(height: 16),
-                _field(_passCtrl, 'Password', Icons.lock_outline,
-                    obscure: _obscure,
-                    suffix: IconButton(
-                      icon: Icon(
-                          _obscure ? Icons.visibility : Icons.visibility_off,
-                          color: const Color(0xFF94a3b8)),
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                    )),
-                const SizedBox(height: 24),
+
+                // ── Password Field ───────────────────────────
+                _field(
+                  _passCtrl,
+                  'Password',
+                  Icons.lock_outline,
+                  obscure: _obscure,
+                  suffix: IconButton(
+                    icon: Icon(
+                      _obscure ? Icons.visibility : Icons.visibility_off,
+                      color: const Color(0xFF94a3b8),
+                    ),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  ),
+                ),
+                const SizedBox(height: 28),
+
+                // ── Login Button ─────────────────────────────
                 SizedBox(
                   width: double.infinity,
-                  height: 50,
+                  height: 52,
                   child: ElevatedButton(
                     onPressed: _loading ? null : _submit,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF10b981),
+                      disabledBackgroundColor:
+                          const Color(0xFF10b981).withValues(alpha: 0.6),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8)),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
                     ),
                     child: _loading
                         ? const SizedBox(
-                            width: 20,
-                            height: 20,
+                            width: 22,
+                            height: 22,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Text('Login',
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Sign In',
                             style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
+                              fontSize: 17,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
                   ),
                 ),
-                const SizedBox(height: 24),
-                TextButton(
+                const SizedBox(height: 36),
+
+                // ── Back to Staff Login ──────────────────────
+                TextButton.icon(
                   onPressed: () => context.go('/login'),
-                  child: const Text('← Back to Staff Login',
-                      style: TextStyle(color: Color(0xFF64748b))),
+                  icon: const Icon(Icons.arrow_back,
+                      size: 16, color: Color(0xFF64748b)),
+                  label: const Text(
+                    'Back to Staff Login',
+                    style: TextStyle(color: Color(0xFF64748b), fontSize: 14),
+                  ),
                 ),
               ],
             ),
@@ -140,28 +180,36 @@ class _LearnerLoginScreenState extends State<LearnerLoginScreen> {
     );
   }
 
-  Widget _field(TextEditingController ctrl, String hint, IconData icon,
-      {bool obscure = false, Widget? suffix}) {
-    return TextFormField(
+  Widget _field(
+    TextEditingController ctrl,
+    String hint,
+    IconData icon, {
+    bool obscure = false,
+    Widget? suffix,
+  }) {
+    return TextField(
       controller: ctrl,
       obscureText: obscure,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle: const TextStyle(color: Color(0xFF94a3b8)),
-        prefixIcon: Icon(icon, color: const Color(0xFF94a3b8)),
+        prefixIcon: Icon(icon, color: const Color(0xFF64748b), size: 20),
         suffixIcon: suffix,
         filled: true,
         fillColor: const Color(0xFF1e293b),
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFF334155))),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF334155)),
+        ),
         enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFF334155))),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF334155)),
+        ),
         focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: Color(0xFF10b981))),
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF10b981), width: 1.5),
+        ),
       ),
     );
   }
