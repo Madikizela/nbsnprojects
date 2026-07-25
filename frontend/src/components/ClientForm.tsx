@@ -306,26 +306,33 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
   };
 
   return (
-    <div className="card shadow-lg border-0">
-      <div className="card-header bg-primary text-white">
-        <div className="d-flex align-items-center">
-          <div className="me-3 p-2 bg-white bg-opacity-10 rounded">
-            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd"/>
-            </svg>
-          </div>
-          <div>
-            <h3 className="card-title mb-0">Client Information</h3>
-            <p className="card-text text-white text-opacity-75 mb-0">Enter comprehensive client details and information</p>
-          </div>
+    <div className="card shadow-sm border-0" style={{ borderRadius:16, overflow:'hidden' }}>
+      {/* Header */}
+      <div style={{ background:'linear-gradient(135deg,#667eea,#764ba2)', padding:'20px 24px', display:'flex', alignItems:'center', gap:14 }}>
+        <div style={{ width:42, height:42, borderRadius:10, background:'rgba(255,255,255,0.15)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.3rem', flexShrink:0 }}>
+          🏢
+        </div>
+        <div>
+          <h4 style={{ color:'#fff', margin:0, fontWeight:700, fontSize:'1.1rem' }}>Client Information</h4>
+          <p style={{ color:'rgba(255,255,255,0.7)', margin:0, fontSize:13 }}>Enter comprehensive client details and information</p>
         </div>
       </div>
       
-      <form onSubmit={handleSubmit} className="card-body" noValidate>
+      <form onSubmit={handleSubmit} style={{ padding:28, background:'#fff' }} noValidate>
+        <style>{`
+          .cf-label { display:block; font-size:13px; font-weight:600; color:#374151; margin-bottom:6px; }
+          .cf-input { width:100%; padding:11px 14px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:14px; background:#f8fafc; color:#1e293b; transition:all 0.2s; outline:none; box-sizing:border-box; }
+          .cf-input:focus { border-color:#667eea; background:#fff; box-shadow:0 0 0 3px rgba(102,126,234,0.12); }
+          .cf-input.is-invalid { border-color:#ef4444; box-shadow:0 0 0 3px rgba(239,68,68,0.1); }
+          .cf-input.is-valid { border-color:#10b981; }
+          .cf-error { color:#ef4444; font-size:12px; margin-top:4px; }
+          .cf-section { border-bottom:1px solid #f1f5f9; padding-bottom:20px; margin-bottom:20px; }
+          .cf-section-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#94a3b8; margin-bottom:16px; }
+        `}</style>
         <div className="row g-3">
           {/* Client Name */}
           <div className="col-md-6">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Client Name *
             </label>
             <div className="position-relative">
@@ -334,7 +341,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
                 name="clientName"
                 value={formData.clientName}
                 onChange={(e) => handleInputChange('clientName', e.target.value)}
-                className={getFieldClassName('clientName', !!formData.clientName)}
+                className={`cf-input${errors.clientName ? " is-invalid" : (formData.clientName ? " is-valid" : "")}`}
                 placeholder="Enter Client name"
                 required
                 aria-describedby={errors.clientName ? "clientName-error" : undefined}
@@ -356,7 +363,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* VAT Registration No */}
           <div className="col-md-6">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               VAT Registration No.
             </label>
             <div className="position-relative">
@@ -365,7 +372,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
                 name="vatNumber"
                 value={formData.vatNumber}
                 onChange={(e) => handleInputChange('vatNumber', e.target.value)}
-                className={getFieldClassName('vatNumber', !!formData.vatNumber)}
+                className={`cf-input${errors.vatNumber ? " is-invalid" : (formData.vatNumber ? " is-valid" : "")}`}
                 placeholder="Enter VAT number"
                 aria-describedby={errors.vatNumber ? "vatNumber-error" : undefined}
               />
@@ -386,14 +393,14 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* Business Description */}
           <div className="col-md-12">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Business Description
               <span className="ms-2 text-muted small">({formData.businessDescription.length}/500)</span>
             </label>
             <textarea
               name="businessDescription"
               rows={4}
-              className={getFieldClassName('businessDescription', !!formData.businessDescription)}
+              className={`cf-input${errors.businessDescription ? " is-invalid" : (formData.businessDescription ? " is-valid" : "")}`}
               placeholder="Enter Business Description"
               value={formData.businessDescription}
               onChange={(e) => handleInputChange('businessDescription', e.target.value)}
@@ -410,7 +417,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* Business Sector */}
           <div className="col-md-6">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Business Sector
             </label>
             <div className="position-relative">
@@ -419,7 +426,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
                 name="businessSector"
                 value={formData.businessSector}
                 onChange={(e) => handleInputChange('businessSector', e.target.value)}
-                className={getFieldClassName('businessSector', !!formData.businessSector)}
+                className={`cf-input${errors.businessSector ? " is-invalid" : (formData.businessSector ? " is-valid" : "")}`}
                 placeholder="Enter Business Sector"
                 aria-describedby={errors.businessSector ? "businessSector-error" : undefined}
               />
@@ -440,7 +447,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* Contract Number */}
           <div className="col-md-6">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Contract Number
             </label>
             <div className="position-relative">
@@ -449,7 +456,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
                 name="contractNumber"
                 value={formData.contractNumber}
                 onChange={(e) => handleInputChange('contractNumber', e.target.value)}
-                className={getFieldClassName('contractNumber', !!formData.contractNumber)}
+                className={`cf-input${errors.contractNumber ? " is-invalid" : (formData.contractNumber ? " is-valid" : "")}`}
                 placeholder="Enter Contract No."
                 aria-describedby={errors.contractNumber ? "contractNumber-error" : undefined}
               />
@@ -470,13 +477,13 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* Client Address */}
           <div className="col-md-12">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Client Address
             </label>
             <textarea
               name="clientAddress"
               rows={3}
-              className={getFieldClassName('clientAddress', !!formData.clientAddress)}
+              className={`cf-input${errors.clientAddress ? " is-invalid" : (formData.clientAddress ? " is-valid" : "")}`}
               placeholder="Enter Client Address"
               value={formData.clientAddress}
               onChange={(e) => handleInputChange('clientAddress', e.target.value)}
@@ -492,7 +499,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* Email Address */}
           <div className="col-md-6">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Email Address *
             </label>
             <div className="position-relative">
@@ -501,7 +508,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
                 name="emailAddress"
                 value={formData.emailAddress}
                 onChange={(e) => handleInputChange('emailAddress', e.target.value)}
-                className={getFieldClassName('emailAddress', !!formData.emailAddress)}
+                className={`cf-input${errors.emailAddress ? " is-invalid" : (formData.emailAddress ? " is-valid" : "")}`}
                 placeholder="Enter Email Address"
                 required
                 aria-describedby={errors.emailAddress ? "emailAddress-error" : undefined}
@@ -523,7 +530,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* Phone Number */}
           <div className="col-md-6">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Phone Number
             </label>
             <div className="position-relative">
@@ -532,7 +539,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
                 name="phoneNumber"
                 value={formData.phoneNumber}
                 onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                className={getFieldClassName('phoneNumber', !!formData.phoneNumber)}
+                className={`cf-input${errors.phoneNumber ? " is-invalid" : (formData.phoneNumber ? " is-valid" : "")}`}
                 placeholder="Enter Phone Number"
                 aria-describedby={errors.phoneNumber ? "phoneNumber-error" : undefined}
               />
@@ -553,7 +560,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* Contact Person */}
           <div className="col-md-6">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Contact Person
             </label>
             <div className="position-relative">
@@ -562,7 +569,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
                 name="contactPerson"
                 value={formData.contactPerson}
                 onChange={(e) => handleInputChange('contactPerson', e.target.value)}
-                className={getFieldClassName('contactPerson', !!formData.contactPerson)}
+                className={`cf-input${errors.contactPerson ? " is-invalid" : (formData.contactPerson ? " is-valid" : "")}`}
                 placeholder="Enter Contact Person Name"
                 aria-describedby={errors.contactPerson ? "contactPerson-error" : undefined}
               />
@@ -583,7 +590,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* Client Website Link */}
           <div className="col-md-6">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Client Website Link
             </label>
             <div className="position-relative">
@@ -592,7 +599,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
                 name="websiteLink"
                 value={formData.websiteLink}
                 onChange={(e) => handleInputChange('websiteLink', e.target.value)}
-                className={getFieldClassName('websiteLink', !!formData.websiteLink)}
+                className={`cf-input${errors.websiteLink ? " is-invalid" : (formData.websiteLink ? " is-valid" : "")}`}
                 placeholder="Enter Website Link"
                 aria-describedby={errors.websiteLink ? "websiteLink-error" : undefined}
               />
@@ -613,7 +620,7 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* Client Logo */}
           <div className="col-md-6">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Client Logo
             </label>
             <div className="border border-dashed rounded p-3 text-center">
@@ -666,13 +673,13 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
 
           {/* Attendance Type */}
           <div className="col-md-6">
-            <label className="form-label fw-semibold">
+            <label className="cf-label">
               Attendance Type
             </label>
             <div className="position-relative">
               <select
                 name="attendanceType"
-                className={getFieldClassName('attendanceType', !!formData.attendanceType)}
+                className={`cf-input${errors.attendanceType ? " is-invalid" : (formData.attendanceType ? " is-valid" : "")}`}
                 value={formData.attendanceType}
                 onChange={(e) => handleInputChange('attendanceType', e.target.value)}
                 aria-describedby={errors.attendanceType ? "attendanceType-error" : undefined}
@@ -713,41 +720,17 @@ const ClientForm: React.FC<ClientFormProps> = ({ onCancel, onSubmit }) => {
         )}
 
         {/* Action Buttons */}
-        <div className="d-flex justify-content-end gap-3 mt-4 pt-4 border-top">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn btn-outline-secondary px-4 py-2"
-            disabled={isSubmitting}
-          >
+        <div style={{ display:'flex', justifyContent:'flex-end', gap:12, marginTop:28, paddingTop:20, borderTop:'1px solid #f1f5f9' }}>
+          <button type="button" onClick={onCancel} disabled={isSubmitting}
+            style={{ padding:'10px 24px', borderRadius:10, border:'1.5px solid #e2e8f0', background:'#fff', color:'#374151', fontWeight:600, fontSize:14, cursor:'pointer' }}>
             Cancel
           </button>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            onClick={(e) => {
-              console.log('Button clicked!', e);
-              console.log('Form data at click:', formData);
-              console.log('Is submitting:', isSubmitting);
-            }}
-            className={`btn px-4 py-2 d-flex align-items-center ${
-              isSubmitting
-                ? 'btn-secondary'
-                : 'btn-primary'
-            }`}
-          >
+          <button type="submit" disabled={isSubmitting}
+            style={{ padding:'10px 28px', borderRadius:10, border:'none', background: isSubmitting ? '#94a3b8' : 'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', fontWeight:700, fontSize:14, cursor: isSubmitting ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', gap:8 }}>
             {isSubmitting ? (
-              <>
-                <div className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></div>
-                Adding Client...
-              </>
+              <><span className="spinner-border spinner-border-sm" role="status"></span> Adding Client...</>
             ) : (
-              <>
-                <svg className="me-2" width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
-                </svg>
-                Add Client
-              </>
+              <>+ Add Client</>
             )}
           </button>
         </div>

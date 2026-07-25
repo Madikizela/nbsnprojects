@@ -180,77 +180,39 @@ const Dashboard = () => {
         );
       case 'add-client':
         return (
-          <div className="container-fluid">
-            <div className="card bg-success text-white mb-4">
-              <div className="card-body p-4">
-                <div className="d-flex justify-content-between align-items-center">
-                  <div>
-                    <h2 className="card-title h3 mb-2">Add New Client ➕</h2>
-                    <p className="card-text">Register a new client in the system</p>
-                  </div>
-                  <button 
-                    onClick={() => setActiveSection('clients')}
-                    className="btn btn-light btn-sm d-flex align-items-center"
-                  >
-                    <svg className="me-2" width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd"/>
-                    </svg>
-                    Back to Clients
-                  </button>
-                </div>
+          <div>
+            <div className="dash-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+              <div>
+                <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>Add New Client ➕</h2>
+                <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Register a new client in the system</p>
               </div>
+              <button onClick={() => setActiveSection('clients')}
+                style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:10, padding:'8px 18px', fontWeight:600, fontSize:13, cursor:'pointer', display:'flex', alignItems:'center', gap:6 }}>
+                ← Back to Clients
+              </button>
             </div>
-            
-            <ClientForm
-              onCancel={() => setActiveSection('clients')}
-              onSubmit={async (data) => {
-                try {
-                  // Here you would typically make an API call to save the client
-                  console.log('Client data:', data);
-                  // For now, just show success and go back to clients
-                  alert('Client added successfully!');
-                  setActiveSection('clients');
-                } catch (error) {
-                  console.error('Error adding client:', error);
-                  alert('Error adding client. Please try again.');
-                }
-              }}
-            />
+            <ClientForm onCancel={() => setActiveSection('clients')} onSubmit={async () => { setActiveSection('clients'); }} />
           </div>
         );
       case 'view-clients':
         return (
-          <div className="container-fluid">
-            <div className="card bg-primary text-white mb-4">
-              <div className="card-body p-4">
-                <div className="d-flex justify-content-between align-items-center">
-                  <div>
-                    <h2 className="card-title h3 mb-2">Client Directory 📋</h2>
-                    <p className="card-text">View and manage all registered clients</p>
-                  </div>
-                  <button
-                    onClick={() => setActiveSection('clients')}
-                    className="btn btn-light btn-sm d-flex align-items-center"
-                  >
-                    <svg className="me-2" width="16" height="16" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd"/>
-                    </svg>
-                    Back to Clients
-                  </button>
-                </div>
+          <div>
+            <div className="dash-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'20px 24px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+              <div>
+                <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>Client Directory 📋</h2>
+                <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>View and manage all registered clients</p>
+              </div>
+              <div style={{ display:'flex', gap:10 }}>
+                <button onClick={fetchClients} style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:10, padding:'8px 16px', fontWeight:600, fontSize:13, cursor:'pointer' }}>
+                  🔄 Refresh
+                </button>
+                <button onClick={() => setActiveSection('clients')} style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:10, padding:'8px 18px', fontWeight:600, fontSize:13, cursor:'pointer' }}>
+                  ← Back
+                </button>
               </div>
             </div>
 
-            <div className="card shadow-sm">
-              <div className="card-header bg-light">
-                <div className="d-flex justify-content-between align-items-center">
-                  <h3 className="card-title h5 mb-0">All Clients</h3>
-                  <button className="btn btn-primary btn-sm" onClick={fetchClients}>
-                    🔄 Refresh
-                  </button>
-                </div>
-              </div>
-
+            <div className="dash-card" style={{ overflow:'hidden' }}>
               <div className="table-responsive">
                 {clientsLoading ? (
                   <div className="text-center p-4">
@@ -260,14 +222,14 @@ const Dashboard = () => {
                   </div>
                 ) : (
                   <table className="table table-hover mb-0">
-                    <thead className="table-light">
+                    <thead style={{ background:'#f8fafc' }}>
                       <tr>
-                        <th>Client Name</th>
-                        <th>Contact Person</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Status</th>
-                        <th>Actions</th>
+                        <th style={{ fontSize:13, fontWeight:600, color:'#64748b', padding:'12px 16px', borderBottom:'1px solid #e2e8f0' }}>Client Name</th>
+                        <th style={{ fontSize:13, fontWeight:600, color:'#64748b', padding:'12px 16px', borderBottom:'1px solid #e2e8f0' }}>Contact Person</th>
+                        <th style={{ fontSize:13, fontWeight:600, color:'#64748b', padding:'12px 16px', borderBottom:'1px solid #e2e8f0' }}>Email</th>
+                        <th style={{ fontSize:13, fontWeight:600, color:'#64748b', padding:'12px 16px', borderBottom:'1px solid #e2e8f0' }}>Phone</th>
+                        <th style={{ fontSize:13, fontWeight:600, color:'#64748b', padding:'12px 16px', borderBottom:'1px solid #e2e8f0' }}>Status</th>
+                        <th style={{ fontSize:13, fontWeight:600, color:'#64748b', padding:'12px 16px', borderBottom:'1px solid #e2e8f0' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -281,21 +243,20 @@ const Dashboard = () => {
                         clients.map((client) => (
                           <>
                             <tr key={client.id}>
-                              <td><div className="fw-medium">{client.name}</div></td>
-                              <td className="text-muted">{client.contactPerson || '—'}</td>
-                              <td className="text-muted">{client.email || '—'}</td>
-                              <td className="text-muted">{client.phoneNumber || '—'}</td>
-                              <td>
-                                <span className={`badge ${client.status === 'Active' || client.status === '1' ? 'bg-success' : 'bg-secondary'}`}>
+                              <td style={{ padding:'12px 16px', fontWeight:600, color:'#1e293b' }}>{client.name}</td>
+                              <td style={{ padding:'12px 16px', color:'#64748b', fontSize:14 }}>{client.contactPerson || '—'}</td>
+                              <td style={{ padding:'12px 16px', color:'#64748b', fontSize:14 }}>{client.email || '—'}</td>
+                              <td style={{ padding:'12px 16px', color:'#64748b', fontSize:14 }}>{client.phoneNumber || '—'}</td>
+                              <td style={{ padding:'12px 16px' }}>
+                                <span style={{ padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:600, background: (client.status === 'Active' || client.status === '1') ? '#dcfce7' : '#f1f5f9', color: (client.status === 'Active' || client.status === '1') ? '#16a34a' : '#64748b' }}>
                                   {client.status === '1' ? 'Active' : client.status}
                                 </span>
                               </td>
-                              <td>
+                              <td style={{ padding:'12px 16px' }}>
                                 <button
-                                  className="btn btn-outline-primary btn-sm"
+                                  style={{ padding:'6px 12px', borderRadius:8, border:'1.5px solid #667eea', background:'#fff', color:'#667eea', fontWeight:600, fontSize:12, cursor:'pointer' }}
                                   onClick={() => resendCredentials(client.id)}
                                   disabled={resendingId === client.id}
-                                  title="Reset password and resend login credentials to client"
                                 >
                                   {resendingId === client.id ? (
                                     <><span className="spinner-border spinner-border-sm me-1" />Sending...</>
@@ -308,8 +269,7 @@ const Dashboard = () => {
                             {resendMessage?.id === client.id && (
                               <tr key={`msg-${client.id}`}>
                                 <td colSpan={6}>
-                                  <div className={`alert ${resendMessage.type === 'success' ? 'alert-success' : 'alert-danger'} mb-0 py-2`}
-                                    style={{ whiteSpace: 'pre-line' }}>
+                                  <div className={`alert ${resendMessage.type === 'success' ? 'alert-success' : 'alert-danger'} mb-0 py-2`} style={{ whiteSpace:'pre-line' }}>
                                     {resendMessage.text}
                                   </div>
                                 </td>
@@ -322,11 +282,8 @@ const Dashboard = () => {
                   </table>
                 )}
               </div>
-
-              <div className="card-footer bg-light">
-                <p className="text-muted mb-0">
-                  {clients.length} client{clients.length !== 1 ? 's' : ''} registered
-                </p>
+              <div style={{ padding:'12px 16px', background:'#f8fafc', borderTop:'1px solid #e2e8f0', fontSize:13, color:'#64748b' }}>
+                {clients.length} client{clients.length !== 1 ? 's' : ''} registered
               </div>
             </div>
           </div>
