@@ -4858,7 +4858,7 @@ const SDPManagerDashboard: React.FC = () => {
       {isAdmin && (
         <div className="col-12">
           <div className="card border-0 shadow-lg mb-4">
-            <div className="card-header border-0" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+            <div className="card-header border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
               <h5 className="mb-0">📊 Today's Attendance Summary</h5>
             </div>
             <div className="card-body">
@@ -4935,7 +4935,7 @@ const SDPManagerDashboard: React.FC = () => {
       {/* Manager Information */}
       <div className="col-12">
         <div className="card border-0 shadow-lg">
-          <div className="card-header border-0" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+          <div className="card-header border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
             <h5 className="mb-0">👤 Manager Profile</h5>
           </div>
           <div className="card-body">
@@ -4970,7 +4970,7 @@ const SDPManagerDashboard: React.FC = () => {
       {/* Quick Actions */}
       <div className="col-12">
         <div className="card border-0 shadow-lg">
-          <div className="card-header border-0" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+          <div className="card-header border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
             <h5 className="mb-0">⚡ Quick Actions</h5>
           </div>
           <div className="card-body">
@@ -5761,7 +5761,7 @@ const SDPManagerDashboard: React.FC = () => {
         </div>
       ) : (
         <div className="card border-0 shadow-lg" style={{
-          backgroundColor: "#0d9488",
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
           color: "#ffffff"
         }}>
           <div className="card-body text-center text-white py-5">
@@ -5778,7 +5778,7 @@ const SDPManagerDashboard: React.FC = () => {
   const renderReports = () => (
     <div>
       <div className="card border-0 shadow-lg mb-4" style={{
-        backgroundColor: "#0d9488",
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
         color: "#ffffff"
       }}>
         <div className="card-body text-center text-white py-4">
@@ -5790,7 +5790,7 @@ const SDPManagerDashboard: React.FC = () => {
       <div className="row g-4">
         <div className="col-md-6">
           <div className="card border-0 shadow-lg" style={{
-            backgroundColor: "#0d9488",
+            background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
             color: "#ffffff"
           }}>
             <div className="card-body text-white">
@@ -5803,7 +5803,7 @@ const SDPManagerDashboard: React.FC = () => {
         
         <div className="col-md-6">
           <div className="card border-0 shadow-lg" style={{
-            backgroundColor: "#0d9488",
+            background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
             color: "#ffffff"
           }}>
             <div className="card-body text-white">
@@ -5816,7 +5816,7 @@ const SDPManagerDashboard: React.FC = () => {
         
         <div className="col-md-6">
           <div className="card border-0 shadow-lg" style={{
-            backgroundColor: "#0d9488",
+            background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
             color: "#ffffff"
           }}>
             <div className="card-body text-white">
@@ -5829,7 +5829,7 @@ const SDPManagerDashboard: React.FC = () => {
         
         <div className="col-md-6">
           <div className="card border-0 shadow-lg" style={{
-            backgroundColor: "#0d9488",
+            background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
             color: "#ffffff"
           }}>
             <div className="card-body text-white">
@@ -5856,7 +5856,7 @@ const SDPManagerDashboard: React.FC = () => {
     return (
     <div>
       <div className="card border-0 shadow-lg mb-4" style={{
-        backgroundColor: "#0d9488",
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
         color: "#ffffff"
       }}>
         <div className="card-body d-flex justify-content-between align-items-center text-white py-4">
@@ -5875,7 +5875,7 @@ const SDPManagerDashboard: React.FC = () => {
 
       {/* Department Info */}
       <div className="card border-0 shadow-lg mb-4" style={{
-        backgroundColor: "#0d9488",
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
         color: "#ffffff"
       }}>
         <div className="card-body text-white">
@@ -5896,7 +5896,7 @@ const SDPManagerDashboard: React.FC = () => {
       {/* Team Members List */}
       {teamLoading ? (
         <div className="card border-0 shadow-lg" style={{
-          backgroundColor: "#0d9488",
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
           color: "#ffffff"
         }}>
           <div className="card-body text-center text-white py-5">
@@ -5908,7 +5908,7 @@ const SDPManagerDashboard: React.FC = () => {
         </div>
       ) : teamMembers.length > 0 ? (
         <div className="card border-0 shadow-lg" style={{
-          backgroundColor: "#0d9488",
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
           color: "#ffffff"
         }}>
           <div className="card-header border-0 text-white" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
@@ -5953,7 +5953,7 @@ const SDPManagerDashboard: React.FC = () => {
         </div>
       ) : (
         <div className="card border-0 shadow-lg" style={{
-          backgroundColor: "#0d9488",
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
           color: "#ffffff"
         }}>
           <div className="card-body text-center text-white py-5">
@@ -5975,7 +5975,7 @@ const SDPManagerDashboard: React.FC = () => {
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
-              <div className="modal-header" style={{ backgroundColor: "#0d9488" }}>
+              <div className="modal-header" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16 }}>
                 <h5 className="modal-title text-white">➕ Add Team Member</h5>
                 <button
                   type="button"
@@ -6104,7 +6104,7 @@ const SDPManagerDashboard: React.FC = () => {
                       type="submit"
                       className="btn btn-primary"
                       disabled={isSubmitting}
-                      style={{ backgroundColor: "#0d9488", border: 'none' }}
+                      style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, border: 'none' }}
                     >
                       {isSubmitting ? (
                         <>
@@ -6137,7 +6137,7 @@ const SDPManagerDashboard: React.FC = () => {
     <div>
       {/* Header with Alerts */}
       <div className="card border-0 shadow-lg mb-4" style={{
-        backgroundColor: "#0d9488",
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
         color: "#ffffff"
       }}>
         <div className="card-body text-white py-4">
@@ -6202,7 +6202,7 @@ const SDPManagerDashboard: React.FC = () => {
       {!selectedTaskProject ? (
         <div>
           <div className="card border-0 shadow-lg mb-4">
-            <div className="card-header border-0" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+            <div className="card-header border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
               <h5 className="mb-0">📁 Select Project for Task Management</h5>
             </div>
             <div className="card-body">
@@ -6256,7 +6256,7 @@ const SDPManagerDashboard: React.FC = () => {
         <div>
           {/* Project Header */}
           <div className="card border-0 shadow-lg mb-4">
-            <div className="card-header border-0" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+            <div className="card-header border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
               <div className="d-flex justify-content-between align-items-center">
                 <h5 className="mb-0">📋 Tasks for {selectedTaskProject.projectName}</h5>
                 <button
@@ -6439,7 +6439,7 @@ const SDPManagerDashboard: React.FC = () => {
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-lg">
             <div className="modal-content">
-              <div className="modal-header" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+              <div className="modal-header" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
                 <h5 className="modal-title">➕ Add New Task</h5>
                 <button
                   type="button"
@@ -6607,7 +6607,7 @@ const SDPManagerDashboard: React.FC = () => {
                       type="submit"
                       className="btn btn-primary"
                       disabled={isSubmitting}
-                      style={{ backgroundColor: "#0d9488", border: 'none' }}
+                      style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, border: 'none' }}
                     >
                       {isSubmitting ? (
                         <>
@@ -6637,7 +6637,7 @@ const SDPManagerDashboard: React.FC = () => {
 
   const renderSickNotes = () => (
     <div className="card border-0 shadow-lg">
-      <div className="card-header border-0 py-4" style={{ backgroundColor: "#0d9488", color: "#ffffff" }}>
+      <div className="card-header border-0 py-4" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: "#ffffff" }}>
         <div className="d-flex justify-content-between align-items-center">
           <div>
             <h2 className="mb-1">🤒 Sick Note Approvals</h2>
@@ -6759,7 +6759,7 @@ const SDPManagerDashboard: React.FC = () => {
     <div>
       {/* Header */}
       <div className="card border-0 shadow-lg mb-4" style={{
-        backgroundColor: "#0d9488",
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
         color: "#ffffff"
       }}>
         <div className="card-body text-white py-4">
@@ -6815,7 +6815,7 @@ const SDPManagerDashboard: React.FC = () => {
       {/* Project Selection */}
       {!selectedAttendanceProject ? (
         <div className="card border-0 shadow-lg">
-          <div className="card-header border-0 d-flex justify-content-between align-items-center" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+          <div className="card-header border-0 d-flex justify-content-between align-items-center" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
             <h5 className="mb-0">📁 Select Project to Track Attendance</h5>
             <button
               className="btn btn-light btn-sm fw-semibold d-flex align-items-center gap-2"
@@ -6980,7 +6980,7 @@ const SDPManagerDashboard: React.FC = () => {
           {/* Attendance Statistics */}
           {attendanceStats && (
             <div className="card border-0 shadow-lg mb-4">
-              <div className="card-header border-0" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+              <div className="card-header border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
                 <h5 className="mb-0">📈 Attendance Overview</h5>
               </div>
               <div className="card-body">
@@ -7038,7 +7038,7 @@ const SDPManagerDashboard: React.FC = () => {
           {/* Class Breakdown */}
           {attendanceStats?.classBreakdown && attendanceStats.classBreakdown.length > 0 && (
             <div className="card border-0 shadow-lg mb-4">
-              <div className="card-header border-0" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+              <div className="card-header border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
                 <h5 className="mb-0">🏫 Class Breakdown</h5>
               </div>
               <div className="card-body">
@@ -7103,7 +7103,7 @@ const SDPManagerDashboard: React.FC = () => {
           {/* Class Learners Detail */}
           {selectedClass && (classLearners.length > 0 || weeklyLearners.length > 0) && (
             <div className="card border-0 shadow-lg">
-              <div className="card-header border-0" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+              <div className="card-header border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
                 <div className="d-flex justify-content-between align-items-center">
                   <h5 className="mb-0">👥 {selectedClass.className} - Learner Attendance</h5>
                   <div className="d-flex align-items-center gap-3">
@@ -7400,7 +7400,7 @@ const SDPManagerDashboard: React.FC = () => {
         <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <div className="modal-dialog modal-xl">
             <div className="modal-content">
-              <div className="modal-header" style={{ backgroundColor: "#0d9488", color: 'white' }}>
+              <div className="modal-header" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: 'white' }}>
                 <h5 className="modal-title">📋 Attendance Report - {attendanceReport.projectName}</h5>
                 <button
                   type="button"
@@ -7981,7 +7981,7 @@ const SDPManagerDashboard: React.FC = () => {
 
     return (
       <div className="container-fluid">
-        <div className="card border-0 shadow-lg mb-4" style={{ backgroundColor: "#0d9488", color: "#ffffff" }}>
+        <div className="card border-0 shadow-lg mb-4" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: "#ffffff" }}>
           <div className="card-body text-center text-white py-4">
             <h2 className="mb-2">📝 Assessment Planning</h2>
             <p className="mb-0 opacity-75">Select a unit standard to create an assessment plan</p>
@@ -8368,7 +8368,7 @@ const SDPManagerDashboard: React.FC = () => {
 
     return (
       <div className="container-fluid">
-        <div className="card border-0 shadow-lg mb-4" style={{ backgroundColor: "#0d9488", color: "#ffffff" }}>
+        <div className="card border-0 shadow-lg mb-4" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: "#ffffff" }}>
           <div className="card-body text-center text-white py-4">
             <h2 className="mb-2">🤝 Candidate Preparation</h2>
             <p className="mb-0 opacity-75">Select a unit standard to record candidate assessment preparation</p>
@@ -8562,7 +8562,7 @@ const SDPManagerDashboard: React.FC = () => {
 
     return (
       <div className="container-fluid py-4">
-        <div className="card border-0 shadow-lg mb-4" style={{ backgroundColor: "#0d9488", color: "#ffffff" }}>
+        <div className="card border-0 shadow-lg mb-4" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: "#ffffff" }}>
           <div className="card-body text-center text-white py-4">
             <h2 className="mb-2">📊 Assessor Reports</h2>
             <p className="mb-0 opacity-75">Generate competency reports for individuals or entire classes</p>
@@ -9580,7 +9580,7 @@ const SDPManagerDashboard: React.FC = () => {
     <div>
       {/* Statistics Summary */}
       <div className="card border-0 shadow-lg mb-4" style={{
-        backgroundColor: "#0d9488",
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
         color: "#ffffff"
       }}>
         <div className="card-body text-white py-4">
@@ -13338,3 +13338,4 @@ const SDPManagerDashboard: React.FC = () => {
 };
 
 export default SDPManagerDashboard;
+
