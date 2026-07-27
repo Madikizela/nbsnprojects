@@ -35,3 +35,16 @@ html {
 *::-webkit-scrollbar {
   display: none; /* WebKit */
 }
+
+/* ── Dark form override: ensures native select/input honour inline dark styles ── */
+input[style*="background: rgb(15, 23, 42)"],
+input[style*="background:#0f172a"],
+select[style*="background: rgb(15, 23, 42)"],
+select[style*="background:#0f172a"] {
+  color-scheme: dark;
+}
+
+/* Date input calendar icon colour */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}

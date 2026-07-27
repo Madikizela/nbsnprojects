@@ -1636,20 +1636,24 @@ const SDPDashboard: React.FC = () => {
   );
 
   const renderAddProject = () => (
-    <div className="container-fluid">
-      <div className="card text-white mb-4 border-0 shadow-lg" style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'}}>
-        <div className="card-body p-4">
-          <h2 className="card-title h3 mb-2">Add New Project ➕</h2>
-          <p className="card-text opacity-90">Create a new project for your SDP</p>
+    <div>
+      {/* Header */}
+      <div className="card border-0 shadow-sm mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'20px 24px', display:'flex', flexDirection:'row', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 className="mb-1 text-white fw-bold" style={{ fontSize:'1.4rem' }}>Add New Project ➕</h2>
+          <p className="mb-0" style={{ color:'rgba(255,255,255,0.6)', fontSize:14 }}>Create a new project for your SDP</p>
         </div>
+        <button onClick={() => setActiveSection('projects')} style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:10, padding:'8px 18px', fontWeight:600, fontSize:13, cursor:'pointer' }}>
+          ← Back to Projects
+        </button>
       </div>
-      
-      <div className="card border-0 shadow-lg p-4">
+
+      {/* Form */}
+      <div className="card border-0 shadow-sm" style={{ borderRadius:14 }}>
         <ProjectForm
           onCancel={() => setActiveSection('projects')}
           onSubmit={() => {
             setActiveSection('projects');
-            // Refresh projects list
             window.location.reload();
           }}
           skillsDevelopmentProviderId={selectedSdp?.id || user?.skillsDevelopmentProviderId || 0}
