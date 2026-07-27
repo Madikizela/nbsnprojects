@@ -935,13 +935,10 @@ const SDPDashboard: React.FC = () => {
   const renderOverview = () => (
     <div className="row g-4">
       <div className="col-12">
-        <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div className="card-body text-center text-white py-5">
-            <h2 className="mb-3">Welcome to Your SDP Dashboard</h2>
-            <p className="mb-4 opacity-75">Manage your Skills Development Provider operations</p>
+        <div className="card border-0 shadow-sm" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16 }}>
+          <div className="card-body text-center text-white py-4 px-4">
+            <h2 className="mb-2 fw-bold">Welcome to Your SDP Dashboard 🎓</h2>
+            <p className="mb-4" style={{ opacity:0.65, fontSize:15 }}>Manage your Skills Development Provider operations</p>
             
             {/* Super User Action Section */}
              {(user?.skillsDevelopmentProviderId && (!user?.departmentId || user?.departmentId === 0)) && (
@@ -1026,63 +1023,51 @@ const SDPDashboard: React.FC = () => {
       </div>
       
       <div className="col-md-4">
-        <div className="card border-0 shadow-lg h-100" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div className="card-body text-center text-white d-flex flex-column justify-content-center">
-            <div className="display-4 mb-3">📋</div>
-            <h4 className="mb-2">{user?.activeProjectCount || user?.projectCount || projects.length}</h4>
-            <p className="mb-0 opacity-75">Active Projects</p>
+        <div className="card border-0 shadow-sm h-100" style={{ borderRadius:14, background:'linear-gradient(135deg,#667eea,#764ba2)' }}>
+          <div className="card-body text-center text-white d-flex flex-column justify-content-center py-4">
+            <div style={{ fontSize:'2.2rem', marginBottom:8 }}>📋</div>
+            <h3 className="mb-1 fw-bold">{user?.activeProjectCount || user?.projectCount || projects.length}</h3>
+            <p className="mb-0" style={{ opacity:0.8, fontSize:'0.85rem' }}>Active Projects</p>
           </div>
         </div>
       </div>
       
       <div className="col-md-4">
-        <div className="card border-0 shadow-lg h-100" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div className="card-body text-center text-white d-flex flex-column justify-content-center">
-            <div className="display-4 mb-3">🏢</div>
-            <h4 className="mb-2">{user?.departmentCount || departments.length}</h4>
-            <p className="mb-0 opacity-75">Departments</p>
+        <div className="card border-0 shadow-sm h-100" style={{ borderRadius:14, background:'linear-gradient(135deg,#0ea5e9,#0284c7)' }}>
+          <div className="card-body text-center text-white d-flex flex-column justify-content-center py-4">
+            <div style={{ fontSize:'2.2rem', marginBottom:8 }}>🏢</div>
+            <h3 className="mb-1 fw-bold">{user?.departmentCount || departments.length}</h3>
+            <p className="mb-0" style={{ opacity:0.8, fontSize:'0.85rem' }}>Departments</p>
           </div>
         </div>
       </div>
       
       <div className="col-md-4">
-        <div className="card border-0 shadow-lg h-100" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div className="card-body text-center text-white d-flex flex-column justify-content-center">
-            <div className="display-4 mb-3">👤</div>
-            <h4 className="mb-2">{users.length}</h4>
-            <p className="mb-0 opacity-75">SDP Users</p>
+        <div className="card border-0 shadow-sm h-100" style={{ borderRadius:14, background:'linear-gradient(135deg,#10b981,#059669)' }}>
+          <div className="card-body text-center text-white d-flex flex-column justify-content-center py-4">
+            <div style={{ fontSize:'2.2rem', marginBottom:8 }}>👤</div>
+            <h3 className="mb-1 fw-bold">{users.length}</h3>
+            <p className="mb-0" style={{ opacity:0.8, fontSize:'0.85rem' }}>SDP Users</p>
           </div>
         </div>
       </div>
       
       <div className="col-12">
-        <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div className="card-header border-0 text-white" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
-            <h5 className="mb-0">SDP Information</h5>
+        <div className="card border-0 shadow-sm" style={{ borderRadius:14 }}>
+          <div className="card-header border-0 fw-bold" style={{ background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', borderRadius:'14px 14px 0 0' }}>
+            SDP Information
           </div>
-          <div className="card-body text-white">
+          <div className="card-body">
             <div className="row">
               <div className="col-md-6">
-                <p><strong>SDP Name:</strong> {user?.skillsDevelopmentProviderName}</p>
-                <p><strong>User Name:</strong> {user?.name}</p>
-                <p><strong>Email:</strong> {user?.email}</p>
+                <p className="mb-2"><strong>SDP Name:</strong> {user?.skillsDevelopmentProviderName}</p>
+                <p className="mb-2"><strong>User Name:</strong> {user?.name}</p>
+                <p className="mb-0"><strong>Email:</strong> {user?.email}</p>
               </div>
               <div className="col-md-6">
-                <p><strong>Role:</strong> {user?.role}</p>
-                <p><strong>Status:</strong> <span className="badge bg-light text-dark">{user?.status}</span></p>
-                <p><strong>Department:</strong> {user?.departmentName || 'Not assigned'}</p>
+                <p className="mb-2"><strong>Role:</strong> <span className="badge bg-primary">{user?.role}</span></p>
+                <p className="mb-2"><strong>Status:</strong> <span className={`badge ${user?.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}>{user?.status}</span></p>
+                <p className="mb-0"><strong>Department:</strong> {user?.departmentName || 'Not assigned'}</p>
               </div>
             </div>
           </div>
@@ -2951,12 +2936,20 @@ const SDPDashboard: React.FC = () => {
   return (
     <div className="d-flex flex-column min-vh-100 bg-light">
       {/* Header */}
-      <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+      <nav className="navbar navbar-expand-lg navbar-dark shadow-sm" style={{ background:'linear-gradient(135deg,#0f172a,#1e293b)', borderBottom:'1px solid rgba(255,255,255,0.08)' }}>
         <div className="container-fluid">
-          <span className="navbar-brand mb-0 h1">🎓 SDP Dashboard</span>
-          <div className="d-flex align-items-center">
-            <span className="text-white me-3">Welcome, {user?.name}</span>
-            <button onClick={handleLogout} className="btn btn-outline-light btn-sm">
+          <div className="d-flex align-items-center gap-2">
+            <span style={{ fontSize:'1.2rem' }}>🎓</span>
+            <span className="navbar-brand mb-0 h1 text-white fw-bold" style={{ fontSize:'1rem' }}>SDP Dashboard</span>
+          </div>
+          <div className="d-flex align-items-center gap-3">
+            <div className="d-flex align-items-center gap-2">
+              <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#667eea,#764ba2)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13 }}>
+                {user?.name?.charAt(0)?.toUpperCase()}
+              </div>
+              <span className="text-white" style={{ fontSize:'0.9rem', opacity:0.85 }}>{user?.name}</span>
+            </div>
+            <button onClick={handleLogout} className="btn btn-sm" style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:8, fontWeight:600 }}>
               Logout
             </button>
           </div>
@@ -2966,69 +2959,77 @@ const SDPDashboard: React.FC = () => {
       <div className="container-fluid flex-grow-1 d-flex">
         <div className="row flex-grow-1 g-0">
           {/* Side Panel */}
-          <div className="col-md-3 col-lg-2 bg-white shadow-sm d-flex flex-column">
+          <div className="col-md-3 col-lg-2 d-flex flex-column" style={{ background: '#1e293b', minHeight:'calc(100vh - 56px)' }}>
             <div className="p-3 flex-grow-1">
-              <h6 className="text-muted text-uppercase mb-3">Navigation</h6>
-              <div className="nav flex-column">
+              <h6 className="text-uppercase mb-3 mt-2" style={{ fontSize:'0.7rem', letterSpacing:'1.5px', fontWeight:700, color:'rgba(255,255,255,0.35)' }}>Navigation</h6>
+              <div className="nav flex-column gap-1">
                 <button
-                  className={`nav-link text-start border-0 bg-transparent ${activeSection === 'overview' ? 'active text-primary fw-bold' : 'text-dark'}`}
+                  className={`nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2 ${activeSection === 'overview' ? '' : ''}`}
+                  style={{ color: activeSection === 'overview' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'overview' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'overview' ? 700 : 400, transition:'all 0.15s' }}
                   onClick={() => setActiveSection('overview')}
                 >
-                  📊 Overview
+                  <span>📊</span> Overview
                 </button>
                 <button
-                  className={`nav-link text-start border-0 bg-transparent ${activeSection === 'projects' ? 'active text-primary fw-bold' : 'text-dark'}`}
+                  style={{ color: activeSection === 'projects' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'projects' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'projects' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
                   onClick={() => setActiveSection('projects')}
                 >
-                  📋 Projects
+                  <span>📋</span> Projects
                 </button>
                 <button
-                  className={`nav-link text-start border-0 bg-transparent ${activeSection === 'departments' ? 'active text-primary fw-bold' : 'text-dark'}`}
+                  style={{ color: activeSection === 'departments' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'departments' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'departments' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
                   onClick={() => setActiveSection('departments')}
                 >
-                  🏢 Departments
+                  <span>🏢</span> Departments
                 </button>
                 <button
-                  className={`nav-link text-start border-0 bg-transparent ${activeSection === 'users' ? 'active text-primary fw-bold' : 'text-dark'}`}
+                  style={{ color: activeSection === 'users' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'users' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'users' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
                   onClick={() => setActiveSection('users')}
                 >
-                  👤 Users
+                  <span>👤</span> Users
                 </button>
                 <button
-                  className={`nav-link text-start border-0 bg-transparent ${activeSection === 'budget-management' ? 'active text-primary fw-bold' : 'text-dark'}`}
+                  style={{ color: activeSection === 'budget-management' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'budget-management' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'budget-management' ? 700 : 400, transition:'all 0.15s', opacity: projects.length === 0 ? 0.4 : 1 }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
                   onClick={() => setActiveSection('budget-management')}
                   disabled={projects.length === 0}
                 >
-                  💰 Budget Management
+                  <span>💰</span> Budget Management
                 </button>
-                <hr className="my-3" />
-                <h6 className="text-muted text-uppercase mb-2">Actions</h6>
+                <hr style={{ borderColor:'rgba(255,255,255,0.1)', margin:'12px 0' }} />
+                <h6 style={{ fontSize:'0.7rem', letterSpacing:'1.5px', fontWeight:700, color:'rgba(255,255,255,0.35)', textTransform:'uppercase', margin:'0 0 8px 4px' }}>Actions</h6>
                 <button
-                  className={`nav-link text-start border-0 bg-transparent ${activeSection === 'update-project' ? 'active text-primary fw-bold' : 'text-dark'}`}
+                  style={{ color: activeSection === 'update-project' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'update-project' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'update-project' ? 700 : 400, transition:'all 0.15s', opacity: projects.length === 0 ? 0.4 : 1 }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
                   onClick={() => setActiveSection('update-project')}
                   disabled={projects.length === 0}
                 >
-                  ✏️ Update Project
+                  <span>✏️</span> Update Project
                 </button>
                 <button
-                  className={`nav-link text-start border-0 bg-transparent ${activeSection === 'add-project' ? 'active text-primary fw-bold' : 'text-dark'}`}
+                  style={{ color: activeSection === 'add-project' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'add-project' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'add-project' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
                   onClick={() => setActiveSection('add-project')}
                 >
-                  ➕ Add Project
+                  <span>➕</span> Add Project
                 </button>
                 <button
-                  className={`nav-link text-start border-0 bg-transparent ${activeSection === 'add-department' ? 'active text-primary fw-bold' : 'text-dark'}`}
+                  style={{ color: activeSection === 'add-department' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'add-department' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'add-department' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
                   onClick={() => setActiveSection('add-department')}
                 >
-                  ➕ Add Department
+                  <span>➕</span> Add Department
                 </button>
               </div>
             </div>
           </div>
 
           {/* Main Content */}
-          <div className="col-md-9 col-lg-10 d-flex flex-column">
-            <div className="p-4 flex-grow-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 76px)' }}>
+          <div className="col-md-9 col-lg-10 d-flex flex-column" style={{ background:'#f1f5f9' }}>
+            <div className="p-4 flex-grow-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 56px)', backgroundColor: '#f1f5f9' }}>
               {activeSection === 'overview' && renderOverview()}
               {activeSection === 'projects' && renderProjects()}
               {activeSection === 'departments' && renderDepartments()}
