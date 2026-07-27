@@ -872,7 +872,7 @@ const ClientDashboard: React.FC = () => {
         </div>
 
         {/* Main content */}
-        <div className="cd-main" style={{ flex:1, overflowY:'auto', padding:28 }}>
+        <div className="cd-main" style={{ flex:1, overflowY:'auto', padding:28, height:'calc(100vh - 56px)' }}>
           {renderContent()}
         </div>
       </div>
