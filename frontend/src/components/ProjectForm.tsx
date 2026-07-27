@@ -790,1214 +790,673 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
     return baseClass;
   };
 
+  // Dark-theme inline style helpers
+  const S = {
+    label: { color: '#94a3b8', fontSize: 13, fontWeight: 500, marginBottom: 6, display: 'block' } as React.CSSProperties,
+    input: { background: '#0f172a', border: '1px solid #334155', borderRadius: 8, color: '#fff', padding: '10px 14px', width: '100%', fontSize: 14, outline: 'none', boxSizing: 'border-box' } as React.CSSProperties,
+    inputInvalid: { background: '#0f172a', border: '1px solid #ef4444', borderRadius: 8, color: '#fff', padding: '10px 14px', width: '100%', fontSize: 14, outline: 'none', boxSizing: 'border-box' } as React.CSSProperties,
+    inputValid: { background: '#0f172a', border: '1px solid #10b981', borderRadius: 8, color: '#fff', padding: '10px 14px', width: '100%', fontSize: 14, outline: 'none', boxSizing: 'border-box' } as React.CSSProperties,
+    errorText: { color: '#f87171', fontSize: 12, marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 } as React.CSSProperties,
+    section: { background: '#0f172a', border: '1px solid #334155', borderRadius: 12, padding: '20px', marginBottom: 0 } as React.CSSProperties,
+    sectionTitle: { color: '#10b981', fontWeight: 700, fontSize: 15, marginBottom: 16, marginTop: 0 } as React.CSSProperties,
+    card: { background: '#1e293b', border: '1px solid #334155', borderRadius: 10, padding: '16px', marginBottom: 12 } as React.CSSProperties,
+    nestedCard: { background: '#0f172a', border: '1px solid #334155', borderRadius: 8, padding: '12px', marginBottom: 10 } as React.CSSProperties,
+  };
+
+  const getInputStyle = (fieldName: keyof ProjectFormErrors, hasValue?: boolean): React.CSSProperties => {
+    if (errors[fieldName]) return S.inputInvalid;
+    if (hasValue && !errors[fieldName]) return S.inputValid;
+    return S.input;
+  };
+
   if (isLoadingData) {
     return (
-      <div className="card shadow-lg border-0">
-        <div className="card-body text-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-          </div>
-          <p className="mt-3 text-muted">Loading form data...</p>
+      <div style={{ padding: '60px 0', textAlign: 'center', background: '#1e293b', borderRadius: 12 }}>
+        <div className="spinner-border" role="status" style={{ color: '#10b981' }}>
+          <span className="visually-hidden">Loading...</span>
         </div>
+        <p style={{ color: '#94a3b8', marginTop: 12, fontSize: 14 }}>Loading form data...</p>
       </div>
     );
   }
 
-  return (
-    <div className="card shadow-lg border-0">
-      <div className="card-header bg-success text-white">
-        <div className="d-flex align-items-center">
-          <div className="me-3 p-2 bg-white bg-opacity-10 rounded">
-            <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd"/>
-            </svg>
-          </div>
-          <div>
-            <h3 className="card-title mb-0">Project Profile</h3>
-            <p className="card-text text-white text-opacity-75 mb-0">Create a new project with learning pathways and qualifications</p>
+  // ── Helper: render unit standards table ──
+  const renderOccUnitStandards = (
+    pathwayIndex: number,
+    qualIndex: number,
+    qualificationId: number,
+    selectedUnitStandardIds: number[]
+  ) => {
+    const standards = unitStandards[qualificationId] || [];
+    const sel = selectedUnitStandardIds;
+    const thSt: React.CSSProperties = { padding: '6px 8px', color: '#94a3b8', fontWeight: 600, textAlign: 'left', borderBottom: '1px solid #334155' };
+    const mkCell = (id: number) => ({ padding: '6px 8px', color: '#cbd5e1', borderBottom: '1px solid #1e293b', background: sel.includes(id) ? 'rgba(16,185,129,0.06)' : 'transparent' });
+    if (loadingUnitStandards[qualificationId]) return <div style={{ textAlign: 'center', padding: '12px 0' }}><div className="spinner-border" style={{ color: '#10b981' }} role="status"></div></div>;
+    if (standards.length === 0) return <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>No unit standards found.</p>;
+    return (
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead><tr style={{ background: '#0f172a' }}>
+            <th style={{ ...thSt, width: 36 }}>
+              <input type="checkbox" style={{ accentColor: '#10b981' }}
+                checked={sel.length === standards.length && standards.length > 0}
+                onChange={(e) => { const allIds = standards.map(s => s.id); setFormData(prev => ({ ...prev, learningPathways: prev.learningPathways.map((pw, i) => i === pathwayIndex ? { ...pw, qualifications: pw.qualifications.map((q, j) => j === qualIndex ? { ...q, selectedUnitStandards: e.target.checked ? allIds : [] } : q) } : pw) })); }}
+              />
+            </th>
+            {['Module Code', 'Unit Standard Name', 'Module Type', 'Level', 'Credits'].map(h => <th key={h} style={thSt}>{h}</th>)}
+          </tr></thead>
+          <tbody>{standards.map((s, idx) => (
+            <tr key={idx}>
+              <td style={mkCell(s.id)}><input type="checkbox" style={{ accentColor: '#10b981' }} checked={sel.includes(s.id)} onChange={() => toggleUnitStandardSelection(pathwayIndex, qualIndex, s.id)} /></td>
+              <td style={mkCell(s.id)}>{s.moduleCode}</td><td style={mkCell(s.id)}>{s.unitStandardName}</td>
+              <td style={mkCell(s.id)}>{s.moduleType}</td><td style={mkCell(s.id)}>{s.level}</td><td style={mkCell(s.id)}>{s.credits}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+        <p style={{ color: '#64748b', fontSize: 11, margin: '6px 0 0' }}>Selected: {sel.length} of {standards.length}</p>
+      </div>
+    );
+  };
+
+  const renderLegacyUnitStandards = (
+    pathwayIndex: number,
+    qualIndex: number,
+    actualQualificationId: number,
+    selectedUnitStandardIds: number[]
+  ) => {
+    const standards = legacyUnitStandards[actualQualificationId] || [];
+    const sel = selectedUnitStandardIds;
+    const thSt: React.CSSProperties = { padding: '6px 8px', color: '#94a3b8', fontWeight: 600, textAlign: 'left', borderBottom: '1px solid #334155' };
+    if (loadingLegacyUnitStandards[actualQualificationId]) return <div style={{ textAlign: 'center', padding: '12px 0' }}><div className="spinner-border" style={{ color: '#10b981' }} role="status"></div></div>;
+    if (standards.length === 0) return <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>No legacy unit standards found.</p>;
+    return (
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead><tr style={{ background: '#0f172a' }}>
+            <th style={{ ...thSt, width: 36 }}>
+              <input type="checkbox" style={{ accentColor: '#10b981' }}
+                checked={sel.length === standards.length && standards.length > 0}
+                onChange={(e) => { const allIds = standards.map(s => s.id); setFormData(prev => ({ ...prev, learningPathways: prev.learningPathways.map((pw, i) => i === pathwayIndex ? { ...pw, qualifications: pw.qualifications.map((q, j) => j === qualIndex ? { ...q, selectedUnitStandards: e.target.checked ? allIds : [] } : q) } : pw) })); }}
+              />
+            </th>
+            {['US ID', 'Unit Standard Name', 'Level', 'Credits', 'Synced'].map(h => <th key={h} style={thSt}>{h}</th>)}
+          </tr></thead>
+          <tbody>{standards.map((s, idx) => {
+            const cellBg = sel.includes(s.id) ? 'rgba(16,185,129,0.06)' : 'transparent';
+            const cell: React.CSSProperties = { padding: '6px 8px', color: '#cbd5e1', borderBottom: '1px solid #1e293b', background: cellBg };
+            return (
+              <tr key={idx}>
+                <td style={cell}><input type="checkbox" style={{ accentColor: '#10b981' }} checked={sel.includes(s.id)} onChange={() => toggleUnitStandardSelection(pathwayIndex, qualIndex, s.id)} /></td>
+                <td style={cell}>{s.unitStandardId}</td><td style={cell}>{s.unitStandardName}</td>
+                <td style={cell}>{s.level}</td><td style={cell}>{s.credits}</td>
+                <td style={cell}><span style={{ background: s.synced ? 'rgba(16,185,129,0.15)' : 'rgba(100,116,139,0.15)', color: s.synced ? '#34d399' : '#94a3b8', borderRadius: 4, padding: '2px 6px', fontSize: 11 }}>{s.synced ? 'YES' : 'NO'}</span></td>
+              </tr>
+            );
+          })}</tbody>
+        </table>
+        <p style={{ color: '#64748b', fontSize: 11, margin: '6px 0 0' }}>Selected: {sel.length} of {standards.length}</p>
+      </div>
+    );
+  };
+
+  const renderLegacyQualDetails = (qualId: number) => {
+    const lq = legacyQualifications.find(q => q.id === qualId);
+    if (!lq) return null;
+    const th: React.CSSProperties = { padding: '6px 10px', color: '#94a3b8', fontWeight: 600, textAlign: 'left', borderBottom: '1px solid #334155' };
+    const td: React.CSSProperties = { padding: '6px 10px', color: '#cbd5e1', borderBottom: '1px solid #1e293b' };
+    return (
+      <div style={{ marginTop: 10, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead><tr style={{ background: '#0f172a' }}>
+            {['Qual ID','Name','Level','Credits','Type','Description'].map(h => <th key={h} style={th}>{h}</th>)}
+          </tr></thead>
+          <tbody><tr>
+            <td style={td}>{lq.qualificationId}</td><td style={td}>{lq.name}</td>
+            <td style={td}>{lq.level}</td><td style={td}>{lq.credits}</td>
+            <td style={td}>{lq.qualificationType}</td><td style={td}>{lq.description}</td>
+          </tr></tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderOccQualDetails = (qualId: number) => {
+    const oq = occupationalQualifications.find(q => q.qualificationId === qualId);
+    if (!oq) return null;
+    const th: React.CSSProperties = { padding: '6px 10px', color: '#94a3b8', fontWeight: 600, textAlign: 'left', borderBottom: '1px solid #334155' };
+    const td: React.CSSProperties = { padding: '6px 10px', color: '#cbd5e1', borderBottom: '1px solid #1e293b' };
+    return (
+      <div style={{ marginTop: 10, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead><tr style={{ background: '#0f172a' }}>
+            {['Qual ID','Name','Level','Credits','Type','Quality Partner','Trade'].map(h => <th key={h} style={th}>{h}</th>)}
+          </tr></thead>
+          <tbody><tr>
+            <td style={td}>{oq.qualificationId}</td><td style={td}>{oq.name}</td>
+            <td style={td}>{oq.level}</td><td style={td}>{oq.credits}</td>
+            <td style={td}>{oq.qualificationType}</td><td style={td}>{oq.qualityPartner}</td><td style={td}>{oq.trade}</td>
+          </tr></tbody>
+        </table>
+      </div>
+    );
+  };
+
+  const renderLegacyUnitStandardsSection = (
+    pathwayIndex: number,
+    qualIndex: number,
+    legacyQualId: number
+  ) => {
+    const lq = legacyQualifications.find(q => q.id === legacyQualId);
+    const actualQId = lq?.qualificationId;
+    if (!actualQId) return null;
+    return (
+      <div style={{ marginTop: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>Legacy Unit Standards — select multiple</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {loadingLegacyUnitStandards[actualQId] && <div className="spinner-border spinner-border-sm" role="status" style={{ color: '#10b981', width: 14, height: 14 }}></div>}
+            <button type="button" onClick={() => { setCurrentQualificationIdForUnitStandard(actualQId); setShowLegacyUnitStandardModal(true); }} style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid #10b981', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}>
+              <i className="bi bi-plus"></i> Add New
+            </button>
+            {!loadingLegacyUnitStandards[actualQId] && (
+              <button type="button" onClick={() => removeSyncedLegacyStandards(pathwayIndex, qualIndex)} style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid #ef4444', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}>Remove Synced</button>
+            )}
           </div>
         </div>
+        {renderLegacyUnitStandards(pathwayIndex, qualIndex, actualQId, formData.learningPathways[pathwayIndex]?.qualifications[qualIndex]?.selectedUnitStandards || [])}
       </div>
-      
-      <form onSubmit={handleSubmit} className="card-body" noValidate>
+    );
+  };
+
+  return (
+    <div style={{ background: '#1e293b', borderRadius: 12, overflow: 'hidden' }}>
+      {/* Section header */}
+      <div style={{ background: 'linear-gradient(135deg, #0d9488, #06b6d4)', borderRadius: '14px 14px 0 0', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '8px 10px', display: 'flex', alignItems: 'center' }}>
+          <svg width="20" height="20" fill="currentColor" viewBox="0 0 20 20" style={{ color: '#fff' }}>
+            <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd"/>
+          </svg>
+        </div>
+        <div>
+          <h3 style={{ color: '#fff', fontWeight: 700, fontSize: 18, margin: 0 }}>Project Profile</h3>
+          <p style={{ color: 'rgba(255,255,255,0.7)', margin: 0, fontSize: 13, marginTop: 2 }}>Create a new project with learning pathways and qualifications</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} style={{ padding: '24px', background: '#fff' }} noValidate>
         {submitMessage && (
-          <div className={`alert ${submitMessage.type === 'success' ? 'alert-success' : 'alert-danger'} d-flex align-items-center`} role="alert">
-            <i className={`bi ${submitMessage.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
+          <div style={{
+            background: submitMessage.type === 'success' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)',
+            border: `1px solid ${submitMessage.type === 'success' ? '#10b981' : '#ef4444'}`,
+            borderRadius: 8,
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            marginBottom: 20,
+            color: submitMessage.type === 'success' ? '#34d399' : '#f87171',
+            fontSize: 14,
+          }}>
+            <i className={`bi ${submitMessage.type === 'success' ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'}`}></i>
             {submitMessage.text}
           </div>
         )}
 
-        <div className="row g-3">
-          {/* Project Name */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">
-              Project Name *
-            </label>
-            <div className="position-relative">
-              <input
-                type="text"
-                name="projectName"
-                value={formData.projectName}
-                onChange={(e) => handleInputChange('projectName', e.target.value)}
-                className={getFieldClassName('projectName', !!formData.projectName)}
-                placeholder="Enter project name"
-                required
-              />
-              {formData.projectName && !errors.projectName && (
-                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
-              )}
-              {errors.projectName && (
-                <i className="bi bi-exclamation-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-danger"></i>
-              )}
+        {/* ── Project Details Section ── */}
+        <div style={S.section}>
+          <h4 style={S.sectionTitle}>📋 Project Details</h4>
+
+          {/* Row 1: Project Name + Contract Number */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div>
+              <label style={S.label}>Project Name *</label>
+              <input type="text" name="projectName" value={formData.projectName} onChange={(e) => handleInputChange('projectName', e.target.value)} style={getInputStyle('projectName', !!formData.projectName)} placeholder="Enter project name" required />
+              {errors.projectName && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.projectName}</div>}
             </div>
-            {errors.projectName && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.projectName}
-              </div>
-            )}
+            <div>
+              <label style={S.label}>Contract Number *</label>
+              <input type="text" name="contractNumber" value={formData.contractNumber} onChange={(e) => handleInputChange('contractNumber', e.target.value)} style={getInputStyle('contractNumber', !!formData.contractNumber)} placeholder="Enter contract number" required />
+              {errors.contractNumber && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.contractNumber}</div>}
+            </div>
           </div>
 
-          {/* Contract Number */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">
-              Contract Number *
-            </label>
-            <div className="position-relative">
-              <input
-                type="text"
-                name="contractNumber"
-                value={formData.contractNumber}
-                onChange={(e) => handleInputChange('contractNumber', e.target.value)}
-                className={getFieldClassName('contractNumber', !!formData.contractNumber)}
-                placeholder="Enter contract number"
-                required
-              />
-              {formData.contractNumber && !errors.contractNumber && (
-                <i className="bi bi-check-circle-fill position-absolute top-50 end-0 translate-middle-y me-3 text-success"></i>
-              )}
+          {/* Row 2: Financial Year + Start Date + End Date */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 16 }}>
+            <div>
+              <label style={S.label}>Financial Year *</label>
+              <input type="number" name="financialYear" value={formData.financialYear} onChange={(e) => handleInputChange('financialYear', e.target.value)} style={getInputStyle('financialYear', !!formData.financialYear)} min={new Date().getFullYear() - 5} max={new Date().getFullYear() + 5} required />
+              {errors.financialYear && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.financialYear}</div>}
             </div>
-            {errors.contractNumber && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.contractNumber}
-              </div>
-            )}
+            <div>
+              <label style={S.label}>Start Date *</label>
+              <input type="date" name="startDate" value={formData.startDate} onChange={(e) => handleInputChange('startDate', e.target.value)} style={getInputStyle('startDate', !!formData.startDate)} required />
+              {errors.startDate && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.startDate}</div>}
+            </div>
+            <div>
+              <label style={S.label}>End Date *</label>
+              <input type="date" name="endDate" value={formData.endDate} onChange={(e) => handleInputChange('endDate', e.target.value)} style={getInputStyle('endDate', !!formData.endDate)} min={formData.startDate} required />
+              {errors.endDate && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.endDate}</div>}
+            </div>
           </div>
 
-          {/* Financial Year */}
-          <div className="col-md-4">
-            <label className="form-label fw-semibold">
-              Financial Year *
-            </label>
-            <div className="position-relative">
-              <input
-                type="number"
-                name="financialYear"
-                value={formData.financialYear}
-                onChange={(e) => handleInputChange('financialYear', e.target.value)}
-                className={getFieldClassName('financialYear', !!formData.financialYear)}
-                min={new Date().getFullYear() - 5}
-                max={new Date().getFullYear() + 5}
-                required
-              />
+          {/* Row 3: Beneficiaries + Province */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 16 }}>
+            <div>
+              <label style={S.label}>Number of Beneficiaries *</label>
+              <input type="number" name="numberOfBeneficiaries" value={formData.numberOfBeneficiaries} onChange={(e) => handleInputChange('numberOfBeneficiaries', parseInt(e.target.value) || 0)} style={getInputStyle('numberOfBeneficiaries', formData.numberOfBeneficiaries > 0)} min="1" max="10000" required />
+              {errors.numberOfBeneficiaries && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.numberOfBeneficiaries}</div>}
             </div>
-            {errors.financialYear && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.financialYear}
-              </div>
-            )}
-          </div>
-
-          {/* Start Date */}
-          <div className="col-md-4">
-            <label className="form-label fw-semibold">
-              Start Date *
-            </label>
-            <div className="position-relative">
-              <input
-                type="date"
-                name="startDate"
-                value={formData.startDate}
-                onChange={(e) => handleInputChange('startDate', e.target.value)}
-                className={getFieldClassName('startDate', !!formData.startDate)}
-                required
-              />
-            </div>
-            {errors.startDate && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.startDate}
-              </div>
-            )}
-          </div>
-
-          {/* End Date */}
-          <div className="col-md-4">
-            <label className="form-label fw-semibold">
-              End Date *
-            </label>
-            <div className="position-relative">
-              <input
-                type="date"
-                name="endDate"
-                value={formData.endDate}
-                onChange={(e) => handleInputChange('endDate', e.target.value)}
-                className={getFieldClassName('endDate', !!formData.endDate)}
-                min={formData.startDate}
-                required
-              />
-            </div>
-            {errors.endDate && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.endDate}
-              </div>
-            )}
-          </div>
-
-          {/* Number of Beneficiaries */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">
-              Number of Beneficiaries *
-            </label>
-            <div className="position-relative">
-              <input
-                type="number"
-                name="numberOfBeneficiaries"
-                value={formData.numberOfBeneficiaries}
-                onChange={(e) => handleInputChange('numberOfBeneficiaries', parseInt(e.target.value) || 0)}
-                className={getFieldClassName('numberOfBeneficiaries', formData.numberOfBeneficiaries > 0)}
-                min="1"
-                max="10000"
-                required
-              />
-            </div>
-            {errors.numberOfBeneficiaries && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.numberOfBeneficiaries}
-              </div>
-            )}
-          </div>
-
-          {/* Province */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">
-              Province *
-            </label>
-            <div className="position-relative">
-              <select
-                name="province"
-                value={formData.province}
-                onChange={(e) => handleInputChange('province', e.target.value)}
-                className={getFieldClassName('province', !!formData.province)}
-                required
-              >
+            <div>
+              <label style={S.label}>Province *</label>
+              <select name="province" value={formData.province} onChange={(e) => handleInputChange('province', e.target.value)} style={getInputStyle('province', !!formData.province)} required>
                 <option value="">Select Province</option>
-                {provinces.map(province => (
-                  <option key={province.id} value={province.id}>{province.name}</option>
-                ))}
+                {provinces.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
+              {errors.province && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.province}</div>}
             </div>
-            {errors.province && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.province}
-              </div>
-            )}
           </div>
 
-          {/* District */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">
-              District *
-            </label>
-            <div className="position-relative">
-              <select
-                name="district"
-                value={formData.district}
-                onChange={(e) => handleInputChange('district', e.target.value)}
-                className={getFieldClassName('district', !!formData.district)}
-                required
-                disabled={!formData.province}
-              >
+          {/* Row 4: District + Municipality + SDP */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 16 }}>
+            <div>
+              <label style={S.label}>District *</label>
+              <select name="district" value={formData.district} onChange={(e) => handleInputChange('district', e.target.value)} style={{ ...getInputStyle('district', !!formData.district), opacity: !formData.province ? 0.5 : 1 }} required disabled={!formData.province}>
                 <option value="">Select District</option>
-                {availableDistricts.map(district => (
-                  <option key={district.id} value={district.id}>{district.name}</option>
-                ))}
+                {availableDistricts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
+              {errors.district && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.district}</div>}
             </div>
-            {errors.district && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.district}
-              </div>
-            )}
-          </div>
-
-          {/* Municipality */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">
-              Municipality *
-            </label>
-            <div className="position-relative">
-              <select
-                name="municipality"
-                value={formData.municipality}
-                onChange={(e) => handleInputChange('municipality', e.target.value)}
-                className={getFieldClassName('municipality', !!formData.municipality)}
-                required
-                disabled={!formData.district}
-              >
+            <div>
+              <label style={S.label}>Municipality *</label>
+              <select name="municipality" value={formData.municipality} onChange={(e) => handleInputChange('municipality', e.target.value)} style={{ ...getInputStyle('municipality', !!formData.municipality), opacity: !formData.district ? 0.5 : 1 }} required disabled={!formData.district}>
                 <option value="">Select Municipality</option>
-                {availableMunicipalities.map(municipality => (
-                  <option key={municipality.id} value={municipality.id}>{municipality.name}</option>
-                ))}
+                {availableMunicipalities.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
               </select>
+              {errors.municipality && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.municipality}</div>}
             </div>
-            {errors.municipality && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.municipality}
-              </div>
-            )}
-          </div>
-
-          {/* Project Funder */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">
-              Project Funder *
-            </label>
-            <div className="position-relative">
-              <input
-                type="text"
-                name="projectFunder"
-                value={formData.projectFunder}
-                onChange={(e) => handleInputChange('projectFunder', e.target.value)}
-                className={getFieldClassName('projectFunder', !!formData.projectFunder)}
-                placeholder="Enter project funder"
-                required
-              />
-            </div>
-            {errors.projectFunder && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.projectFunder}
-              </div>
-            )}
-          </div>
-
-          {/* Lead Employer Partner */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">
-              Lead Employer Partner *
-            </label>
-            <div className="position-relative">
-              <input
-                type="text"
-                name="leadEmployerPartner"
-                value={formData.leadEmployerPartner}
-                onChange={(e) => handleInputChange('leadEmployerPartner', e.target.value)}
-                className={getFieldClassName('leadEmployerPartner', !!formData.leadEmployerPartner)}
-                placeholder="Enter lead employer partner"
-                required
-              />
-            </div>
-            {errors.leadEmployerPartner && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.leadEmployerPartner}
-              </div>
-            )}
-          </div>
-
-          {/* Skills Development Provider */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">
-              Skills Development Provider *
-            </label>
-            <div className="position-relative">
-              <select
-                name="skillsDevelopmentProviderId"
-                value={formData.skillsDevelopmentProviderId}
-                onChange={(e) => handleInputChange('skillsDevelopmentProviderId', parseInt(e.target.value) || 0)}
-                className={getFieldClassName('skillsDevelopmentProviderId', formData.skillsDevelopmentProviderId > 0)}
-                required
-                disabled={!!skillsDevelopmentProviderId}
-              >
+            <div>
+              <label style={S.label}>Skills Development Provider *</label>
+              <select name="skillsDevelopmentProviderId" value={formData.skillsDevelopmentProviderId} onChange={(e) => handleInputChange('skillsDevelopmentProviderId', parseInt(e.target.value) || 0)} style={{ ...getInputStyle('skillsDevelopmentProviderId', formData.skillsDevelopmentProviderId > 0), opacity: !!skillsDevelopmentProviderId ? 0.6 : 1 }} required disabled={!!skillsDevelopmentProviderId}>
                 <option value="0">Select Skills Development Provider</option>
-                {clientSDPs.map(sdp => (
-                  <option key={sdp.id} value={sdp.id}>
-                    {sdp.name}
-                  </option>
-                ))}
+                {clientSDPs.map(sdp => <option key={sdp.id} value={sdp.id}>{sdp.name}</option>)}
               </select>
-            </div>
-            {errors.skillsDevelopmentProviderId && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.skillsDevelopmentProviderId}
-              </div>
-            )}
-          </div>
-
-          {/* Budget Amount */}
-          <div className="col-md-6">
-            <label className="form-label fw-semibold">
-              Budget Amount (ZAR) *
-            </label>
-            <div className="position-relative">
-              <input
-                type="number"
-                name="budgetAmount"
-                value={formData.budgetAmount}
-                onChange={(e) => handleInputChange('budgetAmount', parseFloat(e.target.value) || 0)}
-                className={getFieldClassName('budgetAmount', formData.budgetAmount > 0)}
-                min="0"
-                step="0.01"
-                placeholder="0.00"
-                required
-              />
-            </div>
-            {errors.budgetAmount && (
-              <div className="invalid-feedback d-flex align-items-center">
-                <i className="bi bi-exclamation-triangle-fill me-2 text-danger"></i>
-                {errors.budgetAmount}
-              </div>
-            )}
-          </div>
-
-          {/* Project Resources */}
-          <div className="col-12">
-            <label className="form-label fw-semibold">Project Resources</label>
-            <div className="row g-2">
-              <div className="col-md-3">
-                <div className="form-check">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="hasPPE"
-                    checked={formData.hasPPE}
-                    onChange={(e) => handleInputChange('hasPPE', e.target.checked)}
-                  />
-                  <label className="form-check-label" htmlFor="hasPPE">
-                    PPE (Personal Protective Equipment)
-                  </label>
-                </div>
-              </div>
-              <div className="col-md-3">
-                <div className="form-check">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="hasLearningMaterial"
-                    checked={formData.hasLearningMaterial}
-                    onChange={(e) => handleInputChange('hasLearningMaterial', e.target.checked)}
-                  />
-                  <label className="form-check-label" htmlFor="hasLearningMaterial">
-                    Learning Material
-                  </label>
-                </div>
-              </div>
-              <div className="col-md-3">
-                <div className="form-check">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="hasToolkit"
-                    checked={formData.hasToolkit}
-                    onChange={(e) => handleInputChange('hasToolkit', e.target.checked)}
-                  />
-                  <label className="form-check-label" htmlFor="hasToolkit">
-                    Toolkit
-                  </label>
-                </div>
-              </div>
-              <div className="col-md-3">
-                <div className="form-check">
-                  <input
-                    className="form-check-input"
-                    type="checkbox"
-                    id="hasConsumables"
-                    checked={formData.hasConsumables}
-                    onChange={(e) => handleInputChange('hasConsumables', e.target.checked)}
-                  />
-                  <label className="form-check-label" htmlFor="hasConsumables">
-                    Consumables
-                  </label>
-                </div>
-              </div>
+              {errors.skillsDevelopmentProviderId && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.skillsDevelopmentProviderId}</div>}
             </div>
           </div>
 
-          {/* Learning Pathways Section */}
-          <div className="col-12">
-            <div className="card border-secondary">
-              <div className="card-header bg-light">
-                <div className="d-flex justify-content-between align-items-center">
-                  <h5 className="mb-0">Learning Pathways & Qualifications *</h5>
-                  <button
-                    type="button"
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={addLearningPathway}
-                  >
-                    <i className="bi bi-plus-circle me-1"></i>
-                    Add Learning Pathway
-                  </button>
-                </div>
-              </div>
-              <div className="card-body">
-                {formData.learningPathways.length === 0 ? (
-                  <p className="text-muted text-center py-3">
-                    No learning pathways added yet. Click "Add Learning Pathway" to get started.
-                  </p>
-                ) : (
-                  formData.learningPathways.map((pathway, pathwayIndex) => (
-                    <div key={pathwayIndex} className="border rounded p-3 mb-3">
-                      <div className="d-flex justify-content-between align-items-start mb-3">
-                        <h6 className="text-primary">Learning Pathway {pathwayIndex + 1}</h6>
-                        <button
-                          type="button"
-                          className="btn btn-outline-danger btn-sm"
-                          onClick={() => removeLearningPathway(pathwayIndex)}
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
-                      </div>
-
-                      {/* Pathway Selection */}
-                      <div className="mb-3">
-                        <label className="form-label fw-semibold">Select Learning Pathway</label>
-                        <select
-                          className="form-select"
-                          value={pathway.pathwayId}
-                          onChange={(e) => updateLearningPathway(pathwayIndex, parseInt(e.target.value))}
-                        >
-                          <option value="0">Select a learning pathway</option>
-                          {learningPathways.map(lp => (
-                            <option key={lp.pathwayId} value={lp.pathwayId}>
-                              {lp.name}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Qualifications */}
-                      <div className="mb-3">
-                        <div className="d-flex justify-content-between align-items-center mb-2">
-                          <label className="form-label fw-semibold mb-0">Qualifications</label>
-                          <button
-                            type="button"
-                            className="btn btn-outline-secondary btn-sm"
-                            onClick={() => addQualification(pathwayIndex)}
-                            disabled={pathway.pathwayId === 0}
-                          >
-                            <i className="bi bi-plus me-1"></i>
-                            Add Qualification
-                          </button>
-                        </div>
-
-                        {pathway.qualifications.length === 0 ? (
-                          <p className="text-muted small">No qualifications added yet.</p>
-                        ) : (
-                          pathway.qualifications.map((qualification, qualIndex) => (
-                            <div key={qualIndex} className="border rounded p-2 mb-2 bg-light">
-                              <div className="d-flex justify-content-between align-items-start mb-2">
-                                <small className="text-muted">Qualification {qualIndex + 1}</small>
-                                <button
-                                  type="button"
-                                  className="btn btn-outline-danger btn-sm"
-                                  onClick={() => removeQualification(pathwayIndex, qualIndex)}
-                                >
-                                  <i className="bi bi-x"></i>
-                                </button>
-                              </div>
-
-                              <div className="row g-2">
-                                {/* Qualification Type */}
-                                <div className="col-md-4">
-                                  <label className="form-label small">Qualification Type</label>
-                                  <select
-                                    className="form-select form-select-sm"
-                                    value={qualification.qualificationTypeId}
-                                    onChange={(e) => updateQualification(pathwayIndex, qualIndex, 'qualificationTypeId', parseInt(e.target.value))}
-                                  >
-                                    <option value="0">Select type</option>
-                                    {qualificationTypes.map(qt => (
-                                      <option key={qt.id} value={qt.id}>
-                                        {qt.name}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-
-                                {/* Type of Employment */}
-                                <div className="col-md-3">
-                                  <label className="form-label small">Type of Employment</label>
-                                  <select
-                                    className="form-select form-select-sm"
-                                    value={qualification.employmentType || ''}
-                                    onChange={(e) => updateQualification(pathwayIndex, qualIndex, 'employmentType', e.target.value)}
-                                  >
-                                    <option value="">Select employment type</option>
-                                    <option value="18.1 Employed">18.1 Employed</option>
-                                    <option value="18.2 Unemployed">18.2 Unemployed</option>
-                                  </select>
-                                </div>
-
-                                {/* Number of Beneficiaries for this Qualification */}
-                                <div className="col-md-3">
-                                  <label className="form-label small">Beneficiaries</label>
-                                  <input
-                                    type="number"
-                                    className="form-control form-control-sm"
-                                    value={qualification.numberOfBeneficiaries || 0}
-                                    onChange={(e) => updateQualification(pathwayIndex, qualIndex, 'numberOfBeneficiaries', parseInt(e.target.value) || 0)}
-                                    min="0"
-                                    max="10000"
-                                    placeholder="Number of beneficiaries"
-                                  />
-                                </div>
-
-                                {/* Occupational Qualification */}
-                                {qualification.qualificationTypeId === 2 && (
-                                  <div className="col-md-6">
-                                    <div className="d-flex justify-content-between align-items-center mb-1">
-                                      <label className="form-label small mb-0">Occupational Qualification</label>
-                                      <button
-                                        type="button"
-                                        className="btn btn-sm btn-outline-success"
-                                        onClick={() => setShowOccupationalQualificationModal(true)}
-                                      >
-                                        <i className="bi bi-plus"></i> Add New
-                                      </button>
-                                    </div>
-                                    <input
-                                      type="text"
-                                      className="form-control form-control-sm mb-2"
-                                      placeholder="Search by name, ID, partner, or trade..."
-                                      value={occupationalQualificationSearch}
-                                      onChange={(e) => setOccupationalQualificationSearch(e.target.value)}
-                                    />
-                                    <select
-                                      className="form-select form-select-sm"
-                                      value={qualification.occupationalQualificationId || ''}
-                                      onChange={(e) => updateQualification(pathwayIndex, qualIndex, 'occupationalQualificationId', e.target.value ? parseInt(e.target.value) : undefined)}
-                                    >
-                                      <option value="">Select occupational qualification</option>
-                                      {filteredOccupationalQualifications.map(oq => (
-                                        <option key={oq.qualificationId} value={oq.qualificationId}>
-                                          ID: {oq.qualificationId} - {oq.name} (Level {oq.level})
-                                        </option>
-                                      ))}
-                                    </select>
-                                    {filteredOccupationalQualifications.length === 0 && occupationalQualificationSearch && (
-                                      <small className="text-muted">No qualifications match your search.</small>
-                                    )}
-                                  </div>
-                                )}
-
-                                {/* Legacy Qualification */}
-                                {qualification.qualificationTypeId === 1 && (
-                                  <div className="col-md-6">
-                                    <div className="d-flex justify-content-between align-items-center mb-1">
-                                      <label className="form-label small mb-0">Legacy Qualification</label>
-                                      <button
-                                        type="button"
-                                        className="btn btn-sm btn-outline-success"
-                                        onClick={() => setShowLegacyQualificationModal(true)}
-                                      >
-                                        <i className="bi bi-plus"></i> Add New
-                                      </button>
-                                    </div>
-                                    <input
-                                      type="text"
-                                      className="form-control form-control-sm mb-2"
-                                      placeholder="Search by name, ID, field, or subfield..."
-                                      value={legacyQualificationSearch}
-                                      onChange={(e) => setLegacyQualificationSearch(e.target.value)}
-                                    />
-                                    <select
-                                      className="form-select form-select-sm"
-                                      value={qualification.legacyQualificationId || ''}
-                                      onChange={(e) => {
-                                        const selectedId = e.target.value ? parseInt(e.target.value) : undefined;
-                                        updateQualification(pathwayIndex, qualIndex, 'legacyQualificationId', selectedId);
-                                        // Fetch unit standards using the qualification_id, not the id
-                                        if (selectedId) {
-                                          const selectedQual = filteredLegacyQualifications.find(lq => lq.id === selectedId);
-                                          if (selectedQual?.qualificationId) {
-                                            fetchLegacyUnitStandards(selectedQual.qualificationId);
-                                          }
-                                        }
-                                      }}
-                                    >
-                                      <option value="">Select legacy qualification</option>
-                                      {filteredLegacyQualifications.map(lq => (
-                                        <option key={lq.id} value={lq.id}>
-                                          Qual ID: {lq.qualificationId} - {lq.name} (Level {lq.level})
-                                        </option>
-                                      ))}
-                                    </select>
-                                    {filteredLegacyQualifications.length === 0 && legacyQualificationSearch && (
-                                      <small className="text-muted">No qualifications match your search.</small>
-                                    )}
-                                  </div>
-                                )}
-
-                              {/* Selected Legacy Qualification Details Table */}
-                              {qualification.legacyQualificationId && (
-                                <div className="mt-2">
-                                  {(() => {
-                                    const selectedLq = legacyQualifications.find(lq => lq.id === qualification.legacyQualificationId);
-                                    if (!selectedLq) return null;
-                                    return (
-                                      <div className="table-responsive">
-                                        <table className="table table-sm table-striped table-bordered mb-0">
-                                          <thead className="table-light">
-                                            <tr>
-                                              <th>Qualification ID</th>
-                                              <th>Name</th>
-                                              <th>Level</th>
-                                              <th>Credits</th>
-                                              <th>Qualification Type</th>
-                                              <th>Description</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            <tr>
-                                              <td>{selectedLq.qualificationId}</td>
-                                              <td>{selectedLq.name}</td>
-                                              <td>{selectedLq.level}</td>
-                                              <td>{selectedLq.credits}</td>
-                                              <td>{selectedLq.qualificationType}</td>
-                                              <td>{selectedLq.description}</td>
-                                            </tr>
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              )}
-                              </div>
-
-                              {/* Selected Occupational Qualification Details Table */}
-                              {qualification.occupationalQualificationId && (
-                                <div className="mt-2">
-                                  {(() => {
-                                    const selectedOq = occupationalQualifications.find(oq => oq.qualificationId === qualification.occupationalQualificationId);
-                                    if (!selectedOq) return null;
-                                    return (
-                                      <div className="table-responsive">
-                                        <table className="table table-sm table-striped table-bordered mb-0">
-                                          <thead className="table-light">
-                                            <tr>
-                                              <th>Qualification ID</th>
-                                              <th>Name</th>
-                                              <th>Level</th>
-                                              <th>Credits</th>
-                                              <th>Type</th>
-                                              <th>Quality Partner</th>
-                                              <th>Trade</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            <tr>
-                                              <td>{selectedOq.qualificationId}</td>
-                                              <td>{selectedOq.name}</td>
-                                              <td>{selectedOq.level}</td>
-                                              <td>{selectedOq.credits}</td>
-                                              <td>{selectedOq.qualificationType}</td>
-                                              <td>{selectedOq.qualityPartner}</td>
-                                              <td>{selectedOq.trade}</td>
-                                            </tr>
-                                          </tbody>
-                                        </table>
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              )}
-
-                              {/* Unit Standards Table with Multiple Selection */}
-                              {qualification.occupationalQualificationId && (
-                                <div className="mt-3">
-                                  <div className="d-flex justify-content-between align-items-center mb-2">
-                                    <h6 className="mb-0 text-muted">Unit Standards - Select Multiple</h6>
-                                    <div className="d-flex align-items-center gap-2">
-                                      {loadingUnitStandards[qualification.occupationalQualificationId] && (
-                                        <div className="spinner-border spinner-border-sm text-primary" role="status">
-                                          <span className="visually-hidden">Loading...</span>
-                                        </div>
-                                      )}
-                                      <button
-                                        type="button"
-                                        className="btn btn-sm btn-outline-success"
-                                        onClick={() => {
-                                          setCurrentQualificationIdForUnitStandard(qualification.occupationalQualificationId);
-                                          setShowOccupationalUnitStandardModal(true);
-                                        }}
-                                      >
-                                        <i className="bi bi-plus"></i> Add New
-                                      </button>
-                                    </div>
-                                  </div>
-                                  {(() => {
-                                    const standards = unitStandards[qualification.occupationalQualificationId] || [];
-                                    const selectedStandards = qualification.selectedUnitStandards || [];
-                                    
-                                    if (loadingUnitStandards[qualification.occupationalQualificationId]) {
-                                      return <div className="text-center py-3"><div className="spinner-border text-primary" role="status"></div></div>;
-                                    }
-                                    if (standards.length === 0) {
-                                      return <p className="text-muted small mb-0">No unit standards found for this qualification.</p>;
-                                    }
-                                    return (
-                                      <div className="table-responsive">
-                                        <table className="table table-sm table-hover table-bordered mb-0">
-                                          <thead className="table-light">
-                                            <tr>
-                                              <th style={{width: '40px'}}>
-                                                <input
-                                                  type="checkbox"
-                                                  className="form-check-input"
-                                                  checked={selectedStandards.length === standards.length && standards.length > 0}
-                                                  onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                      // Select all
-                                                      const allIds = standards.map(s => s.id);
-                                                      setFormData(prev => ({
-                                                        ...prev,
-                                                        learningPathways: prev.learningPathways.map((pathway, i) => 
-                                                          i === pathwayIndex 
-                                                            ? {
-                                                                ...pathway,
-                                                                qualifications: pathway.qualifications.map((qual, j) => 
-                                                                  j === qualIndex 
-                                                                    ? { ...qual, selectedUnitStandards: allIds }
-                                                                    : qual
-                                                                )
-                                                              }
-                                                            : pathway
-                                                        )
-                                                      }));
-                                                    } else {
-                                                      // Deselect all
-                                                      setFormData(prev => ({
-                                                        ...prev,
-                                                        learningPathways: prev.learningPathways.map((pathway, i) => 
-                                                          i === pathwayIndex 
-                                                            ? {
-                                                                ...pathway,
-                                                                qualifications: pathway.qualifications.map((qual, j) => 
-                                                                  j === qualIndex 
-                                                                    ? { ...qual, selectedUnitStandards: [] }
-                                                                    : qual
-                                                                )
-                                                              }
-                                                            : pathway
-                                                        )
-                                                      }));
-                                                    }
-                                                  }}
-                                                />
-                                              </th>
-                                              <th>Module Code</th>
-                                              <th>Unit Standard Name</th>
-                                              <th>Module Type</th>
-                                              <th>Level</th>
-                                              <th>Credits</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {standards.map((standard, index) => (
-                                              <tr key={index}>
-                                                <td>
-                                                  <input
-                                                    type="checkbox"
-                                                    className="form-check-input"
-                                                    checked={selectedStandards.includes(standard.id)}
-                                                    onChange={() => toggleUnitStandardSelection(pathwayIndex, qualIndex, standard.id)}
-                                                  />
-                                                </td>
-                                                <td>{standard.moduleCode}</td>
-                                                <td>{standard.unitStandardName}</td>
-                                                <td>{standard.moduleType}</td>
-                                                <td>{standard.level}</td>
-                                                <td>{standard.credits}</td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                        <div className="mt-2">
-                                          <small className="text-muted">
-                                            Selected: {selectedStandards.length} of {standards.length} unit standards
-                                          </small>
-                                        </div>
-                                      </div>
-                                    );
-                                  })()}
-                                </div>
-                              )}
-
-                              {/* Legacy Unit Standards Table with Multiple Selection */}
-                              {qualification.legacyQualificationId && (
-                                <div className="mt-3">
-                                  {(() => {
-                                    // Get the actual qualification_id for looking up unit standards
-                                    const selectedLq = legacyQualifications.find(lq => lq.id === qualification.legacyQualificationId);
-                                    const actualQualificationId = selectedLq?.qualificationId;
-                                    
-                                    if (!actualQualificationId) return null;
-                                    
-                                    return (
-                                      <>
-                                        <div className="d-flex justify-content-between align-items-center mb-2">
-                                          <h6 className="mb-0 text-muted">Legacy Unit Standards - Select Multiple</h6>
-                                          <div className="d-flex align-items-center gap-2">
-                                            {loadingLegacyUnitStandards[actualQualificationId] && (
-                                              <div className="spinner-border spinner-border-sm text-primary" role="status">
-                                                <span className="visually-hidden">Loading...</span>
-                                              </div>
-                                            )}
-                                            <button
-                                              type="button"
-                                              className="btn btn-sm btn-outline-success"
-                                              onClick={() => {
-                                                setCurrentQualificationIdForUnitStandard(actualQualificationId);
-                                                setShowLegacyUnitStandardModal(true);
-                                              }}
-                                            >
-                                              <i className="bi bi-plus"></i> Add New
-                                            </button>
-                                            {!loadingLegacyUnitStandards[actualQualificationId] && (
-                                              <button
-                                                type="button"
-                                                className="btn btn-sm btn-outline-danger"
-                                                onClick={() => removeSyncedLegacyStandards(pathwayIndex, qualIndex)}
-                                                title="Remove all synced unit standards from selection"
-                                              >
-                                                Remove Synced
-                                              </button>
-                                            )}
-                                          </div>
-                                        </div>
-                                        {(() => {
-                                          const standards = legacyUnitStandards[actualQualificationId] || [];
-                                          const selectedStandards = qualification.selectedUnitStandards || [];
-                                          
-                                          if (loadingLegacyUnitStandards[actualQualificationId]) {
-                                      return <div className="text-center py-3"><div className="spinner-border text-primary" role="status"></div></div>;
-                                    }
-                                    if (standards.length === 0) {
-                                      return <p className="text-muted small mb-0">No legacy unit standards found for this qualification.</p>;
-                                    }
-                                    return (
-                                      <div className="table-responsive">
-                                        <table className="table table-sm table-hover table-bordered mb-0">
-                                          <thead className="table-light">
-                                            <tr>
-                                              <th style={{width: '40px'}}>
-                                                <input
-                                                  type="checkbox"
-                                                  className="form-check-input"
-                                                  checked={selectedStandards.length === standards.length && standards.length > 0}
-                                                  onChange={(e) => {
-                                                    if (e.target.checked) {
-                                                      // Select all
-                                                      const allIds = standards.map(s => s.id);
-                                                      setFormData(prev => ({
-                                                        ...prev,
-                                                        learningPathways: prev.learningPathways.map((pathway, i) => 
-                                                          i === pathwayIndex 
-                                                            ? {
-                                                                ...pathway,
-                                                                qualifications: pathway.qualifications.map((qual, j) => 
-                                                                  j === qualIndex 
-                                                                    ? { ...qual, selectedUnitStandards: allIds }
-                                                                    : qual
-                                                                )
-                                                              }
-                                                            : pathway
-                                                        )
-                                                      }));
-                                                    } else {
-                                                      // Deselect all
-                                                      setFormData(prev => ({
-                                                        ...prev,
-                                                        learningPathways: prev.learningPathways.map((pathway, i) => 
-                                                          i === pathwayIndex 
-                                                            ? {
-                                                                ...pathway,
-                                                                qualifications: pathway.qualifications.map((qual, j) => 
-                                                                  j === qualIndex 
-                                                                    ? { ...qual, selectedUnitStandards: [] }
-                                                                    : qual
-                                                                )
-                                                              }
-                                                            : pathway
-                                                        )
-                                                      }));
-                                                    }
-                                                  }}
-                                                />
-                                              </th>
-                                              <th>Unit Standard ID</th>
-                                              <th>Unit Standard Name</th>
-                                              <th>Level</th>
-                                              <th>Credits</th>
-                                              <th>Synced</th>
-                                            </tr>
-                                          </thead>
-                                          <tbody>
-                                            {standards.map((standard, index) => (
-                                              <tr key={index}>
-                                                <td>
-                                                  <input
-                                                    type="checkbox"
-                                                    className="form-check-input"
-                                                    checked={selectedStandards.includes(standard.id)}
-                                                    onChange={() => toggleUnitStandardSelection(pathwayIndex, qualIndex, standard.id)}
-                                                  />
-                                                </td>
-                                                <td>{standard.unitStandardId}</td>
-                                                <td>{standard.unitStandardName}</td>
-                                                <td>{standard.level}</td>
-                                                <td>{standard.credits}</td>
-                                                <td>{standard.synced ? 'YES' : 'NO'}</td>
-                                              </tr>
-                                            ))}
-                                          </tbody>
-                                        </table>
-                                        <div className="mt-2">
-                                          <small className="text-muted">
-                                            Selected: {selectedStandards.length} of {standards.length} legacy unit standards
-                                          </small>
-                                        </div>
-                                      </div>
-                                    );
-                                  })()}
-                                      </>
-                                    );
-                                  })()}
-                                </div>
-                              )}
-
-                            </div>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
-                {errors.learningPathways && (
-                  <div className="text-danger small">
-                    <i className="bi bi-exclamation-triangle-fill me-1"></i>
-                    {errors.learningPathways}
-                  </div>
-                )}
-              </div>
+          {/* Row 5: Funder + Lead Employer + Budget */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 16 }}>
+            <div>
+              <label style={S.label}>Project Funder *</label>
+              <input type="text" name="projectFunder" value={formData.projectFunder} onChange={(e) => handleInputChange('projectFunder', e.target.value)} style={getInputStyle('projectFunder', !!formData.projectFunder)} placeholder="Enter project funder" required />
+              {errors.projectFunder && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.projectFunder}</div>}
             </div>
+            <div>
+              <label style={S.label}>Lead Employer Partner *</label>
+              <input type="text" name="leadEmployerPartner" value={formData.leadEmployerPartner} onChange={(e) => handleInputChange('leadEmployerPartner', e.target.value)} style={getInputStyle('leadEmployerPartner', !!formData.leadEmployerPartner)} placeholder="Enter lead employer partner" required />
+              {errors.leadEmployerPartner && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.leadEmployerPartner}</div>}
+            </div>
+            <div>
+              <label style={S.label}>Budget Amount (ZAR) *</label>
+              <input type="number" name="budgetAmount" value={formData.budgetAmount} onChange={(e) => handleInputChange('budgetAmount', parseFloat(e.target.value) || 0)} style={getInputStyle('budgetAmount', formData.budgetAmount > 0)} min="0" step="0.01" placeholder="0.00" required />
+              {errors.budgetAmount && <div style={S.errorText}><i className="bi bi-exclamation-triangle-fill"></i> {errors.budgetAmount}</div>}
+            </div>
+          </div>
+
+        </div>{/* end Project Details section */}
+
+        {/* ── Resources Section ── */}
+        <div style={{ ...S.section, marginTop: 20 }}>
+          <h4 style={S.sectionTitle}>🛡️ Project Resources</h4>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+            {[
+              { id: 'hasPPE', label: 'PPE (Personal Protective Equipment)', checked: formData.hasPPE },
+              { id: 'hasLearningMaterial', label: 'Learning Material', checked: formData.hasLearningMaterial },
+              { id: 'hasToolkit', label: 'Toolkit', checked: formData.hasToolkit },
+              { id: 'hasConsumables', label: 'Consumables', checked: formData.hasConsumables },
+            ].map(({ id, label, checked }) => (
+              <label key={id} style={{
+                display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
+                background: checked ? 'rgba(16,185,129,0.12)' : '#0f172a',
+                border: `1px solid ${checked ? '#10b981' : '#334155'}`,
+                borderRadius: 8, padding: '8px 14px', color: checked ? '#34d399' : '#94a3b8',
+                fontSize: 13, fontWeight: 500, transition: 'all 0.15s',
+              }}>
+                <input
+                  type="checkbox"
+                  id={id}
+                  checked={checked}
+                  onChange={(e) => handleInputChange(id as keyof ProjectFormData, e.target.checked)}
+                  style={{ accentColor: '#10b981', width: 16, height: 16 }}
+                />
+                {label}
+              </label>
+            ))}
           </div>
         </div>
 
-        {/* Form Actions */}
-        <div className="d-flex justify-content-end gap-2 mt-4 pt-3 border-top">
-          <button
-            type="button"
-            className="btn btn-outline-secondary btn-lg px-4"
-            onClick={onCancel}
-            disabled={isSubmitting}
-          >
-            <i className="bi bi-x-circle me-2"></i>
-            Cancel
+        {/* ── Learning Pathways Section ── */}
+        <div style={{ ...S.section, marginTop: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <h4 style={{ ...S.sectionTitle, marginBottom: 0 }}>🎓 Learning Pathways & Qualifications *</h4>
+            <button
+              type="button"
+              onClick={addLearningPathway}
+              style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <i className="bi bi-plus-circle"></i> Add Learning Pathway
+            </button>
+          </div>
+
+          {formData.learningPathways.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: '#475569' }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>📚</div>
+              <p style={{ margin: 0, fontSize: 14 }}>No learning pathways added yet.</p>
+              <p style={{ margin: '4px 0 0', fontSize: 13, color: '#334155' }}>Click "Add Learning Pathway" to get started.</p>
+            </div>
+          ) : (
+            formData.learningPathways.map((pathway, pathwayIndex) => (
+              <div key={pathwayIndex} style={S.card}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <span style={{ color: '#10b981', fontWeight: 700, fontSize: 14 }}>Pathway {pathwayIndex + 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => removeLearningPathway(pathwayIndex)}
+                    style={{ background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid #ef4444', borderRadius: 6, padding: '4px 10px', fontSize: 13, cursor: 'pointer' }}
+                  >
+                    <i className="bi bi-trash"></i>
+                  </button>
+                </div>
+
+                <div style={{ marginBottom: 14 }}>
+                  <label style={S.label}>Select Learning Pathway</label>
+                  <select
+                    style={S.input}
+                    value={pathway.pathwayId}
+                    onChange={(e) => updateLearningPathway(pathwayIndex, parseInt(e.target.value))}
+                  >
+                    <option value="0">Select a learning pathway</option>
+                    {learningPathways.map(lp => (
+                      <option key={lp.pathwayId} value={lp.pathwayId}>{lp.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Qualifications */}
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <span style={{ color: '#94a3b8', fontSize: 13, fontWeight: 600 }}>Qualifications</span>
+                    <button
+                      type="button"
+                      onClick={() => addQualification(pathwayIndex)}
+                      disabled={pathway.pathwayId === 0}
+                      style={{ background: pathway.pathwayId === 0 ? '#1e293b' : 'rgba(16,185,129,0.12)', color: pathway.pathwayId === 0 ? '#475569' : '#10b981', border: `1px solid ${pathway.pathwayId === 0 ? '#334155' : '#10b981'}`, borderRadius: 6, padding: '4px 12px', fontSize: 12, cursor: pathway.pathwayId === 0 ? 'not-allowed' : 'pointer' }}
+                    >
+                      <i className="bi bi-plus"></i> Add Qualification
+                    </button>
+                  </div>
+
+                  {pathway.qualifications.length === 0 ? (
+                    <p style={{ color: '#475569', fontSize: 13, margin: 0 }}>No qualifications added yet.</p>
+                  ) : (
+                    pathway.qualifications.map((qualification, qualIndex) => (
+                      <div key={qualIndex} style={S.nestedCard}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                          <span style={{ color: '#94a3b8', fontSize: 12 }}>Qualification {qualIndex + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeQualification(pathwayIndex, qualIndex)}
+                            style={{ background: 'transparent', color: '#f87171', border: 'none', fontSize: 14, cursor: 'pointer', padding: '2px 6px' }}
+                          >
+                            <i className="bi bi-x-circle"></i>
+                          </button>
+                        </div>
+
+                        {/* Qualification fields */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+                          {/* Qualification Type */}
+                          <div>
+                            <label style={{ ...S.label, fontSize: 12 }}>Qualification Type</label>
+                            <select
+                              style={{ ...S.input, padding: '8px 10px', fontSize: 13 }}
+                              value={qualification.qualificationTypeId}
+                              onChange={(e) => updateQualification(pathwayIndex, qualIndex, 'qualificationTypeId', parseInt(e.target.value))}
+                            >
+                              <option value="0">Select type</option>
+                              {qualificationTypes.map(qt => (
+                                <option key={qt.id} value={qt.id}>{qt.name}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Type of Employment */}
+                          <div>
+                            <label style={{ ...S.label, fontSize: 12 }}>Type of Employment</label>
+                            <select
+                              style={{ ...S.input, padding: '8px 10px', fontSize: 13 }}
+                              value={qualification.employmentType || ''}
+                              onChange={(e) => updateQualification(pathwayIndex, qualIndex, 'employmentType', e.target.value)}
+                            >
+                              <option value="">Select employment type</option>
+                              <option value="18.1 Employed">18.1 Employed</option>
+                              <option value="18.2 Unemployed">18.2 Unemployed</option>
+                            </select>
+                          </div>
+
+                          {/* Beneficiaries */}
+                          <div>
+                            <label style={{ ...S.label, fontSize: 12 }}>Beneficiaries</label>
+                            <input
+                              type="number"
+                              style={{ ...S.input, padding: '8px 10px', fontSize: 13 }}
+                              value={qualification.numberOfBeneficiaries || 0}
+                              onChange={(e) => updateQualification(pathwayIndex, qualIndex, 'numberOfBeneficiaries', parseInt(e.target.value) || 0)}
+                              min="0"
+                              max="10000"
+                              placeholder="Number of beneficiaries"
+                            />
+                          </div>
+                        </div>{/* end 3-col qualification fields */}
+
+                        {/* Occupational Qualification */}
+                        {qualification.qualificationTypeId === 2 && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                              <label style={{ ...S.label, fontSize: 12, marginBottom: 0 }}>Occupational Qualification</label>
+                              <button
+                                type="button"
+                                onClick={() => setShowOccupationalQualificationModal(true)}
+                                style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid #10b981', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}
+                              >
+                                <i className="bi bi-plus"></i> Add New
+                              </button>
+                            </div>
+                            <input
+                              type="text"
+                              style={{ ...S.input, padding: '8px 10px', fontSize: 13, marginBottom: 8 }}
+                              placeholder="Search by name, ID, partner, or trade..."
+                              value={occupationalQualificationSearch}
+                              onChange={(e) => setOccupationalQualificationSearch(e.target.value)}
+                            />
+                            <select
+                              style={{ ...S.input, padding: '8px 10px', fontSize: 13 }}
+                              value={qualification.occupationalQualificationId || ''}
+                              onChange={(e) => updateQualification(pathwayIndex, qualIndex, 'occupationalQualificationId', e.target.value ? parseInt(e.target.value) : undefined)}
+                            >
+                              <option value="">Select occupational qualification</option>
+                              {filteredOccupationalQualifications.map(oq => (
+                                <option key={oq.qualificationId} value={oq.qualificationId}>
+                                  ID: {oq.qualificationId} - {oq.name} (Level {oq.level})
+                                </option>
+                              ))}
+                            </select>
+                            {filteredOccupationalQualifications.length === 0 && occupationalQualificationSearch && (
+                              <small style={{ color: '#64748b', fontSize: 12 }}>No qualifications match your search.</small>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Legacy Qualification */}
+                        {qualification.qualificationTypeId === 1 && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                              <label style={{ ...S.label, fontSize: 12, marginBottom: 0 }}>Legacy Qualification</label>
+                              <button type="button" onClick={() => setShowLegacyQualificationModal(true)} style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid #10b981', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}>
+                                <i className="bi bi-plus"></i> Add New
+                              </button>
+                            </div>
+                            <input type="text" style={{ ...S.input, padding: '8px 10px', fontSize: 13, marginBottom: 8 }} placeholder="Search by name, ID, field, or subfield..." value={legacyQualificationSearch} onChange={(e) => setLegacyQualificationSearch(e.target.value)} />
+                            <select style={{ ...S.input, padding: '8px 10px', fontSize: 13 }} value={qualification.legacyQualificationId || ''}
+                              onChange={(e) => {
+                                const selectedId = e.target.value ? parseInt(e.target.value) : undefined;
+                                updateQualification(pathwayIndex, qualIndex, 'legacyQualificationId', selectedId);
+                                if (selectedId) {
+                                  const selectedQual = filteredLegacyQualifications.find(lq => lq.id === selectedId);
+                                  if (selectedQual?.qualificationId) fetchLegacyUnitStandards(selectedQual.qualificationId);
+                                }
+                              }}
+                            >
+                              <option value="">Select legacy qualification</option>
+                              {filteredLegacyQualifications.map(lq => (<option key={lq.id} value={lq.id}>Qual ID: {lq.qualificationId} - {lq.name} (Level {lq.level})</option>))}
+                            </select>
+                            {filteredLegacyQualifications.length === 0 && legacyQualificationSearch && (<small style={{ color: '#64748b', fontSize: 12 }}>No qualifications match your search.</small>)}
+                          </div>
+                        )}
+
+                        {/* Selected Legacy Qualification Details */}
+                        {qualification.legacyQualificationId ? renderLegacyQualDetails(qualification.legacyQualificationId) : null}
+
+                        {/* Selected Occupational Qualification Details */}
+                        {qualification.occupationalQualificationId ? renderOccQualDetails(qualification.occupationalQualificationId) : null}
+
+                        {/* Occupational Unit Standards */}
+                        {qualification.occupationalQualificationId && (
+                          <div style={{ marginTop: 14 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                              <span style={{ color: '#94a3b8', fontSize: 12, fontWeight: 600 }}>Unit Standards — select multiple</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                {loadingUnitStandards[qualification.occupationalQualificationId] && (<div className="spinner-border spinner-border-sm" style={{ color: '#10b981', width: 14, height: 14 }} role="status"></div>)}
+                                <button type="button" onClick={() => { setCurrentQualificationIdForUnitStandard(qualification.occupationalQualificationId); setShowOccupationalUnitStandardModal(true); }} style={{ background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid #10b981', borderRadius: 6, padding: '3px 10px', fontSize: 12, cursor: 'pointer' }}>
+                                  <i className="bi bi-plus"></i> Add New
+                                </button>
+                              </div>
+                            </div>
+                            {renderOccUnitStandards(pathwayIndex, qualIndex, qualification.occupationalQualificationId, qualification.selectedUnitStandards || [])}
+                          </div>
+                        )}
+
+                        {/* Legacy Unit Standards */}
+                        {qualification.legacyQualificationId ? renderLegacyUnitStandardsSection(pathwayIndex, qualIndex, qualification.legacyQualificationId) : null}
+
+                      </div>{/* end nestedCard */}
+                    ))
+                  )}
+                </div>{/* end qualifications */}
+              </div>{/* end pathway card */}
+            ))
+          )}{/* end learningPathways.map */}
+
+          {errors.learningPathways && (
+            <div style={{ ...S.errorText, marginTop: 8 }}>
+              <i className="bi bi-exclamation-triangle-fill"></i> {errors.learningPathways}
+            </div>
+          )}
+        </div>{/* end Learning Pathways section */}
+
+        {/* ── Form Actions ── */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24, paddingTop: 20, borderTop: '1px solid #334155' }}>
+          <button type="button" onClick={onCancel} disabled={isSubmitting}
+            style={{ background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: 8, padding: '10px 24px', fontSize: 14, fontWeight: 600, cursor: isSubmitting ? 'not-allowed' : 'pointer' }}>
+            <i className="bi bi-x-circle me-2"></i>Cancel
           </button>
-          <button
-            type="submit"
-            className="btn btn-success btn-lg px-4"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                Creating Project...
-              </>
-            ) : (
-              <>
-                <i className="bi bi-check-circle me-2"></i>
-                Create Project
-              </>
-            )}
+          <button type="submit" disabled={isSubmitting}
+            style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '10px 28px', fontSize: 14, fontWeight: 700, cursor: isSubmitting ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, opacity: isSubmitting ? 0.7 : 1 }}>
+            {isSubmitting
+              ? <><span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating Project...</>
+              : <><i className="bi bi-check-circle"></i> Create Project</>}
           </button>
         </div>
       </form>
 
-      {/* Modal: Add Occupational Qualification */}
+      {/* ── Dark Modals ── */}
       {showOccupationalQualificationModal && (
-        <div className="modal show d-block" tabIndex={-1} style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Add Occupational Qualification</h5>
-                <button type="button" className="btn-close" onClick={() => setShowOccupationalQualificationModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Name</label>
-                  <input type="text" className="form-control" value={newOccupationalQualification.name} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, name: e.target.value})} />
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, width: '100%', maxWidth: 480, overflow: 'hidden' }}>
+            <div style={{ background: '#0f172a', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155' }}>
+              <h5 style={{ color: '#fff', margin: 0, fontSize: 16, fontWeight: 700 }}>Add Occupational Qualification</h5>
+              <button onClick={() => setShowOccupationalQualificationModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[{l:'Name',k:'name',t:'text'},{l:'Level',k:'level',t:'number'},{l:'Credits',k:'credits',t:'number'},{l:'Qualification Type',k:'qualificationType',t:'text'},{l:'Description',k:'description',t:'text'},{l:'Quality Partner',k:'qualityPartner',t:'text'},{l:'Trade',k:'trade',t:'text'}].map(({l,k,t}) => (
+                <div key={k}>
+                  <label style={S.label}>{l}</label>
+                  <input type={t} style={S.input} value={(newOccupationalQualification as Record<string,unknown>)[k] as string} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, [k]: t==='number'?(parseInt(e.target.value)||0):e.target.value})} />
                 </div>
-                <div className="mb-3">
-                  <label className="form-label">Level</label>
-                  <input type="number" className="form-control" value={newOccupationalQualification.level} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, level: parseInt(e.target.value) || 0})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Credits</label>
-                  <input type="number" className="form-control" value={newOccupationalQualification.credits} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, credits: parseInt(e.target.value) || 0})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Qualification Type</label>
-                  <input type="text" className="form-control" value={newOccupationalQualification.qualificationType} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, qualificationType: e.target.value})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Description</label>
-                  <input type="text" className="form-control" value={newOccupationalQualification.description} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, description: e.target.value})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Quality Partner</label>
-                  <input type="text" className="form-control" value={newOccupationalQualification.qualityPartner} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, qualityPartner: e.target.value})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Trade</label>
-                  <input type="text" className="form-control" value={newOccupationalQualification.trade} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, trade: e.target.value})} />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowOccupationalQualificationModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary" onClick={handleCreateOccupationalQualification}>Save</button>
-              </div>
+              ))}
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setShowOccupationalQualificationModal(false)} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: 8, padding: '8px 18px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleCreateOccupationalQualification} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Add Legacy Qualification */}
       {showLegacyQualificationModal && (
-        <div className="modal show d-block" tabIndex={-1} style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Add Legacy Qualification</h5>
-                <button type="button" className="btn-close" onClick={() => setShowLegacyQualificationModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Qualification ID</label>
-                  <input type="number" className="form-control" value={newLegacyQualification.qualificationId} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, qualificationId: parseInt(e.target.value) || 0})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Name</label>
-                  <input type="text" className="form-control" value={newLegacyQualification.name} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, name: e.target.value})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Description</label>
-                  <input type="text" className="form-control" value={newLegacyQualification.description} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, description: e.target.value})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Level</label>
-                  <input type="number" className="form-control" value={newLegacyQualification.level} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, level: parseInt(e.target.value) || 0})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Credits</label>
-                  <input type="number" className="form-control" value={newLegacyQualification.credits} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, credits: parseInt(e.target.value) || 0})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Qualification Type</label>
-                  <input type="text" className="form-control" value={newLegacyQualification.qualificationType} onChange={(e) => setNewLegacyQualification({...newLegacyQualification, qualificationType: e.target.value})} />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowLegacyQualificationModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary" onClick={handleCreateLegacyQualification}>Save</button>
-              </div>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, width: '100%', maxWidth: 480, overflow: 'hidden' }}>
+            <div style={{ background: '#0f172a', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155' }}>
+              <h5 style={{ color: '#fff', margin: 0, fontSize: 16, fontWeight: 700 }}>Add Legacy Qualification</h5>
+              <button onClick={() => setShowLegacyQualificationModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[{l:'Qualification ID',k:'qualificationId',t:'number'},{l:'Name',k:'name',t:'text'},{l:'Description',k:'description',t:'text'},{l:'Level',k:'level',t:'number'},{l:'Credits',k:'credits',t:'number'},{l:'Qualification Type',k:'qualificationType',t:'text'}].map(({l,k,t}) => (
+                <div key={k}><label style={S.label}>{l}</label><input type={t} style={S.input} value={(newLegacyQualification as Record<string,unknown>)[k] as string} onChange={(e) => setNewLegacyQualification({...newLegacyQualification,[k]:t==='number'?(parseInt(e.target.value)||0):e.target.value})} /></div>
+              ))}
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setShowLegacyQualificationModal(false)} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: 8, padding: '8px 18px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleCreateLegacyQualification} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Add Occupational Unit Standard */}
       {showOccupationalUnitStandardModal && (
-        <div className="modal show d-block" tabIndex={-1} style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Add Unit Standard</h5>
-                <button type="button" className="btn-close" onClick={() => setShowOccupationalUnitStandardModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Module Code</label>
-                  <input type="text" className="form-control" value={newOccupationalUnitStandard.moduleCode} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, moduleCode: e.target.value})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Unit Standard Name</label>
-                  <input type="text" className="form-control" value={newOccupationalUnitStandard.unitStandardName} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, unitStandardName: e.target.value})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Module Type</label>
-                  <input type="text" className="form-control" value={newOccupationalUnitStandard.moduleType} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, moduleType: e.target.value})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Level</label>
-                  <input type="number" className="form-control" value={newOccupationalUnitStandard.level} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, level: parseInt(e.target.value) || 0})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Credits</label>
-                  <input type="number" className="form-control" value={newOccupationalUnitStandard.credits} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, credits: parseInt(e.target.value) || 0})} />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowOccupationalUnitStandardModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary" onClick={handleCreateOccupationalUnitStandard}>Save</button>
-              </div>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, width: '100%', maxWidth: 480, overflow: 'hidden' }}>
+            <div style={{ background: '#0f172a', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155' }}>
+              <h5 style={{ color: '#fff', margin: 0, fontSize: 16, fontWeight: 700 }}>Add Unit Standard</h5>
+              <button onClick={() => setShowOccupationalUnitStandardModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[{l:'Module Code',k:'moduleCode',t:'text'},{l:'Unit Standard Name',k:'unitStandardName',t:'text'},{l:'Module Type',k:'moduleType',t:'text'},{l:'Level',k:'level',t:'number'},{l:'Credits',k:'credits',t:'number'}].map(({l,k,t}) => (
+                <div key={k}><label style={S.label}>{l}</label><input type={t} style={S.input} value={(newOccupationalUnitStandard as Record<string,unknown>)[k] as string} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard,[k]:t==='number'?(parseInt(e.target.value)||0):e.target.value})} /></div>
+              ))}
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setShowOccupationalUnitStandardModal(false)} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: 8, padding: '8px 18px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleCreateOccupationalUnitStandard} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Modal: Add Legacy Unit Standard */}
       {showLegacyUnitStandardModal && (
-        <div className="modal show d-block" tabIndex={-1} style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">Add Legacy Unit Standard</h5>
-                <button type="button" className="btn-close" onClick={() => setShowLegacyUnitStandardModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <label className="form-label">Unit Standard ID</label>
-                  <input type="number" className="form-control" value={newLegacyUnitStandard.unitStandardId} onChange={(e) => setNewLegacyUnitStandard({...newLegacyUnitStandard, unitStandardId: parseInt(e.target.value) || 0})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Unit Standard Name</label>
-                  <input type="text" className="form-control" value={newLegacyUnitStandard.unitStandardName} onChange={(e) => setNewLegacyUnitStandard({...newLegacyUnitStandard, unitStandardName: e.target.value})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Level</label>
-                  <input type="number" className="form-control" value={newLegacyUnitStandard.level} onChange={(e) => setNewLegacyUnitStandard({...newLegacyUnitStandard, level: parseInt(e.target.value) || 0})} />
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Credits</label>
-                  <input type="number" className="form-control" value={newLegacyUnitStandard.credits} onChange={(e) => setNewLegacyUnitStandard({...newLegacyUnitStandard, credits: parseInt(e.target.value) || 0})} />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowLegacyUnitStandardModal(false)}>Cancel</button>
-                <button type="button" className="btn btn-primary" onClick={handleCreateLegacyUnitStandard}>Save</button>
-              </div>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', zIndex: 1050, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 12, width: '100%', maxWidth: 480, overflow: 'hidden' }}>
+            <div style={{ background: '#0f172a', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155' }}>
+              <h5 style={{ color: '#fff', margin: 0, fontSize: 16, fontWeight: 700 }}>Add Legacy Unit Standard</h5>
+              <button onClick={() => setShowLegacyUnitStandardModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[{l:'Unit Standard ID',k:'unitStandardId',t:'number'},{l:'Unit Standard Name',k:'unitStandardName',t:'text'},{l:'Level',k:'level',t:'number'},{l:'Credits',k:'credits',t:'number'}].map(({l,k,t}) => (
+                <div key={k}><label style={S.label}>{l}</label><input type={t} style={S.input} value={(newLegacyUnitStandard as Record<string,unknown>)[k] as string} onChange={(e) => setNewLegacyUnitStandard({...newLegacyUnitStandard,[k]:t==='number'?(parseInt(e.target.value)||0):e.target.value})} /></div>
+              ))}
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setShowLegacyUnitStandardModal(false)} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: 8, padding: '8px 18px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleCreateLegacyUnitStandard} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Save</button>
             </div>
           </div>
         </div>
