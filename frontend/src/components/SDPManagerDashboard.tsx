@@ -5049,12 +5049,13 @@ const SDPManagerDashboard: React.FC = () => {
     return (
     <div>
       <div className="card border-0 shadow-lg mb-4" style={{
-        backgroundColor: "#4facfe",
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+        borderRadius: 16,
         color: "#ffffff"
       }}>
         <div className="card-body text-center text-white py-4">
-          <h2 className="mb-2">📋 Projects Overview</h2>
-          <p className="mb-0 opacity-75">Monitor and track project progress</p>
+          <h2 className="mb-2" style={{ fontWeight: 700, fontSize: '1.8rem' }}>📋 Projects Overview</h2>
+          <p className="mb-0 opacity-75" style={{ fontSize: '1rem' }}>Monitor and track project progress</p>
         </div>
       </div>
       
@@ -5069,7 +5070,8 @@ const SDPManagerDashboard: React.FC = () => {
               return (
               <div key={project.id} className="col-12">
                 <div className="card border-0 shadow-lg" style={{
-                  backgroundColor: "#4facfe",
+                  background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+                  borderRadius: 16,
                   color: "#ffffff"
                 }}>
                   <div className="card-body text-white">
@@ -5102,6 +5104,7 @@ const SDPManagerDashboard: React.FC = () => {
                         <button
                           className="btn btn-light btn-sm"
                           onClick={() => toggleProjectExpansion(project.id)}
+                          style={{ fontWeight: 600, borderRadius: 10, padding: '6px 16px' }}
                         >
                           {isExpanded ? '▼ Hide Details' : '▶ Show Details'}
                         </button>
