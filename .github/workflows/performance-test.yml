@@ -1,0 +1,70 @@
+name: Performance & Load Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      test_type:
+        description: 'Test type'
+        required: true
+        default: 'load'
+        type: choice
+        options:
+          - load
+          - stress
+      target_url:
+        description: 'Target URL (leave empty for production)'
+        required: false
+        type: string
+
+jobs:
+  k6-load-test:
+    name: k6 Performance Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run Load Test
+        if: github.event.inputs.test_type == 'load'
+        env:
+          API_URL: ${{ github.event.inputs.target_url || 'https://nbsnprojects-production.up.railway.app' }}
+        run: |
+          k6 run --out json=load-test-results.json k6/load-test.js
+
+      - name: Run Stress Test
+        if: github.event.inputs.test_type == 'stress'
+        env:
+          API_URL: ${{ github.event.inputs.target_url || 'https://nbsnprojects-production.up.railway.app' }}
+        run: |
+          k6 run --out json=stress-test-results.json k6/stress-test.js
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-test-results
+          path: |
+            *-test-results.json
+          retention-days: 30
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const results = fs.readFileSync('load-test-results.json', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 📊 Performance Test Results\n\`\`\`json\n${results}\n\`\`\``
+            });
