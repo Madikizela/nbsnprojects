@@ -2215,22 +2215,24 @@ const SDPDashboard: React.FC = () => {
   const renderBudgetManagement = () => (
     <div>
       <div className="card border-0 shadow-lg mb-4" style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+        borderRadius: 16,
         backdropFilter: 'blur(10px)'
       }}>
         <div className="card-body text-center text-white py-4">
-          <h2 className="mb-2">💰 Budget Management</h2>
-          <p className="mb-0 opacity-75">Manage project budget allocations and track spending</p>
+          <h2 className="mb-2" style={{ fontWeight: 700, fontSize: '1.8rem' }}>💰 Budget Management</h2>
+          <p className="mb-0 opacity-75" style={{ fontSize: '1rem' }}>Manage project budget allocations and track spending</p>
         </div>
       </div>
 
       {/* Project Selection */}
       <div className="card border-0 shadow-lg mb-4" style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+        borderRadius: 16,
         backdropFilter: 'blur(10px)'
       }}>
         <div className="card-body text-white">
-          <h5 className="mb-3">Select Project</h5>
+          <h5 className="mb-3" style={{ fontWeight: 600 }}>Select Project</h5>
           <div className="row g-3">
             <div className="col-md-8">
               <select
@@ -2403,7 +2405,8 @@ const SDPDashboard: React.FC = () => {
       {/* Per-Learner Cost Settings */}
       {selectedProject && (
         <div className="card border-0 shadow-lg mb-4" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+          borderRadius: 16,
           backdropFilter: 'blur(10px)'
         }}>
           <div className="card-header border-0 text-white" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
@@ -2689,7 +2692,8 @@ const SDPDashboard: React.FC = () => {
           {/* Phase Budget Line Items */}
           {activePhase && projectBudget.phases.length > 0 && (
             <div className="card border-0 shadow-lg mb-4" style={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+              borderRadius: 16,
               backdropFilter: 'blur(10px)'
             }}>
               <div className="card-header border-0 text-white" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
@@ -2777,7 +2781,8 @@ const SDPDashboard: React.FC = () => {
 
           {/* Add New Line Item */}
           <div className="card border-0 shadow-lg" style={{
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+            borderRadius: 16,
             backdropFilter: 'blur(10px)'
           }}>
             <div className="card-header border-0 text-white" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
@@ -2847,7 +2852,8 @@ const SDPDashboard: React.FC = () => {
 
       {!selectedProject && (
         <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+          borderRadius: 16,
           backdropFilter: 'blur(10px)'
         }}>
           <div className="card-body text-center text-white py-5">
