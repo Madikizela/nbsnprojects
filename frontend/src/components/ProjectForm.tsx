@@ -1103,7 +1103,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
             </div>
           </div>
 
-        </div>{/* end Project Details section */}
+        </div>
 
         {/* ── Resources Section ── */}
         <div style={{ ...S.section, marginTop: 20 }}>
@@ -1256,7 +1256,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
                               placeholder="Number of beneficiaries"
                             />
                           </div>
-                        </div>{/* end 3-col qualification fields */}
+                        </div>
 
                         {/* Occupational Qualification */}
                         {qualification.qualificationTypeId === 2 && (
@@ -1351,17 +1351,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
                       </div>
                     ))
                   )}
-                </div>{/* end qualifications */}
-              </div>{/* end pathway card */}
+                </div>
+              </div>
             ))
-          )}{/* end learningPathways.map */}
+          )}
 
           {errors.learningPathways && (
             <div style={{ ...S.errorText, marginTop: 8 }}>
               <i className="bi bi-exclamation-triangle-fill"></i> {errors.learningPathways}
             </div>
           )}
-        </div>{/* end Learning Pathways section */}
+        </div>
 
         {/* ── Form Actions ── */}
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 24, paddingTop: 20, borderTop: '1px solid #334155' }}>
