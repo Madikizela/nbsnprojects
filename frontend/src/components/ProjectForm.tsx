@@ -1348,7 +1348,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
                         {/* Legacy Unit Standards */}
                         {qualification.legacyQualificationId ? renderLegacyUnitStandardsSection(pathwayIndex, qualIndex, qualification.legacyQualificationId) : null}
 
-                      </div>{/* end nestedCard */}
+                      </div>
                     ))
                   )}
                 </div>{/* end qualifications */}
