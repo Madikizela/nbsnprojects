@@ -1787,8 +1787,6 @@ const SDPDashboard: React.FC = () => {
                   className="btn btn-outline-light"
                   style={{ fontWeight: 600, borderRadius: 10, padding: '8px 20px' }}
                 >
-                  className="btn btn-outline-light"
-                >
                   Cancel
                 </button>
               </div>
