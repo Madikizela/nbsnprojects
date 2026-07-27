@@ -4432,7 +4432,7 @@ const SDPManagerDashboard: React.FC = () => {
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center min-vh-100">
-        <div className="spinner-border text-primary" role="status">
+        <div className="spinner-border text-info" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
       </div>
@@ -4804,7 +4804,7 @@ const SDPManagerDashboard: React.FC = () => {
                           return (
                             <div className="bg-white p-3 border rounded shadow-sm">
                               <p className="fw-bold mb-1">{label}</p>
-                              <p className="text-primary mb-0">Compliance: {data.compliance.toFixed(1)}%</p>
+                              <p className="text-info mb-0">Compliance: {data.compliance.toFixed(1)}%</p>
                               <p className="text-success mb-0">Submitted: {data.submitted}</p>
                               <p className="text-danger mb-0">Missing: {data.missing}</p>
                               <p className="text-muted small mb-0">Total Expected: {data.expected}</p>
@@ -4864,7 +4864,7 @@ const SDPManagerDashboard: React.FC = () => {
             <div className="card-body">
               {attendanceLoading ? (
                 <div className="text-center py-3">
-                  <div className="spinner-border text-primary" role="status">
+                  <div className="spinner-border text-info" role="status">
                     <span className="visually-hidden">Loading...</span>
                   </div>
                   <p className="mt-2 mb-0">Loading attendance data...</p>
@@ -4875,7 +4875,7 @@ const SDPManagerDashboard: React.FC = () => {
                     <div key={project.projectId} className="col-md-6 col-lg-4">
                       <div className="card h-100 border-0" style={{ backgroundColor: '#f8f9fa' }}>
                         <div className="card-body">
-                          <h6 className="card-title text-primary mb-3">
+                          <h6 className="card-title text-info mb-3">
                             {project.projectName}
                           </h6>
                           <div className="row text-center">
@@ -6235,7 +6235,7 @@ const SDPManagerDashboard: React.FC = () => {
                           </p>
                           <div className="d-flex justify-content-between align-items-center">
                             <small className="text-muted">Click to manage tasks</small>
-                            <i className="fas fa-arrow-right text-primary"></i>
+                            <i className="fas fa-arrow-right text-info"></i>
                           </div>
                         </div>
                       </div>
@@ -6277,7 +6277,7 @@ const SDPManagerDashboard: React.FC = () => {
               <div className="card-body">
                 <div className="row g-3 text-center">
                   <div className="col-md-2">
-                    <div className="text-primary">
+                    <div className="text-info">
                       <strong>{taskSummary.totalTasks}</strong>
                       <small className="d-block text-muted">Total</small>
                     </div>
@@ -6321,7 +6321,7 @@ const SDPManagerDashboard: React.FC = () => {
           {tasksLoading ? (
             <div className="card border-0 shadow-lg">
               <div className="card-body text-center py-5">
-                <div className="spinner-border text-primary" role="status">
+                <div className="spinner-border text-info" role="status">
                   <span className="visually-hidden">Loading...</span>
                 </div>
                 <p className="mt-2 mb-0">Loading tasks...</p>
@@ -6655,7 +6655,7 @@ const SDPManagerDashboard: React.FC = () => {
       <div className="card-body p-0">
         {sickNotesLoading ? (
           <div className="text-center py-5">
-            <div className="spinner-border text-primary" role="status">
+            <div className="spinner-border text-info" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
             <p className="mt-2 text-muted">Fetching sick notes...</p>
@@ -6833,7 +6833,7 @@ const SDPManagerDashboard: React.FC = () => {
           <div className="card-body">
             {attendanceLoading ? (
               <div className="text-center py-5">
-                <div className="spinner-border text-primary" role="status">
+                <div className="spinner-border text-info" role="status">
                   <span className="visually-hidden">Loading...</span>
                 </div>
                 <p className="mt-2 mb-0">Loading projects...</p>
@@ -6861,7 +6861,7 @@ const SDPManagerDashboard: React.FC = () => {
                       }}
                     >
                       <div className="card-body">
-                        <h6 className="card-title text-primary mb-3">{project.projectName}</h6>
+                        <h6 className="card-title text-info mb-3">{project.projectName}</h6>
                         <div className="row g-2 text-center">
                           <div className="col-6">
                             <div className="text-success">
@@ -6987,7 +6987,7 @@ const SDPManagerDashboard: React.FC = () => {
                 <div className="row g-4 mb-4">
                   <div className="col-md-3">
                     <div className="text-center">
-                      <div className="h2 mb-1 text-primary">{attendanceStats.totalLearners}</div>
+                      <div className="h2 mb-1 text-info">{attendanceStats.totalLearners}</div>
                       <small className="text-muted">Total Learners</small>
                     </div>
                   </div>
@@ -7293,7 +7293,7 @@ const SDPManagerDashboard: React.FC = () => {
                                   </div>
                                 </div>
                                 <div className="col-3">
-                                  <div className="text-primary">
+                                  <div className="text-info">
                                     <strong>{learner.attendanceRate}%</strong>
                                     <small className="d-block text-muted">Rate</small>
                                   </div>
@@ -7412,7 +7412,7 @@ const SDPManagerDashboard: React.FC = () => {
                 <div className="row g-4 mb-4">
                   <div className="col-md-3">
                     <div className="text-center">
-                      <div className="h4 text-primary">{attendanceReport.summary.overallAttendanceRate}%</div>
+                      <div className="h4 text-info">{attendanceReport.summary.overallAttendanceRate}%</div>
                       <small className="text-muted">Overall Rate</small>
                     </div>
                   </div>
@@ -7516,7 +7516,7 @@ const SDPManagerDashboard: React.FC = () => {
               <span style={{ fontSize: '1.2rem' }}>←</span> Back to Unit Standards
             </button>
             <div className="text-center">
-              <h3 className="mb-0 fw-bold text-primary">Assessment Planning</h3>
+              <h3 className="mb-0 fw-bold text-info">Assessment Planning</h3>
               <p className="text-muted small mb-0">Prepare your assessment strategy for the selected unit standard</p>
             </div>
             <button 
@@ -8013,7 +8013,7 @@ const SDPManagerDashboard: React.FC = () => {
                         >
                           <div className="card-body d-flex flex-column">
                             <div className="d-flex justify-content-between align-items-start mb-2">
-                              <span className={`badge ${hasStrategy ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary'} px-2 py-1`}>
+                              <span className={`badge ${hasStrategy ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-info'} px-2 py-1`}>
                                 US ID: {us.unitStandardId || 'N/A'}
                               </span>
                               <span className="badge bg-info-subtle text-info px-2 py-1">L{us.level}</span>
@@ -8083,7 +8083,7 @@ const SDPManagerDashboard: React.FC = () => {
               <span style={{ fontSize: '1.2rem' }}>←</span> Back to Unit Standards
             </button>
             <div className="text-center">
-              <h3 className="mb-0 fw-bold text-primary">Candidate Assessment Preparation</h3>
+              <h3 className="mb-0 fw-bold text-info">Candidate Assessment Preparation</h3>
               <p className="text-muted small mb-0">{isReadOnly ? 'View preparation record' : 'Prepare candidates for their upcoming assessment'}</p>
             </div>
             {!isReadOnly && (
@@ -8435,7 +8435,7 @@ const SDPManagerDashboard: React.FC = () => {
                         >
                           <div className="card-body d-flex flex-column">
                             <div className="d-flex justify-content-between align-items-start mb-2">
-                              <span className={`badge ${hasPrep ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary'} px-2 py-1`}>
+                              <span className={`badge ${hasPrep ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-info'} px-2 py-1`}>
                                 US ID: {us.unitStandardId || 'N/A'}
                               </span>
                               <span className="badge bg-info-subtle text-info px-2 py-1">L{us.level}</span>
@@ -8933,7 +8933,7 @@ const SDPManagerDashboard: React.FC = () => {
               <div className="card-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
                 {(markingProjectDetails?.learningPathways || []).map((pathway: any, pIndex: number) => (
                   <div key={pIndex} className="mb-4">
-                    <h6 className="fw-bold text-primary mb-3 pb-2 border-bottom">
+                    <h6 className="fw-bold text-info mb-3 pb-2 border-bottom">
                       {pathway.pathway?.name || 'Learning Pathway'}
                     </h6>
                     <div className="row g-3">
@@ -9054,7 +9054,7 @@ const SDPManagerDashboard: React.FC = () => {
                                                 <div className="d-flex flex-wrap gap-2">
                                                   {loadingAssessments[us.id] ? (
                                                     <div className="w-100 text-center py-2">
-                                                      <div className="spinner-border spinner-border-sm text-primary" role="status"></div>
+                                                      <div className="spinner-border spinner-border-sm text-info" role="status"></div>
                                                     </div>
                                                   ) : (
                                                     <>
@@ -9228,7 +9228,7 @@ const SDPManagerDashboard: React.FC = () => {
                 <div className="row g-4">
                   <div className="col-12 col-lg-5">
                     <h6 className="fw-bold mb-3 d-flex align-items-center">
-                      <i className="fas fa-edit me-2 text-primary"></i>
+                      <i className="fas fa-edit me-2 text-info"></i>
                       Questions and Marking
                     </h6>
                     <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '5px' }}>
@@ -9307,7 +9307,7 @@ const SDPManagerDashboard: React.FC = () => {
                                   
                                   {/* Assessor Marking Section */}
                                   <div className={`p-3 rounded mb-3 ${activeSection === 'marking' ? (isMarked ? 'bg-success bg-opacity-10 border-success' : (hasScript ? 'bg-light border-primary' : 'bg-light border-warning opacity-75')) : 'bg-light border'} border-start border-4`}>
-                                    <div className={`fw-bold small ${isMarked || activeSection === 'moderation' ? 'text-success' : 'text-primary'} mb-2`}>ASSESSOR SECTION</div>
+                                    <div className={`fw-bold small ${isMarked || activeSection === 'moderation' ? 'text-success' : 'text-info'} mb-2`}>ASSESSOR SECTION</div>
                                     <div className="form-floating mb-2">
                                       <input
                                         className={`form-control ${activeSection === 'moderation' ? 'bg-light' : ''}`}
@@ -9357,7 +9357,7 @@ const SDPManagerDashboard: React.FC = () => {
                                         <div className="fw-bold small text-success text-uppercase tracking-wider">MODERATOR SECTION</div>
                                         {answer && (
                                           <span className={`badge border ${answer.mark > q.allocatedMarks ? 'bg-danger text-white' : 'bg-light text-dark'}`}>
-                                            Assessor Mark: <strong className={answer.mark > q.allocatedMarks ? 'text-white' : 'text-primary'}>{answer.mark}</strong> / {q.allocatedMarks}
+                                            Assessor Mark: <strong className={answer.mark > q.allocatedMarks ? 'text-white' : 'text-info'}>{answer.mark}</strong> / {q.allocatedMarks}
                                             {answer.mark > q.allocatedMarks && <i className="fas fa-exclamation-triangle ms-2" title="Mark exceeds maximum!"></i>}
                                           </span>
                                         )}
@@ -9528,7 +9528,7 @@ const SDPManagerDashboard: React.FC = () => {
                   
                   <div className="col-12 col-lg-7">
                     <h6 className="fw-bold mb-3 d-flex align-items-center">
-                      <i className="fas fa-eye me-2 text-primary"></i>
+                      <i className="fas fa-eye me-2 text-info"></i>
                       Learner Upload View
                     </h6>
                     <div className="card border-0 shadow-none bg-light h-100">
@@ -9713,7 +9713,7 @@ const SDPManagerDashboard: React.FC = () => {
             
             {documentApprovalsLoading ? (
               <div className="text-center py-5">
-                <div className="spinner-border text-primary" role="status">
+                <div className="spinner-border text-info" role="status">
                   <span className="visually-hidden">Loading...</span>
                 </div>
                 <p className="mt-2 mb-0">Loading projects...</p>
@@ -9752,7 +9752,7 @@ const SDPManagerDashboard: React.FC = () => {
                       }}
                     >
                       <div className="card-body">
-                        <h6 className="card-title text-primary">{project.projectName}</h6>
+                        <h6 className="card-title text-info">{project.projectName}</h6>
                         <div className="row g-2 text-center">
                           <div className="col-6">
                             <div className="small text-muted">Total</div>
@@ -9834,7 +9834,7 @@ const SDPManagerDashboard: React.FC = () => {
             
             {documentApprovalsLoading ? (
               <div className="text-center py-5">
-                <div className="spinner-border text-primary" role="status">
+                <div className="spinner-border text-info" role="status">
                   <span className="visually-hidden">Loading...</span>
                 </div>
                 <p className="mt-2 mb-0">Loading learner documents...</p>
@@ -11136,19 +11136,19 @@ const SDPManagerDashboard: React.FC = () => {
       {showAddSiteModal && (
         <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
           <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div className="modal-content bg-dark text-light">
-              <div className="modal-header border-secondary">
+            <div className="modal-content" style={{ background: '#1e293b', color: '#fff' }}>
+              <div className="modal-header border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: '0', padding: '20px 24px' }}>
                 <div>
-                  <h5 className="modal-title">🏢 Site Information</h5>
-                  <small className="text-muted">Please fill in the details below to add a new site</small>
+                  <h5 className="modal-title" style={{ fontWeight: 700, fontSize: '1.3rem', color: '#fff' }}>🏢 Site Information</h5>
+                  <small style={{ color: 'rgba(255,255,255,0.8)' }}>Please fill in the details below to add a new site</small>
                 </div>
                 <button type="button" className="btn-close btn-close-white" onClick={() => setShowAddSiteModal(false)}></button>
               </div>
               <form onSubmit={handleAddSite}>
-                <div className="modal-body" style={{maxHeight: '70vh', overflowY: 'auto'}}>
+                <div className="modal-body" style={{maxHeight: '70vh', overflowY: 'auto', padding: '24px'}}>
                   {/* Basic Site Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">📋 Basic Site Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Basic Site Information</h6>
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label">Site Name *</label>
@@ -11190,7 +11190,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                   {/* Coordinates */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">📍 Coordinates</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Coordinates</h6>
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label">Latitude</label>
@@ -11217,7 +11217,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                   {/* Contact Person Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">👤 Contact Person Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>👤 Contact Person Information</h6>
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label">First Name</label>
@@ -11264,7 +11264,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                   {/* Location Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">📍 Location Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Location Information</h6>
                     <div className="row g-3">
                       <div className="col-md-12">
                         <label className="form-label">Province</label>
@@ -11318,9 +11318,9 @@ const SDPManagerDashboard: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="modal-footer border-secondary">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowAddSiteModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                <div className="modal-footer border-0" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '16px 24px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setShowAddSiteModal(false)} style={{ borderRadius: 10, fontWeight: 600 }}>Cancel</button>
+                  <button type="submit" className="btn" disabled={isSubmitting} style={{ background: 'linear-gradient(135deg, #0d9488, #06b6d4)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, padding: '8px 20px' }}>
                     {isSubmitting ? (
                       <>
                         <span className="spinner-border spinner-border-sm me-2" role="status"></span>
@@ -11353,7 +11353,7 @@ const SDPManagerDashboard: React.FC = () => {
                 <div className="modal-body" style={{maxHeight: '70vh', overflowY: 'auto'}}>
                   {/* Basic Site Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">📋 Basic Site Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Basic Site Information</h6>
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label">Site Name *</label>
@@ -11395,7 +11395,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                   {/* Coordinates */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">📍 Coordinates</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Coordinates</h6>
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label">Latitude</label>
@@ -11422,7 +11422,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                   {/* Contact Person Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">👤 Contact Person Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>👤 Contact Person Information</h6>
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label">First Name</label>
@@ -11469,7 +11469,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                   {/* Location Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">📍 Location Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Location Information</h6>
                     <div className="row g-3">
                       <div className="col-md-12">
                         <label className="form-label">Province</label>
@@ -11558,7 +11558,7 @@ const SDPManagerDashboard: React.FC = () => {
                 <div className="modal-body">
                   {/* Basic Class Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">📋 Basic Class Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Basic Class Information</h6>
                     <div className="mb-3">
                       <label className="form-label">Class Name *</label>
                       <input 
@@ -11623,7 +11623,7 @@ const SDPManagerDashboard: React.FC = () => {
                 <div className="modal-body" style={{maxHeight: '70vh', overflowY: 'auto'}}>
                   {/* Personal Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">📋 Personal Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Personal Information</h6>
                     <div className="row g-3">
                       <div className="col-md-2">
                         <label className="form-label">Title *</label>
@@ -11810,7 +11810,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                   {/* Address Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">📍 Address Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Address Information</h6>
                     <div className="row g-3">
                       <div className="col-12">
                         <label className="form-label">Address Line 1</label>
@@ -11864,7 +11864,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                   {/* Education Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">🎓 Education Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>🎓 Education Information</h6>
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label">High School Name</label>
@@ -11918,7 +11918,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                   {/* Next of Kin Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">👤 Next of Kin Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>👤 Next of Kin Information</h6>
                     <div className="row g-3">
                       <div className="col-md-4">
                         <label className="form-label">Name</label>
@@ -11960,7 +11960,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                   {/* Bank Information */}
                   <div className="mb-4">
-                    <h6 className="text-primary mb-3">🏦 Bank Information</h6>
+                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>🏦 Bank Information</h6>
                     <div className="row g-3">
                       <div className="col-md-6">
                         <label className="form-label">Bank Name</label>
@@ -12090,7 +12090,7 @@ const SDPManagerDashboard: React.FC = () => {
                     <form onSubmit={handleUpdateLearner}>
                       {/* Personal Information */}
                       <div className="mb-4">
-                        <h6 className="text-primary mb-3">📋 Personal Information</h6>
+                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Personal Information</h6>
                         
                         {/* Profile Image */}
                         <div className="row mb-4">
@@ -12283,7 +12283,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                       {/* Address Information */}
                       <div className="mb-4">
-                        <h6 className="text-primary mb-3">📍 Address Information</h6>
+                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Address Information</h6>
                         <div className="row g-3">
                           <div className="col-12">
                             <label className="form-label">Address Line 1</label>
@@ -12328,7 +12328,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                       {/* Education Information */}
                       <div className="mb-4">
-                        <h6 className="text-primary mb-3">🎓 Education Information</h6>
+                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>🎓 Education Information</h6>
                         <div className="row g-3">
                           <div className="col-md-6">
                             <label className="form-label">High School Name</label>
@@ -12373,7 +12373,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                       {/* Next of Kin Information */}
                       <div className="mb-4">
-                        <h6 className="text-primary mb-3">👤 Next of Kin Information</h6>
+                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>👤 Next of Kin Information</h6>
                         <div className="row g-3">
                           <div className="col-md-4">
                             <label className="form-label">Name</label>
@@ -12409,7 +12409,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                       {/* Bank Information */}
                       <div className="mb-4">
-                        <h6 className="text-primary mb-3">🏦 Bank Information</h6>
+                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>🏦 Bank Information</h6>
                         <div className="row g-3">
                           <div className="col-md-6">
                             <label className="form-label">Bank Name</label>
@@ -12489,7 +12489,7 @@ const SDPManagerDashboard: React.FC = () => {
                       {/* Documents Tab */}
                       {!isLogistics && (
                         <div className="mb-4">
-                        <h6 className="text-primary mb-3">📄 Upload Document</h6>
+                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📄 Upload Document</h6>
                         <form onSubmit={handleUploadDocument}>
                           <div className="row g-3">
                             <div className="col-md-6">
@@ -12567,7 +12567,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                       {/* Documents List */}
                       <div>
-                        <h6 className="text-primary mb-3">📋 Uploaded Documents</h6>
+                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Uploaded Documents</h6>
                         {learnerDocuments.length > 0 ? (
                           <div className="list-group">
                             {learnerDocuments.map((doc) => (
@@ -12803,7 +12803,7 @@ const SDPManagerDashboard: React.FC = () => {
                   {previewLoading ? (
                     <div className="d-flex justify-content-center align-items-center h-100">
                       <div className="text-center">
-                        <div className="spinner-border text-primary mb-3" role="status">
+                        <div className="spinner-border text-info mb-3" role="status">
                           <span className="visually-hidden">Loading...</span>
                         </div>
                         <p>Loading document...</p>
@@ -12855,7 +12855,7 @@ const SDPManagerDashboard: React.FC = () => {
                 <div className="border-start bg-light" style={{ width: '350px', minWidth: '350px' }}>
                   <div className="p-4">
                     <h6 className="fw-bold mb-3">
-                      <i className="fas fa-clipboard-check me-2 text-primary"></i>
+                      <i className="fas fa-clipboard-check me-2 text-info"></i>
                       Document Information
                     </h6>
                     
@@ -12931,7 +12931,7 @@ const SDPManagerDashboard: React.FC = () => {
                     {/* Approval Actions - Only show for pending documents */}
                     {selectedDocumentForView.approvalStatus === 'Pending' && (
                       <div className="mt-4">
-                        <h6 className="fw-bold mb-3 text-primary">
+                        <h6 className="fw-bold mb-3 text-info">
                           <i className="fas fa-gavel me-2"></i>
                           Make Decision
                         </h6>
@@ -13092,7 +13092,7 @@ const SDPManagerDashboard: React.FC = () => {
               <div className="modal-body p-2" style={{ overflowY: 'auto', flex: 1 }}>
                 {calendarLoading ? (
                   <div className="text-center py-5">
-                    <div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div>
+                    <div className="spinner-border text-info" role="status"><span className="visually-hidden">Loading...</span></div>
                     <p className="mt-3">Loading attendance calendar...</p>
                   </div>
                 ) : calendarData ? (
@@ -13214,7 +13214,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                       {/* Project Details */}
                       <div className="mb-2">
-                        <div className="fw-bold text-primary mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Project Details</div>
+                        <div className="fw-bold text-info mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Project Details</div>
                         {[['Pathway', calendarData.pathway],['Province', calendarData.province],['Project', calendarData.projectName],['Site', calendarData.siteName]].map(([lbl,val]) => (
                           <div key={lbl} className="d-flex justify-content-between mb-1">
                             <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{lbl}:</span>
@@ -13225,7 +13225,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                       {/* Class & Teacher Details */}
                       <div className="mb-2 pt-1" style={{ borderTop: '1px solid #334155' }}>
-                        <div className="fw-bold text-primary mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Class & Facilitator</div>
+                        <div className="fw-bold text-info mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Class & Facilitator</div>
                         {[['Class', calendarData.className],['Facilitator', calendarData.teacherName],['Email', calendarData.teacherEmail]].map(([lbl,val]) => (
                           <div key={lbl} className="d-flex justify-content-between mb-1">
                             <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{lbl}:</span>
@@ -13236,7 +13236,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                       {/* Learner Details */}
                       <div className="mb-2 pt-1" style={{ borderTop: '1px solid #334155' }}>
-                        <div className="fw-bold text-primary mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Learner</div>
+                        <div className="fw-bold text-info mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Learner</div>
                         {[['ID', calendarData.idNumber],['Gender', calendarData.gender],['Phone', calendarData.telephone]].map(([lbl,val]) => (
                           <div key={lbl} className="d-flex justify-content-between mb-1">
                             <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{lbl}:</span>
@@ -13251,7 +13251,7 @@ const SDPManagerDashboard: React.FC = () => {
 
                       {/* Attendance Statistics */}
                       <div className="pt-1" style={{ borderTop: '1px solid #334155' }}>
-                        <div className="fw-bold text-primary mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Attendance Statistics</div>
+                        <div className="fw-bold text-info mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Attendance Statistics</div>
                         <div className="row g-1">
                           {[
                             ['Expected', calendarData.expectedAttendance ?? 0, '#06b6d4'],
@@ -13338,4 +13338,6 @@ const SDPManagerDashboard: React.FC = () => {
 };
 
 export default SDPManagerDashboard;
+
+
 
