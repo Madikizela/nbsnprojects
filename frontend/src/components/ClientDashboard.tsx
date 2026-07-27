@@ -792,7 +792,6 @@ const ClientDashboard: React.FC = () => {
               </div>
             </div>
           </form>
-        </div>
       </div>
     </div>
   );
