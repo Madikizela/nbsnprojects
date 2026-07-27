@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc -b",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings=999",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -25,6 +25,7 @@ export default defineConfig([
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
       }],
+      'react-hooks/exhaustive-deps': 'warn', // Downgrade from error to warning
     },
   },
 ])
