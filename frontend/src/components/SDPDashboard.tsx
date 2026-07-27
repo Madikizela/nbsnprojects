@@ -1190,20 +1190,23 @@ const SDPDashboard: React.FC = () => {
     <div className="row justify-content-center">
       <div className="col-lg-10">
         <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+          borderRadius: 16,
           backdropFilter: 'blur(10px)'
         }}>
-          <div className="card-header border-0 text-white d-flex justify-content-between align-items-center" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
-            <h3 className="mb-0">✏️ Update Project</h3>
-            {selectedProject && (
-              <small className="opacity-75">Project ID: {selectedProject.id}</small>
-            )}
+          <div className="card-header border-0 text-white d-flex justify-content-between align-items-center" style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px 16px 0 0', padding: '20px 24px' }}>
+            <div>
+              <h3 className="mb-1" style={{ fontWeight: 700, fontSize: '1.4rem' }}>✏️ Update Project</h3>
+              {selectedProject && (
+                <small className="opacity-75" style={{ fontSize: '0.85rem' }}>Project ID: {selectedProject.id}</small>
+              )}
+            </div>
           </div>
           <div className="card-body text-white" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
             <form onSubmit={handleUpdateProject}>
               {/* Basic Project Information - READ ONLY */}
               <div className="mb-4">
-                <h5 className="text-white mb-3 border-bottom border-light pb-2">📋 Project Information (Read Only)</h5>
+                <h5 className="text-white mb-3 pb-2" style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.2)' }}>📋 Project Information (Read Only)</h5>
                 <div className="row g-3">
                   <div className="col-md-6">
                     <label className="form-label text-white">Project Name</label>
@@ -1269,7 +1272,7 @@ const SDPDashboard: React.FC = () => {
 
               {/* Project Timeline */}
               <div className="mb-4">
-                <h5 className="text-white mb-3 border-bottom border-light pb-2">📅 Project Timeline</h5>
+                <h5 className="text-white mb-3 pb-2" style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.2)' }}>📅 Project Timeline</h5>
                 <div className="row g-3">
                   <div className="col-md-6">
                     <label className="form-label text-white">Project Start Date (Read Only)</label>
@@ -1323,7 +1326,7 @@ const SDPDashboard: React.FC = () => {
 
               {/* Project Details - READ ONLY */}
               <div className="mb-4">
-                <h5 className="text-white mb-3 border-bottom border-light pb-2">📊 Project Details (Read Only)</h5>
+                <h5 className="text-white mb-3 pb-2" style={{ fontSize: '1.1rem', fontWeight: 600, borderBottom: '1px solid rgba(255,255,255,0.2)' }}>📊 Project Details (Read Only)</h5>
                 <div className="row g-3">
                   <div className="col-md-6">
                     <label className="form-label text-white">Planned Beneficiaries</label>
@@ -1503,11 +1506,12 @@ const SDPDashboard: React.FC = () => {
                 </div>
               </div>
               
-              <div className="d-flex gap-2 mt-4 pt-3 border-top border-light">
+              <div className="d-flex gap-2 mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
                 <button
                   type="submit"
                   className="btn btn-light px-4"
                   disabled={isSubmitting}
+                  style={{ fontWeight: 600, borderRadius: 10 }}
                 >
                   {isSubmitting ? (
                     <>
