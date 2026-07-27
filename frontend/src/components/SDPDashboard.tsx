@@ -1675,12 +1675,13 @@ const SDPDashboard: React.FC = () => {
     <div className="row justify-content-center">
       <div className="col-lg-8">
         <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+          borderRadius: 16,
           backdropFilter: 'blur(10px)'
         }}>
-          <div className="card-header border-0 text-white" style={{ backgroundColor: 'rgba(255,255,255,0.1)' }}>
-            <h3 className="mb-0">➕ Add Department</h3>
-            <p className="text-white-50 mb-0 small">* Required fields</p>
+          <div className="card-header border-0 text-white" style={{ backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: '16px 16px 0 0', padding: '20px 24px' }}>
+            <h3 className="mb-1" style={{ fontWeight: 700, fontSize: '1.4rem' }}>➕ Add Department</h3>
+            <p className="mb-0 small" style={{ color: 'rgba(255,255,255,0.7)' }}>* Required fields</p>
           </div>
           <div className="card-body text-white" style={{ maxHeight: '75vh', overflowY: 'auto', paddingBottom: '2rem' }}>
             <form onSubmit={handleAddDepartment}>
@@ -1729,8 +1730,8 @@ const SDPDashboard: React.FC = () => {
                 </div>
 
                 <div className="col-12">
-                  <hr className="border-light opacity-50" />
-                  <h5 className="text-white mb-3">Department Manager Information</h5>
+                  <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.2)', margin: '1rem 0' }} />
+                  <h5 className="text-white mb-3" style={{ fontWeight: 600, fontSize: '1.1rem' }}>Department Manager Information</h5>
                 </div>
 
                 <div className="col-md-6">
@@ -1771,17 +1772,21 @@ const SDPDashboard: React.FC = () => {
                 </div>
               </div>
               
-              <div className="d-flex gap-2 mt-4">
+              <div className="d-flex gap-2 mt-4 pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.2)' }}>
                 <button
                   type="submit"
                   className="btn btn-light"
                   disabled={isSubmitting}
+                  style={{ fontWeight: 600, borderRadius: 10, padding: '8px 20px' }}
                 >
                   {isSubmitting ? 'Adding...' : 'Add Department'}
                 </button>
                 <button
                   type="button"
                   onClick={() => setActiveSection('departments')}
+                  className="btn btn-outline-light"
+                  style={{ fontWeight: 600, borderRadius: 10, padding: '8px 20px' }}
+                >
                   className="btn btn-outline-light"
                 >
                   Cancel
