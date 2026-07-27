@@ -1552,20 +1552,22 @@ const SDPDashboard: React.FC = () => {
   const renderUsers = () => (
     <div>
       <div className="card border-0 shadow-lg mb-4" style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+        borderRadius: 16,
         backdropFilter: 'blur(10px)'
       }}>
         <div className="card-body d-flex justify-content-between align-items-center text-white py-4">
           <div>
-            <h2 className="mb-2">Users</h2>
-            <p className="mb-0 opacity-75">View all users under your SDP</p>
+            <h2 className="mb-2" style={{ fontWeight: 700, fontSize: '1.8rem' }}>Users</h2>
+            <p className="mb-0 opacity-75" style={{ fontSize: '1rem' }}>View all users under your SDP</p>
           </div>
         </div>
       </div>
       
       {usersLoading ? (
         <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+          borderRadius: 16,
           backdropFilter: 'blur(10px)'
         }}>
           <div className="card-body text-center text-white py-5">
@@ -1577,7 +1579,8 @@ const SDPDashboard: React.FC = () => {
         </div>
       ) : users.length > 0 ? (
         <div className="card border-0 shadow-lg overflow-hidden" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+          borderRadius: 16,
           backdropFilter: 'blur(10px)'
         }}>
           <div className="table-responsive">
@@ -1626,12 +1629,13 @@ const SDPDashboard: React.FC = () => {
         </div>
       ) : (
         <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+          borderRadius: 16,
           backdropFilter: 'blur(10px)'
         }}>
           <div className="card-body text-center text-white py-5">
             <div className="display-1 mb-3">👤</div>
-            <h3 className="mb-3">No Users Found</h3>
+            <h3 className="mb-3" style={{ fontWeight: 600 }}>No Users Found</h3>
             <p className="mb-0 opacity-75">No users are currently linked to your SDP.</p>
           </div>
         </div>
