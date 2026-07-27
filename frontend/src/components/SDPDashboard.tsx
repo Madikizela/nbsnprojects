@@ -1078,88 +1078,48 @@ const SDPDashboard: React.FC = () => {
 
   const renderProjects = () => (
     <div>
-      <div className="card border-0 shadow-lg mb-4" style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        backdropFilter: 'blur(10px)'
-      }}>
-        <div className="card-body d-flex justify-content-between align-items-center text-white py-4">
-          <div>
-            <h2 className="mb-2">Projects</h2>
-            <p className="mb-0 opacity-75">Manage your SDP projects</p>
-          </div>
-          <button
-            onClick={() => setActiveSection('add-project')}
-            className="btn btn-light"
-          >
-            ➕ Add Project
-          </button>
+      <div className="card border-0 shadow-sm mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'20px 24px', display:'flex', flexDirection:'row', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 className="mb-1 text-white fw-bold" style={{ fontSize:'1.4rem' }}>Projects</h2>
+          <p className="mb-0" style={{ color:'rgba(255,255,255,0.6)', fontSize:14 }}>Manage your SDP projects</p>
         </div>
+        <button onClick={() => setActiveSection('add-project')} style={{ background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontWeight:700, fontSize:14, cursor:'pointer' }}>
+          ➕ Add Project
+        </button>
       </div>
-      
+
       {projectsLoading ? (
-        <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div className="card-body text-center text-white py-5">
-            <div className="spinner-border text-white" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p className="mt-2 mb-0">Loading projects...</p>
-          </div>
-        </div>
+        <div className="text-center py-5"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>
       ) : projects.length > 0 ? (
-        <div className="row g-4">
+        <div className="row g-3">
           {projects.map((project) => (
             <div key={project.id} className="col-md-6 col-lg-4">
-              <div className="card h-100 border-0 shadow-lg" style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                backdropFilter: 'blur(10px)'
-              }}>
-                <div className="card-body text-white">
-                  <h5 className="card-title mb-3">{project.projectName}</h5>
-                  <p className="card-text">
-                    <small className="opacity-75">Contract: {project.contractNumber}</small>
-                  </p>
-                  {project.description && (
-                    <p className="card-text">{project.description}</p>
-                  )}
-                  <div className="mb-3">
-                    <small className="opacity-75">
-                      Start: {new Date(project.startDate).toLocaleDateString()}
-                    </small><br />
-                    <small className="opacity-75">
-                      End: {new Date(project.endDate).toLocaleDateString()}
-                    </small>
+              <div className="card h-100 border-0 shadow-sm" style={{ borderRadius:14, background:'#fff' }}>
+                <div className="card-body">
+                  <div className="d-flex justify-content-between align-items-start mb-2">
+                    <h5 className="card-title fw-bold" style={{ color:'#1e293b', margin:0 }}>{project.projectName}</h5>
+                    <span className={`badge ${project.status === 'active' || project.status === 'Active' ? 'bg-success' : 'bg-secondary'}`} style={{ fontSize:11 }}>{project.status}</span>
                   </div>
-                  <div className="mb-3">
-                    <span className={`badge ${project.status === 'active' ? 'bg-light text-dark' : 'bg-secondary'}`}>
-                      {project.status}
-                    </span>
+                  <p style={{ color:'#64748b', fontSize:13, marginBottom:4 }}>Contract: {project.contractNumber}</p>
+                  {project.description && <p style={{ color:'#64748b', fontSize:13, marginBottom:8 }}>{project.description}</p>}
+                  <div style={{ color:'#94a3b8', fontSize:12, marginBottom:16 }}>
+                    <div>Start: {new Date(project.startDate).toLocaleDateString()}</div>
+                    <div>End: {new Date(project.endDate).toLocaleDateString()}</div>
                   </div>
-                  <div className="mt-auto">
-                    <button
-                      onClick={() => openUpdateProjectModal(project)}
-                      className="btn btn-light btn-sm w-100"
-                    >
-                      ✏️ Update Project
-                    </button>
-                  </div>
+                  <button onClick={() => openUpdateProjectModal(project)}
+                    style={{ width:'100%', padding:'8px', borderRadius:8, border:'1.5px solid #667eea', background:'#fff', color:'#667eea', fontWeight:600, fontSize:13, cursor:'pointer' }}>
+                    ✏️ Update Project
+                  </button>
                 </div>
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div className="card-body text-center text-white py-5">
-            <div className="display-1 mb-3">📋</div>
-            <h3 className="mb-3">No Projects Found</h3>
-            <p className="mb-0 opacity-75">No projects are currently linked to your SDP.</p>
-          </div>
+        <div className="text-center py-5 text-muted">
+          <div style={{ fontSize:'3rem', marginBottom:12 }}>📋</div>
+          <h5>No Projects Found</h5>
+          <p style={{ fontSize:14 }}>No projects are currently linked to your SDP.</p>
         </div>
       )}
     </div>
@@ -1167,76 +1127,43 @@ const SDPDashboard: React.FC = () => {
 
   const renderDepartments = () => (
     <div>
-      <div className="card border-0 shadow-lg mb-4" style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        backdropFilter: 'blur(10px)'
-      }}>
-        <div className="card-body d-flex justify-content-between align-items-center text-white py-4">
-          <div>
-            <h2 className="mb-2">Departments</h2>
-            <p className="mb-0 opacity-75">Manage your SDP departments</p>
-          </div>
-          <button
-            onClick={() => setActiveSection('add-department')}
-            className="btn btn-light"
-          >
-            ➕ Add Department
-          </button>
+      <div className="card border-0 shadow-sm mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'20px 24px', display:'flex', flexDirection:'row', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 className="mb-1 text-white fw-bold" style={{ fontSize:'1.4rem' }}>Departments</h2>
+          <p className="mb-0" style={{ color:'rgba(255,255,255,0.6)', fontSize:14 }}>Manage your SDP departments</p>
         </div>
+        <button onClick={() => setActiveSection('add-department')} style={{ background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontWeight:700, fontSize:14, cursor:'pointer' }}>
+          ➕ Add Department
+        </button>
       </div>
-      
+
       {departmentsLoading ? (
-        <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div className="card-body text-center text-white py-5">
-            <div className="spinner-border text-white" role="status">
-              <span className="visually-hidden">Loading...</span>
-            </div>
-            <p className="mt-2 mb-0">Loading departments...</p>
-          </div>
-        </div>
+        <div className="text-center py-5"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>
       ) : departments.length > 0 ? (
-        <div className="row g-4">
+        <div className="row g-3">
           {departments.map((department) => (
             <div key={department.id} className="col-md-6 col-lg-4">
-              <div className="card h-100 border-0 shadow-lg" style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                backdropFilter: 'blur(10px)'
-              }}>
-                <div className="card-body text-white">
-                  <h5 className="card-title mb-3">{department.name}</h5>
-                  {department.description && (
-                    <p className="card-text mb-2">{department.description}</p>
-                  )}
-                  <div className="mb-3">
-                    <small className="opacity-75">
-                      <strong>Manager:</strong> {department.managerFirstName} {department.managerSurname}
-                    </small><br />
-                    <small className="opacity-75">
-                      <strong>Email:</strong> {department.managerEmail}
-                    </small>
+              <div className="card h-100 border-0 shadow-sm" style={{ borderRadius:14, background:'#fff' }}>
+                <div className="card-body">
+                  <h5 className="fw-bold mb-2" style={{ color:'#1e293b' }}>{department.name}</h5>
+                  {department.description && <p style={{ color:'#64748b', fontSize:13, marginBottom:8 }}>{department.description}</p>}
+                  <div style={{ color:'#64748b', fontSize:13, marginBottom:4 }}>
+                    <strong>Manager:</strong> {department.managerFirstName} {department.managerSurname}
                   </div>
-                  <div className="mt-auto d-flex justify-content-between align-items-center">
-                    <small className="opacity-75">
-                      Created: {new Date(department.createdAt).toLocaleDateString()}
-                    </small>
+                  <div style={{ color:'#64748b', fontSize:13, marginBottom:16 }}>
+                    <strong>Email:</strong> {department.managerEmail}
+                  </div>
+                  <div className="d-flex justify-content-between align-items-center">
+                    <span style={{ color:'#94a3b8', fontSize:12 }}>Created: {new Date(department.createdAt).toLocaleDateString()}</span>
                     <div className="d-flex gap-2">
                       {department.managerEmail && (
-                        <button
-                          className="btn btn-sm btn-light"
-                          style={{ fontSize: '0.75rem' }}
-                          onClick={() => handleResendCredentials(department.id, department.name)}
-                        >
-                          📧 Resend Credentials
+                        <button style={{ padding:'5px 10px', borderRadius:8, border:'1.5px solid #667eea', background:'#fff', color:'#667eea', fontWeight:600, fontSize:11, cursor:'pointer' }}
+                          onClick={() => handleResendCredentials(department.id, department.name)}>
+                          📧 Resend
                         </button>
                       )}
-                      <button
-                        className="btn btn-sm btn-danger"
-                        style={{ fontSize: '0.75rem' }}
-                        onClick={() => handleDeleteDepartment(department.id, department.name)}
-                      >
+                      <button style={{ padding:'5px 10px', borderRadius:8, border:'none', background:'#fee2e2', color:'#dc2626', fontWeight:600, fontSize:11, cursor:'pointer' }}
+                        onClick={() => handleDeleteDepartment(department.id, department.name)}>
                         🗑️ Delete
                       </button>
                     </div>
@@ -1247,21 +1174,13 @@ const SDPDashboard: React.FC = () => {
           ))}
         </div>
       ) : (
-        <div className="card border-0 shadow-lg" style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          backdropFilter: 'blur(10px)'
-        }}>
-          <div className="card-body text-center text-white py-5">
-            <div className="display-1 mb-3">🏢</div>
-            <h3 className="mb-3">No Departments Found</h3>
-            <p className="mb-4 opacity-75">You haven't created any departments yet.</p>
-            <button
-              onClick={() => setActiveSection('add-department')}
-              className="btn btn-light"
-            >
-              Add Your First Department
-            </button>
-          </div>
+        <div className="text-center py-5 text-muted">
+          <div style={{ fontSize:'3rem', marginBottom:12 }}>🏢</div>
+          <h5>No Departments Found</h5>
+          <p style={{ fontSize:14 }}>You haven't created any departments yet.</p>
+          <button onClick={() => setActiveSection('add-department')} style={{ background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', border:'none', borderRadius:10, padding:'9px 20px', fontWeight:600, fontSize:14, cursor:'pointer' }}>
+            Add Your First Department
+          </button>
         </div>
       )}
     </div>
