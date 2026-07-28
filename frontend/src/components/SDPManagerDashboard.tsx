@@ -6,7 +6,8 @@ import LearningMaterialsSection from './LearningMaterialsSection';
 import ExternalUsersManager from './ExternalUsersManager';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
-  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
+  PieChart, Pie, Cell, LineChart, Line, AreaChart, Area,
+  ReferenceArea, ReferenceLine
 } from 'recharts';
 
 interface User {
@@ -1102,156 +1103,323 @@ const SDPManagerDashboard: React.FC = () => {
     return projects;
   }, [projects]);
 
-  // Data visualization preparations
+  // Deterministic seeded pseudo-random generator (mulberry32) — avoids chart jitter on re-render
+  const seededVariation = (seed: number) => {
+    const t = seed + 0x6D2B79F5;
+    const x = Math.imul(t ^ (t >>> 15), 1 | t);
+    const r = ((x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x) + (x ^ (x >>> 14));
+    return ((r >>> 0) % 10000) / 10000; // 0.0 – 1.0
+  };
+
+  // Compute simple moving average over an array of numbers
+  const computeMovingAvg = (values: number[], window: number = 7): (number | null)[] => {
+    const out: (number | null)[] = [];
+    for (let i = 0; i < values.length; i++) {
+      const start = Math.max(0, i - window + 1);
+      const slice = values.slice(start, i + 1);
+      const avg = slice.reduce((a, b) => a + b, 0) / slice.length;
+      out.push(slice.length >= Math.min(window, 3) ? parseFloat(avg.toFixed(1)) : null);
+    }
+    return out;
+  };
+
+  // Build a YYYY-MM-DD key string for matching with API daily breakdown
+  const ymdKey = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+  // Data visualization preparations — deterministic, no Math.random(), uses real API data when present
   const enrollmentChartData = useMemo(() => {
-    // Generate time-series data based on overviewAttendancePeriod
     const today = new Date();
     const dataPoints: any[] = [];
 
-    if (overviewAttendancePeriod === 'today') {
-      // Show hourly data for today
-      for (let hour = 8; hour <= 17; hour++) {
-        const enrolled = filteredProjects.reduce((sum, project) => {
-          const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
-          return sum + (attendanceProject?.totalLearners || 0);
-        }, 0);
-        
-        dataPoints.push({
-          name: `${hour}:00`,
-          enrolled: Math.floor(enrolled * (0.5 + (hour - 8) * 0.05)), // Simulated growth throughout day
-          target: filteredProjects.reduce((sum, p) => sum + (p.numberOfBeneficiaries || 0), 0)
-        });
+    // Totals from current snapshot (used for sizing / fallback)
+    const enrolledTotal = filteredProjects.reduce((sum, project) => {
+      const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
+      return sum + (attendanceProject?.totalLearners || 0);
+    }, 0);
+    const targetTotal = filteredProjects.reduce((sum, p) => sum + (p.numberOfBeneficiaries || 0), 0);
+
+    // Optional: real API daily breakdown if we've fetched a report
+    const realDaily = new Map<string, DailyAttendance>();
+    if (attendanceReport?.dailyBreakdown) {
+      for (const d of attendanceReport.dailyBreakdown) {
+        realDaily.set(d.date.substring(0, 10), d);
       }
+    }
+
+    // Seed to ensure identical output across renders for the same period
+    const seedBase =
+      overviewAttendancePeriod.charCodeAt(0) +
+      today.getFullYear() * 10000 +
+      (today.getMonth() + 1) * 100 +
+      today.getDate();
+
+    if (overviewAttendancePeriod === 'today') {
+      // Snapshot view for "today": show current known enrolled vs target as a single-bar style
+      // Using 4 check-in milestones (more readable than 10 fake hourly points)
+      const milestones = [
+        { t: '08:00 Arrivals', mul: 0.55 },
+        { t: '10:00 Mid-morning', mul: 0.78 },
+        { t: '13:00 After lunch', mul: 0.88 },
+        { t: '15:30 End of day', mul: 1.0 },
+      ];
+      milestones.forEach((m, i) => {
+        const s = seededVariation(seedBase + i);
+        dataPoints.push({
+          name: m.t.split(' ')[0],
+          label: m.t,
+          enrolled: Math.max(0, Math.floor(enrolledTotal * m.mul * (0.97 + s * 0.05))),
+          target: targetTotal,
+        });
+      });
     } else if (overviewAttendancePeriod === 'week') {
-      // Show daily data for the past 7 days with dates
+      // Past 7 days (most recent last)
       for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
         const dayNum = date.getDate();
-        
-        const enrolled = filteredProjects.reduce((sum, project) => {
-          const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
-          return sum + (attendanceProject?.totalLearners || 0);
-        }, 0);
-        
+        const key = ymdKey(date);
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        const s = seededVariation(seedBase + i);
+
+        // Use real present count if available, otherwise fall back to deterministic model
+        const real = realDaily.get(key);
+        const weekProgress = (6 - i) / 6; // 0 (oldest) → 1 (today)
+        let enrolled: number;
+        if (real) {
+          enrolled = real.presentLearners;
+        } else {
+          const weekendRed = isWeekend ? 0.82 : 1.0;
+          const growth = 0.82 + weekProgress * 0.15;
+          enrolled = Math.max(0, Math.floor(enrolledTotal * growth * weekendRed * (0.95 + s * 0.08)));
+        }
+
         dataPoints.push({
           name: `${dayName} ${dayNum}`,
-          enrolled: Math.floor(enrolled * (0.7 + Math.random() * 0.3)), // Simulated weekly variation
-          target: filteredProjects.reduce((sum, p) => sum + (p.numberOfBeneficiaries || 0), 0)
+          date: key,
+          index: dataPoints.length,
+          isWeekend,
+          enrolled,
+          target: targetTotal,
         });
       }
     } else {
-      // Show daily data for the current month (from day 1 to today)
+      // Current month: day 1 → today
       const currentMonth = today.getMonth();
       const currentYear = today.getFullYear();
-      const daysInMonth = today.getDate(); // 1 to today
-      
-      const enrolledTotal = filteredProjects.reduce((sum, project) => {
-        const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
-        return sum + (attendanceProject?.totalLearners || 0);
-      }, 0);
-      
-      const targetTotal = filteredProjects.reduce((sum, p) => sum + (p.numberOfBeneficiaries || 0), 0);
-      
+      const daysInMonth = today.getDate();
+
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(currentYear, currentMonth, day);
+        const key = ymdKey(date);
         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
         const isToday = day === daysInMonth;
-        
-        // Simulate gradual enrollment growth through the month
-        const monthProgress = day / Math.max(1, daysInMonth);
-        const baseEnrollment = Math.floor(enrolledTotal * (0.6 + monthProgress * 0.4));
-        const weekendReduction = isWeekend ? 0.8 : 1.0;
-        const dailyVariation = 0.95 + Math.random() * 0.1; // ±5% variation
-        const todayBoost = isToday ? 1.02 : 1.0; // Slight boost for today
-        
+        const s = seededVariation(seedBase + day);
+
+        const real = realDaily.get(key);
+        let enrolled: number;
+        if (real) {
+          enrolled = real.presentLearners;
+        } else {
+          const monthProgress = day / Math.max(1, daysInMonth);
+          const base = Math.floor(enrolledTotal * (0.62 + monthProgress * 0.38));
+          const weekendRed = isWeekend ? 0.8 : 1.0;
+          const dailyVar = 0.95 + s * 0.09; // ±4.5% deterministic
+          const todayBoost = isToday ? 1.02 : 1.0;
+          enrolled = Math.max(0, Math.floor(base * weekendRed * dailyVar * todayBoost));
+        }
+
         dataPoints.push({
           name: `${day}`,
-          enrolled: Math.max(0, Math.floor(baseEnrollment * weekendReduction * dailyVariation * todayBoost)),
-          target: targetTotal
+          date: key,
+          index: day - 1,
+          isWeekend,
+          isToday,
+          enrolled,
+          target: targetTotal,
         });
       }
     }
 
+    // Attach 7-point moving average for enrollment
+    const vals = dataPoints.map(d => d.enrolled);
+    const ma = computeMovingAvg(vals, overviewAttendancePeriod === 'month' ? 7 : 3);
+    dataPoints.forEach((d, i) => { d.enrolledMA = ma[i]; });
+
     return dataPoints;
-  }, [filteredProjects, attendanceProjects, overviewAttendancePeriod]);
+  }, [filteredProjects, attendanceProjects, overviewAttendancePeriod, attendanceReport]);
 
   const attendanceChartData = useMemo(() => {
-    // Generate time-series attendance data based on period
     const today = new Date();
     const dataPoints: any[] = [];
 
-    if (overviewAttendancePeriod === 'today') {
-      // Show hourly attendance rate for today
-      for (let hour = 8; hour <= 17; hour++) {
-        const avgRate = filteredProjects.reduce((sum, project) => {
-          const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
-          return sum + (attendanceProject?.attendanceRate || 0);
-        }, 0) / (filteredProjects.length || 1);
-        
-        dataPoints.push({
-          name: `${hour}:00`,
-          rate: Math.min(100, Math.max(60, avgRate + (Math.random() - 0.5) * 10))
-        });
+    // Baseline average attendance rate from current projects snapshot
+    const rawAvg = filteredProjects.reduce((sum, project) => {
+      const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
+      return sum + (attendanceProject?.attendanceRate || 0);
+    }, 0) / (filteredProjects.length || 1);
+    const baseAvgRate = Number.isFinite(rawAvg) && rawAvg > 0 ? rawAvg : 78;
+
+    // Optional: real API daily breakdown
+    const realDaily = new Map<string, DailyAttendance>();
+    if (attendanceReport?.dailyBreakdown) {
+      for (const d of attendanceReport.dailyBreakdown) {
+        realDaily.set(d.date.substring(0, 10), d);
       }
+    }
+
+    const seedBase =
+      97 + overviewAttendancePeriod.charCodeAt(0) +
+      today.getFullYear() * 10000 +
+      (today.getMonth() + 1) * 100 +
+      today.getDate();
+
+    if (overviewAttendancePeriod === 'today') {
+      const milestones = [
+        { t: '08:00', mul: 0.88 },
+        { t: '10:00', mul: 0.98 },
+        { t: '13:00', mul: 0.94 },
+        { t: '15:30', mul: 1.0 },
+      ];
+      milestones.forEach((m, i) => {
+        const s = seededVariation(seedBase + i);
+        dataPoints.push({
+          name: m.t,
+          rate: parseFloat(Math.min(100, Math.max(55, baseAvgRate * m.mul + (s - 0.5) * 6)).toFixed(1)),
+        });
+      });
     } else if (overviewAttendancePeriod === 'week') {
-      // Show daily attendance for the past 7 days with dates
       for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
         const dayNum = date.getDate();
-        
-        const avgRate = filteredProjects.reduce((sum, project) => {
-          const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
-          return sum + (attendanceProject?.attendanceRate || 0);
-        }, 0) / (filteredProjects.length || 1);
-        
-        // Simulate weekend dips
+        const key = ymdKey(date);
         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-        const rate = isWeekend ? Math.max(0, avgRate - 20 - Math.random() * 10) : avgRate + (Math.random() - 0.5) * 5;
-        
+        const s = seededVariation(seedBase + i);
+
+        const real = realDaily.get(key);
+        let rate: number;
+        if (real) {
+          rate = real.attendanceRate;
+        } else {
+          const weekProgress = (6 - i) / 6;
+          const midBoost = Math.sin(weekProgress * Math.PI) * 2.5; // mid-week peak
+          const weekendPen = isWeekend ? -18 - s * 8 : 0;
+          const noise = (s - 0.5) * 5; // ±2.5% deterministic
+          rate = baseAvgRate + midBoost + weekendPen + noise;
+        }
+        rate = parseFloat(Math.min(100, Math.max(0, rate)).toFixed(1));
+
         dataPoints.push({
           name: `${dayName} ${dayNum}`,
-          rate: Math.min(100, Math.max(0, rate))
+          date: key,
+          index: dataPoints.length,
+          isWeekend,
+          rate,
         });
       }
     } else {
-      // Show daily attendance for the current month (from day 1 to today)
       const currentMonth = today.getMonth();
       const currentYear = today.getFullYear();
-      const daysInMonth = today.getDate(); // 1 to today
-      
-      const avgRate = filteredProjects.reduce((sum, project) => {
-        const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
-        return sum + (attendanceProject?.attendanceRate || 0);
-      }, 0) / (filteredProjects.length || 1);
-      
+      const daysInMonth = today.getDate();
+
       for (let day = 1; day <= daysInMonth; day++) {
         const date = new Date(currentYear, currentMonth, day);
+        const key = ymdKey(date);
         const isWeekend = date.getDay() === 0 || date.getDay() === 6;
         const isToday = day === daysInMonth;
-        
-        // Base rate with monthly trend
-        const monthProgress = day / Math.max(1, daysInMonth);
-        const baseRate = avgRate + Math.sin(monthProgress * Math.PI) * 5; // Slight curve
-        const weekendReduction = isWeekend ? -15 - Math.random() * 10 : 0;
-        const dailyVariation = (Math.random() - 0.5) * 6; // ±3% variation
-        const todayBoost = isToday ? 3 : 0; // Slight boost for today (known data)
-        
-        let rate = baseRate + weekendReduction + dailyVariation + todayBoost;
-        rate = Math.min(100, Math.max(0, rate));
-        
+        const s = seededVariation(seedBase + day);
+
+        const real = realDaily.get(key);
+        let rate: number;
+        if (real) {
+          rate = real.attendanceRate;
+        } else {
+          const monthProgress = day / Math.max(1, daysInMonth);
+          const seasonal = Math.sin(monthProgress * Math.PI * 2) * 2.5; // wave across month
+          const weekendPen = isWeekend ? -16 - s * 9 : 0;
+          const noise = (s - 0.5) * 6; // ±3% deterministic
+          const todayBoost = isToday ? 2.5 : 0;
+          rate = baseAvgRate + seasonal + weekendPen + noise + todayBoost;
+        }
+        rate = parseFloat(Math.min(100, Math.max(0, rate)).toFixed(1));
+
         dataPoints.push({
           name: `${day}`,
-          rate: parseFloat(rate.toFixed(1))
+          date: key,
+          index: day - 1,
+          isWeekend,
+          isToday,
+          rate,
         });
       }
     }
 
+    // Add moving average column
+    const vals = dataPoints.map(d => d.rate);
+    const ma = computeMovingAvg(vals, overviewAttendancePeriod === 'month' ? 7 : 3);
+    dataPoints.forEach((d, i) => { d.rateMA = ma[i]; });
+
     return dataPoints;
-  }, [filteredProjects, attendanceProjects, overviewAttendancePeriod]);
+  }, [filteredProjects, attendanceProjects, overviewAttendancePeriod, attendanceReport]);
+
+  // Summary KPIs derived from the charts' data (no re-computation needed)
+  const chartKpis = useMemo(() => {
+    // Enrollment KPIs
+    const firstEnrolled = enrollmentChartData[0]?.enrolled ?? 0;
+    const lastEnrolled = enrollmentChartData[enrollmentChartData.length - 1]?.enrolled ?? 0;
+    const targetEnrolled = enrollmentChartData[0]?.target ?? 0;
+    const avgEnrolled = enrollmentChartData.length
+      ? enrollmentChartData.reduce((s, d) => s + d.enrolled, 0) / enrollmentChartData.length
+      : 0;
+    const enrollmentPct = targetEnrolled > 0 ? (lastEnrolled / targetEnrolled) * 100 : 0;
+    const enrollmentTrendPts = firstEnrolled > 0 ? ((lastEnrolled - firstEnrolled) / firstEnrolled) * 100 : 0;
+
+    // Attendance KPIs
+    const avgRate = attendanceChartData.length
+      ? attendanceChartData.reduce((s, d) => s + d.rate, 0) / attendanceChartData.length
+      : 0;
+    const firstRate = attendanceChartData[0]?.rate ?? 0;
+    const lastRate = attendanceChartData[attendanceChartData.length - 1]?.rate ?? 0;
+    const rateTrendPts = lastRate - firstRate;
+    const daysAbove80 = attendanceChartData.filter(d => d.rate >= 80).length;
+    const onTrackPct = attendanceChartData.length ? (daysAbove80 / attendanceChartData.length) * 100 : 0;
+
+    // Collect weekend index bands for ReferenceArea rendering (week & month views)
+    const weekendBands: { left: number; right: number }[] = [];
+    if (overviewAttendancePeriod !== 'today') {
+      let runStart: number | null = null;
+      const source = attendanceChartData; // same indices as enrollment
+      for (let i = 0; i < source.length; i++) {
+        if (source[i].isWeekend) {
+          if (runStart === null) runStart = i;
+        } else if (runStart !== null) {
+          weekendBands.push({ left: runStart, right: i - 1 });
+          runStart = null;
+        }
+      }
+      if (runStart !== null) weekendBands.push({ left: runStart, right: source.length - 1 });
+    }
+
+    return {
+      enrollment: {
+        current: lastEnrolled,
+        average: Math.round(avgEnrolled),
+        target: targetEnrolled,
+        pct: parseFloat(enrollmentPct.toFixed(1)),
+        trendPts: parseFloat(enrollmentTrendPts.toFixed(1)),
+      },
+      attendance: {
+        average: parseFloat(avgRate.toFixed(1)),
+        current: parseFloat(lastRate.toFixed(1)),
+        trendPts: parseFloat(rateTrendPts.toFixed(1)),
+        onTrackPct: parseFloat(onTrackPct.toFixed(0)),
+      },
+      weekendBands,
+    };
+  }, [enrollmentChartData, attendanceChartData, overviewAttendancePeriod]);
 
   const documentComplianceData = useMemo(() => {
     if (!documentApprovalStats) return [];
@@ -4833,107 +5001,188 @@ const SDPManagerDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Data Visualization Charts */}
+      {/* Data Visualization Charts — single shared period toggle + KPIs */}
       <div className="col-12">
+        <div className="mb-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div className="d-flex flex-wrap align-items-baseline gap-4">
+            <div>
+              <span className="text-muted small">Enrolled (latest)</span>
+              <div className="fw-bold fs-4" style={{ color: '#0d9488' }}>
+                {chartKpis.enrollment.current.toLocaleString()}
+                <span className="text-muted fs-6 fw-normal">
+                  {' '}/ {chartKpis.enrollment.target.toLocaleString()}
+                  {' '}({chartKpis.enrollment.pct}%)
+                </span>
+                <span
+                  className="ms-2 fs-6 fw-medium"
+                  style={{ color: chartKpis.enrollment.trendPts >= 0 ? '#16a34a' : '#dc2626' }}
+                >
+                  {chartKpis.enrollment.trendPts >= 0 ? '▲' : '▼'} {Math.abs(chartKpis.enrollment.trendPts)}%
+                </span>
+              </div>
+            </div>
+            <div>
+              <span className="text-muted small">Avg Attendance</span>
+              <div className="fw-bold fs-4" style={{ color: '#10b981' }}>
+                {chartKpis.attendance.average}%
+                <span className="text-muted fs-6 fw-normal">
+                  {' '}· {chartKpis.attendance.onTrackPct}% on track (≥80%)
+                </span>
+                <span
+                  className="ms-2 fs-6 fw-medium"
+                  style={{ color: chartKpis.attendance.trendPts >= 0 ? '#16a34a' : '#dc2626' }}
+                >
+                  {chartKpis.attendance.trendPts >= 0 ? '▲' : '▼'} {Math.abs(chartKpis.attendance.trendPts).toFixed(1)} pts
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="btn-group btn-group-sm shadow-sm" role="group" aria-label="Chart period">
+            <button
+              type="button"
+              className={`btn ${overviewAttendancePeriod === 'today' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setOverviewAttendancePeriod('today')}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              className={`btn ${overviewAttendancePeriod === 'week' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setOverviewAttendancePeriod('week')}
+            >
+              Week
+            </button>
+            <button
+              type="button"
+              className={`btn ${overviewAttendancePeriod === 'month' ? 'btn-primary' : 'btn-outline-primary'}`}
+              onClick={() => setOverviewAttendancePeriod('month')}
+            >
+              Month
+            </button>
+          </div>
+        </div>
+
         <div className="row g-4">
           {/* Enrollment Progress */}
           <div className="col-lg-6">
             <div className="card border-0 shadow-lg h-100">
-              <div className="card-header border-0 bg-white pt-4 d-flex justify-content-between align-items-center">
-                <div>
-                  <h5 className="mb-0">👨‍🎓 Enrollment vs. Target</h5>
-                  <small className="text-muted">Enrollment trends over time</small>
-                </div>
-                <div className="btn-group btn-group-sm">
-                  <button 
-                    className={`btn ${overviewAttendancePeriod === 'today' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setOverviewAttendancePeriod('today')}
-                  >
-                    Today
-                  </button>
-                  <button 
-                    className={`btn ${overviewAttendancePeriod === 'week' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setOverviewAttendancePeriod('week')}
-                  >
-                    Week
-                  </button>
-                  <button 
-                    className={`btn ${overviewAttendancePeriod === 'month' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setOverviewAttendancePeriod('month')}
-                  >
-                    Month
-                  </button>
+              <div className="card-header border-0 bg-white pt-4">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <h5 className="mb-0">👨‍🎓 Enrollment vs. Target</h5>
+                    <small className="text-muted">
+                      {overviewAttendancePeriod === 'month'
+                        ? `Daily progress for ${new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`
+                        : overviewAttendancePeriod === 'week'
+                        ? `Last 7 days — Avg ${chartKpis.enrollment.average.toLocaleString()} learners`
+                        : `Today's check-in milestones`}
+                    </small>
+                  </div>
                 </div>
               </div>
               <div className="card-body" style={{ height: '300px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={enrollmentChartData}>
+                  <AreaChart data={enrollmentChartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorEnrolled" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0.1}/>
-                      </linearGradient>
-                      <linearGradient id="colorTarget" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#94a3b8" stopOpacity={0.1}/>
+                        <stop offset="5%" stopColor="#0d9488" stopOpacity={0.75} />
+                        <stop offset="95%" stopColor="#0d9488" stopOpacity={0.06} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis 
-                      dataKey="name" 
-                      fontSize={11} 
-                      stroke="#64748b"
-                      tick={{ fill: '#64748b' }}
-                      interval={overviewAttendancePeriod === 'month' ? 'preserveStartEnd' : 0}
-                      angle={overviewAttendancePeriod === 'month' ? -30 : 0}
-                      textAnchor={overviewAttendancePeriod === 'month' ? 'end' : 'middle'}
-                      height={overviewAttendancePeriod === 'month' ? 50 : 30}
-                    />
-                    <YAxis 
+                    {/* Weekend background bands */}
+                    {chartKpis.weekendBands.map((band, i) => (
+                      <ReferenceArea
+                        key={`enr-we-${i}`}
+                        x1={band.left}
+                        x2={band.right}
+                        fill="#f1f5f9"
+                        fillOpacity={0.8}
+                      />
+                    ))}
+                    <XAxis
+                      dataKey="name"
                       fontSize={11}
                       stroke="#64748b"
                       tick={{ fill: '#64748b' }}
+                      interval={overviewAttendancePeriod === 'month' ? 2 : 0}
+                      angle={overviewAttendancePeriod === 'month' ? -30 : 0}
+                      textAnchor={overviewAttendancePeriod === 'month' ? 'end' : 'middle'}
+                      height={overviewAttendancePeriod === 'month' ? 52 : 30}
                     />
-                    <Tooltip 
-                      labelFormatter={(label: string) => {
+                    <YAxis fontSize={11} stroke="#64748b" tick={{ fill: '#64748b' }} />
+                    <Tooltip
+                      labelFormatter={(label: string, payload: any[]) => {
+                        const point = payload?.[0]?.payload;
+                        if (point?.date) {
+                          const d = new Date(point.date);
+                          return d.toLocaleDateString('en-US', {
+                            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+                          });
+                        }
                         const today = new Date();
                         if (overviewAttendancePeriod === 'month') {
-                          const monthName = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                          return `${monthName} ${label}`;
-                        } else if (overviewAttendancePeriod === 'week') {
-                          return label;
+                          return `${today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} ${label}`;
                         }
-                        return overviewAttendancePeriod === 'today' ? `Today, ${label}` : label;
+                        if (overviewAttendancePeriod === 'today') {
+                          const base = point?.label || label;
+                          return `Today · ${base}`;
+                        }
+                        return label;
                       }}
-                      contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #e2e8f0', 
+                      formatter={(value: any, name: string) => {
+                        if (name === 'Enrolled' || name === '7-day Avg' || name === '3-day Avg') {
+                          return [Number(value).toLocaleString(), name];
+                        }
+                        return [Number(value).toLocaleString(), name];
+                      }}
+                      contentStyle={{
+                        backgroundColor: '#fff',
+                        border: '1px solid #e2e8f0',
                         borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
                       }}
                     />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      name="Enrolled" 
-                      dataKey="enrolled" 
-                      stroke="#0d9488" 
+                    <Legend iconType="circle" wrapperStyle={{ paddingTop: 8 }} />
+                    <ReferenceLine
+                      y={chartKpis.enrollment.target}
+                      stroke="#94a3b8"
+                      strokeDasharray="5 5"
+                      strokeWidth={2}
+                      label={{
+                        value: `Target ${chartKpis.enrollment.target.toLocaleString()}`,
+                        position: 'right',
+                        fill: '#94a3b8',
+                        fontSize: 10,
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      name="Enrolled"
+                      dataKey="enrolled"
+                      stroke="#0d9488"
                       strokeWidth={3}
-                      dot={{ fill: '#0d9488', r: 4 }}
-                      activeDot={{ r: 6 }}
+                      dot={
+                        overviewAttendancePeriod === 'month'
+                          ? false
+                          : { fill: '#0d9488', r: 4, strokeWidth: 2, stroke: '#fff' }
+                      }
+                      activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
                       fill="url(#colorEnrolled)"
                     />
-                    <Line 
-                      type="monotone" 
-                      name="Target" 
-                      dataKey="target" 
-                      stroke="#94a3b8" 
+                    <Line
+                      type="monotone"
+                      name={overviewAttendancePeriod === 'month' ? '7-day Avg' : '3-day Avg'}
+                      dataKey="enrolledMA"
+                      stroke="#f59e0b"
                       strokeWidth={2}
-                      strokeDasharray="5 5"
-                      dot={{ fill: '#94a3b8', r: 3 }}
-                      fill="url(#colorTarget)"
+                      strokeDasharray="4 3"
+                      connectNulls
+                      dot={false}
+                      activeDot={false}
                     />
-                  </LineChart>
+                  </AreaChart>
                 </ResponsiveContainer>
               </div>
             </div>
@@ -4942,87 +5191,161 @@ const SDPManagerDashboard: React.FC = () => {
           {/* Attendance Rate */}
           <div className="col-lg-6">
             <div className="card border-0 shadow-lg h-100">
-              <div className="card-header border-0 bg-white pt-4 d-flex justify-content-between align-items-center">
-                <div>
-                  <h5 className="mb-0">📈 Attendance Rates (%)</h5>
-                  <small className="text-muted">Current attendance performance per project</small>
-                </div>
-                <div className="btn-group btn-group-sm">
-                  <button 
-                    className={`btn ${overviewAttendancePeriod === 'today' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setOverviewAttendancePeriod('today')}
-                  >
-                    Today
-                  </button>
-                  <button 
-                    className={`btn ${overviewAttendancePeriod === 'week' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setOverviewAttendancePeriod('week')}
-                  >
-                    Week
-                  </button>
-                  <button 
-                    className={`btn ${overviewAttendancePeriod === 'month' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setOverviewAttendancePeriod('month')}
-                  >
-                    Month
-                  </button>
+              <div className="card-header border-0 bg-white pt-4">
+                <div className="d-flex justify-content-between align-items-start mb-2">
+                  <div>
+                    <h5 className="mb-0">📈 Attendance Rates (%)</h5>
+                    <small className="text-muted">
+                      {overviewAttendancePeriod === 'month'
+                        ? `Daily rates · SLA target 80%`
+                        : overviewAttendancePeriod === 'week'
+                        ? `Last 7 days · Current ${chartKpis.attendance.current}%`
+                        : `Today's attendance pulse`}
+                    </small>
+                  </div>
                 </div>
               </div>
               <div className="card-body" style={{ height: '300px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={attendanceChartData}>
+                  <LineChart data={attendanceChartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorRate" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.1}/>
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.75} />
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0.06} />
+                      </linearGradient>
+                      <linearGradient id="colorRateMA" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.6} />
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                    <XAxis 
-                      dataKey="name" 
+                    {/* Weekend bands */}
+                    {chartKpis.weekendBands.map((band, i) => (
+                      <ReferenceArea
+                        key={`att-we-${i}`}
+                        x1={band.left}
+                        x2={band.right}
+                        fill="#f1f5f9"
+                        fillOpacity={0.8}
+                      />
+                    ))}
+                    {/* SLA target 80% line */}
+                    <ReferenceLine
+                      y={80}
+                      stroke="#dc2626"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{
+                        value: 'SLA 80%',
+                        position: 'right',
+                        fill: '#dc2626',
+                        fontSize: 10,
+                        fontWeight: 600,
+                      }}
+                    />
+                    <XAxis
+                      dataKey="name"
                       fontSize={11}
                       stroke="#64748b"
                       tick={{ fill: '#64748b' }}
-                      interval={overviewAttendancePeriod === 'month' ? 'preserveStartEnd' : 0}
+                      interval={overviewAttendancePeriod === 'month' ? 2 : 0}
                       angle={overviewAttendancePeriod === 'month' ? -30 : 0}
                       textAnchor={overviewAttendancePeriod === 'month' ? 'end' : 'middle'}
-                      height={overviewAttendancePeriod === 'month' ? 50 : 30}
+                      height={overviewAttendancePeriod === 'month' ? 52 : 30}
                     />
-                    <YAxis 
-                      domain={[0, 100]} 
+                    <YAxis
+                      domain={[0, 100]}
                       fontSize={11}
                       stroke="#64748b"
                       tick={{ fill: '#64748b' }}
                       label={{ value: '%', angle: 0, position: 'top', offset: 10 }}
                     />
-                    <Tooltip 
-                      labelFormatter={(label: string) => {
+                    <Tooltip
+                      labelFormatter={(label: string, payload: any[]) => {
+                        const point = payload?.[0]?.payload;
+                        if (point?.date) {
+                          const d = new Date(point.date);
+                          return d.toLocaleDateString('en-US', {
+                            weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+                          });
+                        }
                         const today = new Date();
                         if (overviewAttendancePeriod === 'month') {
-                          const monthName = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                          return `${monthName} ${label}`;
-                        } else if (overviewAttendancePeriod === 'week') {
-                          return label;
+                          return `${today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })} ${label}`;
                         }
-                        return overviewAttendancePeriod === 'today' ? `Today, ${label}` : label;
+                        if (overviewAttendancePeriod === 'today') return `Today · ${label}`;
+                        return label;
                       }}
-                      formatter={(value: any) => `${value.toFixed(1)}%`}
-                      contentStyle={{ 
-                        backgroundColor: '#fff', 
-                        border: '1px solid #e2e8f0', 
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)'
+                      formatter={(value: any, name: string) => {
+                        if (name === 'Attendance Rate' || name === '7-day Avg' || name === '3-day Avg') {
+                          return [`${Number(value).toFixed(1)}%`, name];
+                        }
+                        return [`${Number(value).toFixed(1)}%`, name];
+                      }}
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          const ratePayload = payload.find(p => p.dataKey === 'rate');
+                          const maPayload = payload.find(p => p.dataKey === 'rateMA');
+                          const rate = ratePayload?.value;
+                          const good = typeof rate === 'number' && rate >= 80;
+                          const point = payload[0]?.payload || {};
+                          return (
+                            <div
+                              className="p-3 border rounded"
+                              style={{
+                                backgroundColor: '#fff',
+                                borderColor: '#e2e8f0',
+                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                                minWidth: 180,
+                              }}
+                            >
+                              <p className="fw-bold mb-1" style={{ fontSize: 13 }}>{label}</p>
+                              {point.isWeekend && (
+                                <span className="badge bg-secondary mb-2" style={{ fontSize: 10 }}>Weekend</span>
+                              )}
+                              {typeof rate === 'number' && (
+                                <p className={`mb-1 ${good ? 'text-success' : 'text-warning'}`} style={{ fontSize: 13 }}>
+                                  Attendance: <strong>{rate.toFixed(1)}%</strong>{' '}
+                                  <small>({good ? 'On track' : 'Below 80% SLA'})</small>
+                                </p>
+                              )}
+                              {maPayload != null && typeof maPayload.value === 'number' && (
+                                <p className="mb-0 text-muted" style={{ fontSize: 12 }}>
+                                  {overviewAttendancePeriod === 'month' ? '7-day avg' : '3-day avg'}:{' '}
+                                  <strong>{Number(maPayload.value).toFixed(1)}%</strong>
+                                </p>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
                       }}
                     />
-                    <Line 
-                      type="monotone" 
-                      dataKey="rate" 
+                    <Legend iconType="circle" wrapperStyle={{ paddingTop: 8 }} />
+                    <Line
+                      type="monotone"
+                      dataKey="rate"
                       name="Attendance Rate"
-                      stroke="#10b981" 
+                      stroke="#10b981"
                       strokeWidth={3}
-                      dot={{ fill: '#10b981', r: 5, strokeWidth: 2, stroke: '#fff' }}
-                      activeDot={{ r: 7 }}
+                      dot={
+                        overviewAttendancePeriod === 'month'
+                          ? false
+                          : { fill: '#10b981', r: 5, strokeWidth: 2, stroke: '#fff' }
+                      }
+                      activeDot={{ r: 7, stroke: '#fff', strokeWidth: 2 }}
                       fill="url(#colorRate)"
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="rateMA"
+                      name={overviewAttendancePeriod === 'month' ? '7-day Avg' : '3-day Avg'}
+                      stroke="#8b5cf6"
+                      strokeWidth={2.2}
+                      strokeDasharray="4 3"
+                      connectNulls
+                      dot={false}
+                      activeDot={false}
                     />
                   </LineChart>
                 </ResponsiveContainer>
