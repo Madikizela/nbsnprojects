@@ -934,6 +934,13 @@ const SDPManagerDashboard: React.FC = () => {
 
   const [showAttendanceReport, setShowAttendanceReport] = useState(false);
   const [attendanceReport, setAttendanceReport] = useState<AttendanceReport | null>(null);
+  // Aggregated daily breakdown for the overview charts. Stored separately from
+  // the user's drill-down attendanceReport so navigating the section doesn't
+  // invalidate the overview visualization's cached daily data.
+  const [overviewDailyBreakdown, setOverviewDailyBreakdown] = useState<DailyAttendance[] | null>(null);
+  const [overviewDailyLoading, setOverviewDailyLoading] = useState(false);
+  // Aggregated report for the overview charts: synthesized from per-project reports
+  // (multiple projects merged by date) so KPIs and line charts reflect real API numbers.
 
   // Team management state
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -1139,12 +1146,12 @@ const SDPManagerDashboard: React.FC = () => {
     }, 0);
     const targetTotal = filteredProjects.reduce((sum, p) => sum + (p.numberOfBeneficiaries || 0), 0);
 
-    // Optional: real API daily breakdown if we've fetched a report
+    // Optional: real API daily breakdown. Prefer overviewDailyBreakdown
+    // (aggregated across projects), fall back to a drill-down report.
     const realDaily = new Map<string, DailyAttendance>();
-    if (attendanceReport?.dailyBreakdown) {
-      for (const d of attendanceReport.dailyBreakdown) {
-        realDaily.set(d.date.substring(0, 10), d);
-      }
+    const source = overviewDailyBreakdown ?? attendanceReport?.dailyBreakdown ?? [];
+    for (const d of source) {
+      realDaily.set(d.date.substring(0, 10), d);
     }
 
     // Seed to ensure identical output across renders for the same period
@@ -1248,7 +1255,7 @@ const SDPManagerDashboard: React.FC = () => {
     dataPoints.forEach((d, i) => { d.enrolledMA = ma[i]; });
 
     return dataPoints;
-  }, [filteredProjects, attendanceProjects, overviewAttendancePeriod, attendanceReport]);
+  }, [filteredProjects, attendanceProjects, overviewAttendancePeriod, attendanceReport, overviewDailyBreakdown]);
 
   const attendanceChartData = useMemo(() => {
     const today = new Date();
@@ -1363,7 +1370,7 @@ const SDPManagerDashboard: React.FC = () => {
     dataPoints.forEach((d, i) => { d.rateMA = ma[i]; });
 
     return dataPoints;
-  }, [filteredProjects, attendanceProjects, overviewAttendancePeriod, attendanceReport]);
+  }, [filteredProjects, attendanceProjects, overviewAttendancePeriod, attendanceReport, overviewDailyBreakdown]);
 
   // Summary KPIs derived from the charts' data (no re-computation needed)
   const chartKpis = useMemo(() => {
@@ -1423,32 +1430,63 @@ const SDPManagerDashboard: React.FC = () => {
 
   const documentComplianceData = useMemo(() => {
     if (!documentApprovalStats) return [];
-    return documentApprovalStats.documentTypeBreakdown.map(type => ({
-      name: type.documentType,
-      compliance: type.complianceRate,
-      submitted: type.submittedDocuments,
-      expected: type.expectedDocuments,
-      missing: type.missingDocuments
-    }));
+    const mapped = documentApprovalStats.documentTypeBreakdown.map(type => {
+      const compliance = type.complianceRate;
+      let color: string;
+      let risk: 'On Track' | 'Attention' | 'At Risk';
+      if (compliance >= 90) {
+        color = '#10b981'; // green-500
+        risk = 'On Track';
+      } else if (compliance >= 70) {
+        color = '#f59e0b'; // amber-500
+        risk = 'Attention';
+      } else {
+        color = '#ef4444'; // red-500
+        risk = 'At Risk';
+      }
+      return {
+        name: type.documentType,
+        compliance,
+        risk,
+        color,
+        submitted: type.submittedDocuments,
+        expected: type.expectedDocuments,
+        missing: type.missingDocuments,
+        approved: type.approvedDocuments,
+        pending: type.pendingDocuments,
+      };
+    });
+    // Sort descending by compliance — worst performers visible first on top (vertical bar, label at top)
+    return mapped.sort((a, b) => a.compliance - b.compliance);
   }, [documentApprovalStats]);
 
   const overallDocStatusData = useMemo(() => {
     if (!documentApprovalStats) return [];
-    
+
+    const total =
+      (documentApprovalStats.approvedDocuments || 0) +
+      (documentApprovalStats.declinedDocuments || 0) +
+      (documentApprovalStats.pendingDocuments || 0);
+
     const data = [
       { name: 'Approved', value: documentApprovalStats.approvedDocuments || 0, color: '#10b981' },
       { name: 'Declined', value: documentApprovalStats.declinedDocuments || 0, color: '#ef4444' },
-      { name: 'Pending', value: documentApprovalStats.pendingDocuments || 0, color: '#f59e0b' }
+      { name: 'Pending', value: documentApprovalStats.pendingDocuments || 0, color: '#f59e0b' },
     ];
 
     // Check if we have any data to display
     const hasData = data.some(item => item.value > 0);
     if (!hasData) {
-      // Return a "No Data" entry so the chart at least renders something
-      return [{ name: 'No Documents', value: 1, color: '#e2e8f0' }];
+      return [
+        { name: 'No Documents', value: 1, color: '#e2e8f0', total: 1, approvedPct: 0 },
+      ];
     }
-    
-    return data;
+
+    const approvedPct = total > 0
+      ? parseFloat(((documentApprovalStats.approvedDocuments || 0) / total) * 100).toFixed(1)
+      : '0.0';
+
+    return data.map(d => ({ ...d, total, approvedPct: Number(approvedPct) }));
   }, [documentApprovalStats]);
 
   // Validation functions
@@ -4246,6 +4284,22 @@ const SDPManagerDashboard: React.FC = () => {
     }
   }, [activeSection, overviewAttendancePeriod]);
 
+  // Once attendanceProjects are loaded on the overview, fetch real daily
+  // breakdowns so the enrollment/attendance trend charts render real data.
+  useEffect(() => {
+    if (activeSection !== 'overview') return;
+    if (!attendanceProjects.length) {
+      setOverviewDailyBreakdown(null);
+      return;
+    }
+    if (overviewAttendancePeriod === 'today') return; // daily breakdown would be a single point, skip
+    void fetchOverviewDailyBreakdown(
+      overviewAttendancePeriod,
+      attendanceProjects.map(p => p.projectId),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSection, overviewAttendancePeriod, attendanceProjects]);
+
   const fetchAttendanceProjects = async (period: string = 'today') => {
     setAttendanceLoading(true);
     try {
@@ -4360,6 +4414,79 @@ const SDPManagerDashboard: React.FC = () => {
       setAttendanceReport(null);
     } finally {
       setAttendanceLoading(false);
+    }
+  };
+
+  // Aggregate daily attendance across multiple projects by merging report dailyBreakdown
+  // arrays keyed by date. Sums counts and computes a weighted (by totalLearners) avg
+  // attendance rate so enrollment/attendance charts render real API numbers.
+  const mergeDailyBreakdowns = (reports: AttendanceReport[]): DailyAttendance[] => {
+    const buckets = new Map<string, DailyAttendance>();
+    for (const r of reports) {
+      if (!r?.dailyBreakdown) continue;
+      for (const d of r.dailyBreakdown) {
+        const key = d.date.substring(0, 10);
+        const prev = buckets.get(key);
+        if (!prev) {
+          buckets.set(key, { ...d, date: `${key}T00:00:00` });
+        } else {
+          const newTotal = prev.totalLearners + d.totalLearners;
+          const newPresent = prev.presentLearners + d.presentLearners;
+          const newAbsent = prev.absentLearners + d.absentLearners;
+          const weightedHours = newTotal > 0
+            ? ((prev.averageContactHours * prev.totalLearners) +
+               (d.averageContactHours * d.totalLearners)) / newTotal
+            : (prev.averageContactHours + d.averageContactHours) / 2;
+          buckets.set(key, {
+            date: `${key}T00:00:00`,
+            totalLearners: newTotal,
+            presentLearners: newPresent,
+            absentLearners: newAbsent,
+            attendanceRate: newTotal > 0 ? (newPresent / newTotal) * 100 : 0,
+            averageContactHours: weightedHours,
+          });
+        }
+      }
+    }
+    const arr = Array.from(buckets.values());
+    arr.sort((a, b) => a.date.localeCompare(b.date));
+    return arr;
+  };
+
+  // Fetch real daily breakdowns for the overview charts for the current
+  // overviewAttendancePeriod. Combines reports from up to the first 5
+  // projects to avoid back-pressure while still providing accurate aggregate.
+  const fetchOverviewDailyBreakdown = async (
+    period: string,
+    projectIds: number[],
+  ): Promise<DailyAttendance[] | null> => {
+    if (!projectIds.length || period === 'today') return null;
+    setOverviewDailyLoading(true);
+    try {
+      const MAX_PROJECTS = 5;
+      const ids = projectIds.slice(0, MAX_PROJECTS);
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            const url = `/api/AttendanceTracking/project/${id}/report?period=${period}`;
+            const r = await fetchWithAuth(url);
+            if (r?.ok) return (await r.json()) as AttendanceReport;
+            return null;
+          } catch {
+            return null;
+          }
+        }),
+      );
+      const valid = results.filter(Boolean) as AttendanceReport[];
+      const merged = valid.length ? mergeDailyBreakdowns(valid) : null;
+      setOverviewDailyBreakdown(merged);
+      return merged;
+    } catch (e) {
+      console.error('Error fetching overview daily breakdown:', e);
+      setOverviewDailyBreakdown(null);
+      return null;
+    } finally {
+      setOverviewDailyLoading(false);
     }
   };
 
@@ -5357,50 +5484,104 @@ const SDPManagerDashboard: React.FC = () => {
           <div className="col-lg-8">
             <div className="card border-0 shadow-lg h-100">
               <div className="card-header border-0 bg-white pt-4">
-                <h5 className="mb-0">📄 Document Compliance by Type</h5>
-                <small className="text-muted">Percentage of expected documents submitted</small>
+                <div className="d-flex align-items-baseline justify-content-between flex-wrap mb-1 gap-2">
+                  <div>
+                    <h5 className="mb-0">📄 Document Compliance by Type</h5>
+                    <small className="text-muted">
+                      Worst first · SLA target 90% · Green ≥90%, Amber 70–89%, Red {'<'}70%
+                    </small>
+                  </div>
+                  <div className="d-flex gap-2" style={{ fontSize: 11 }}>
+                    <span className="d-inline-flex align-items-center gap-1">
+                      <span style={{ display: 'inline-block', width: 10, height: 10, background: '#10b981', borderRadius: 2 }} /> On Track
+                    </span>
+                    <span className="d-inline-flex align-items-center gap-1">
+                      <span style={{ display: 'inline-block', width: 10, height: 10, background: '#f59e0b', borderRadius: 2 }} /> Attention
+                    </span>
+                    <span className="d-inline-flex align-items-center gap-1">
+                      <span style={{ display: 'inline-block', width: 10, height: 10, background: '#ef4444', borderRadius: 2 }} /> At Risk
+                    </span>
+                  </div>
+                </div>
               </div>
               <div className="card-body" style={{ height: '300px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={documentComplianceData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                    <XAxis type="number" domain={[0, 100]} />
-                    <YAxis dataKey="name" type="category" width={150} fontSize={10} />
-                    <Tooltip 
-                      formatter={(value: number, name: string, props: any) => {
-                        if (name === 'Compliance %') return [`${value.toFixed(1)}%`, name];
-                        return [value, name];
-                      }}
-                      labelFormatter={(label) => `Document: ${label}`}
+                  <BarChart data={documentComplianceData} layout="vertical" margin={{ left: 0, right: 12, top: 4, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                    <XAxis type="number" domain={[0, 100]} fontSize={11} stroke="#64748b" tick={{ fill: '#64748b' }} />
+                    <YAxis dataKey="name" type="category" width={150} fontSize={11} stroke="#64748b" tick={{ fill: '#475569' }} />
+                    {/* SLA 90% target line */}
+                    <ReferenceLine
+                      x={90}
+                      stroke="#dc2626"
+                      strokeDasharray="3 3"
+                      strokeWidth={1.5}
+                      label={{ value: 'SLA 90%', position: 'top', fill: '#dc2626', fontSize: 10, fontWeight: 600 }}
+                    />
+                    <Tooltip
+                      labelFormatter={(label) => `${label}`}
                       content={({ active, payload, label }) => {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
+                          const badgeBg =
+                            data.risk === 'On Track' ? '#10b981' :
+                            data.risk === 'Attention' ? '#f59e0b' : '#ef4444';
                           return (
-                            <div className="bg-white p-3 border rounded shadow-sm">
-                              <p className="fw-bold mb-1">{label}</p>
-                              <p className="text-info mb-0">Compliance: {data.compliance.toFixed(1)}%</p>
-                              <p className="text-success mb-0">Submitted: {data.submitted}</p>
-                              <p className="text-danger mb-0">Missing: {data.missing}</p>
-                              <p className="text-muted small mb-0">Total Expected: {data.expected}</p>
+                            <div
+                              className="p-3 border rounded"
+                              style={{
+                                backgroundColor: '#fff',
+                                borderColor: '#e2e8f0',
+                                boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)',
+                                minWidth: 200,
+                              }}
+                            >
+                              <div className="d-flex align-items-center justify-content-between gap-2 mb-1">
+                                <p className="fw-bold mb-0" style={{ fontSize: 13 }}>{label}</p>
+                                <span
+                                  className="badge text-white"
+                                  style={{ backgroundColor: badgeBg, fontSize: 10 }}
+                                >
+                                  {data.risk}
+                                </span>
+                              </div>
+                              <p className="mb-1" style={{ fontSize: 13 }}>
+                                Compliance: <strong style={{ color: badgeBg }}>{data.compliance.toFixed(1)}%</strong>
+                              </p>
+                              <p className="mb-1 text-success" style={{ fontSize: 12 }}>
+                                Submitted: {data.submitted} / {data.expected} expected
+                              </p>
+                              <p className="mb-1 text-danger" style={{ fontSize: 12 }}>Missing: {data.missing}</p>
+                              {typeof data.approved === 'number' && (
+                                <p className="mb-0 text-muted small" style={{ fontSize: 11 }}>
+                                  Approved: {data.approved} · Pending: {data.pending}
+                                </p>
+                              )}
                             </div>
                           );
                         }
                         return null;
                       }}
                     />
-                    <Bar name="Compliance %" dataKey="compliance" fill="#8b5cf6" radius={[0, 4, 4, 0]} />
+                    <Bar name="Compliance %" dataKey="compliance" radius={[0, 4, 4, 0]} maxBarSize={28}>
+                      {documentComplianceData.map((entry: any, index: number) => (
+                        <Cell key={`cell-comp-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
           </div>
 
-          {/* Document Status Pie */}
+          {/* Document Status Pie (Donut with center text) */}
           <div className="col-lg-4">
             <div className="card border-0 shadow-lg h-100">
               <div className="card-header border-0 bg-white pt-4">
                 <h5 className="mb-0">📁 Overall Document Status</h5>
-                <small className="text-muted">Approval progress of all submissions</small>
+                <small className="text-muted">
+                  Total: {overallDocStatusData[0]?.total || 0} documents processed
+                </small>
               </div>
               <div className="card-body" style={{ height: '300px' }}>
                 <ResponsiveContainer width="100%" height="100%">
@@ -5409,17 +5590,61 @@ const SDPManagerDashboard: React.FC = () => {
                       data={overallDocStatusData}
                       cx="50%"
                       cy="50%"
-                      innerRadius={60}
-                      outerRadius={80}
-                      paddingAngle={5}
+                      innerRadius={55}
+                      outerRadius={82}
+                      paddingAngle={overallDocStatusData.length > 1 ? 3 : 0}
                       dataKey="value"
+                      strokeWidth={2}
+                      stroke="#fff"
                     >
                       {overallDocStatusData.map((entry: any, index: number) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-doc-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip />
-                    <Legend />
+                    <Tooltip
+                      formatter={(value: number, _name: string, props: any) => {
+                        const entry = props?.payload || {};
+                        const total = entry.total || 1;
+                        const pct = total > 0 ? ((value / total) * 100).toFixed(1) : '0.0';
+                        return [`${value.toLocaleString()} (${pct}%)`, props.name || _name];
+                      }}
+                    />
+                    <Legend
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
+                    />
+                    {/* Center donut text: Approved % */}
+                    {(() => {
+                      const sample = overallDocStatusData[0];
+                      if (!sample || sample.name === 'No Documents') {
+                        return (
+                          <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+                            <tspan x="50%" dy="-6" style={{ fontSize: 16, fontWeight: 700, fill: '#94a3b8' }}>
+                              —
+                            </tspan>
+                            <tspan x="50%" dy="22" style={{ fontSize: 10, fill: '#94a3b8' }}>
+                              No docs
+                            </tspan>
+                          </text>
+                        );
+                      }
+                      const pct = sample.approvedPct ?? 0;
+                      const color = pct >= 90 ? '#10b981' : pct >= 70 ? '#f59e0b' : '#ef4444';
+                      return (
+                        <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+                          <tspan
+                            x="50%"
+                            dy="-6"
+                            style={{ fontSize: 20, fontWeight: 800, fill: color }}
+                          >
+                            {pct}%
+                          </tspan>
+                          <tspan x="50%" dy="22" style={{ fontSize: 10, fill: '#64748b' }}>
+                            Approved
+                          </tspan>
+                        </text>
+                      );
+                    })()}
                   </PieChart>
                 </ResponsiveContainer>
               </div>
