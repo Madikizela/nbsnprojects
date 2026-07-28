@@ -8,9 +8,15 @@ export default function LearnerResetPassword() {
   const [token, setToken] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPwd, setShowNewPwd] = useState(false);
+  const [showConfirmPwd, setShowConfirmPwd] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [tokenInfo, setTokenInfo] = useState<unknown>(null);
+
+  const pwdLenOk = newPassword.length >= 8;
+  const confirmMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
+  const confirmMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
 
   // Step 1: Get reset token by email
   async function handleGetToken(e: React.FormEvent) {
@@ -199,24 +205,64 @@ export default function LearnerResetPassword() {
 
           <form onSubmit={handleResetPassword}>
             <label style={labelStyle}>New Password</label>
-            <input
-              style={inputStyle}
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="At least 8 characters"
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                style={{ ...inputStyle, paddingRight: 48 }}
+                type={showNewPwd ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                required
+              />
+              <button
+                type="button"
+                aria-label={showNewPwd ? 'Hide new password' : 'Show new password'}
+                onClick={() => setShowNewPwd(v => !v)}
+                style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8',
+                  fontSize: 17, padding: 2, lineHeight: 1
+                }}
+              >{showNewPwd ? '🙈' : '👁️'}</button>
+            </div>
+            <div style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, marginTop: -8, marginBottom: 12 }}>
+              <span style={{ color: pwdLenOk ? '#10b981' : '#64748b' }}>{pwdLenOk ? '✅' : '○'}</span>
+              <span style={{ color: pwdLenOk ? '#10b981' : '#94a3b8' }}>At least 8 characters</span>
+            </div>
 
             <label style={labelStyle}>Confirm New Password</label>
-            <input
-              style={inputStyle}
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-enter your password"
-              required
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                style={{
+                  ...inputStyle,
+                  paddingRight: 48,
+                  borderColor: confirmMismatch ? '#ef4444' : confirmMatch ? '#10b981' : undefined
+                }}
+                type={showConfirmPwd ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your password"
+                required
+              />
+              <button
+                type="button"
+                aria-label={showConfirmPwd ? 'Hide confirm password' : 'Show confirm password'}
+                onClick={() => setShowConfirmPwd(v => !v)}
+                style={{
+                  position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8',
+                  fontSize: 17, padding: 2, lineHeight: 1
+                }}
+              >{showConfirmPwd ? '🙈' : '👁️'}</button>
+            </div>
+            <div style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6, marginTop: -8, marginBottom: 12 }}>
+              <span style={{ color: confirmMatch ? '#10b981' : confirmMismatch ? '#ef4444' : '#64748b' }}>
+                {confirmMatch ? '✅' : confirmMismatch ? '❌' : '○'}
+              </span>
+              <span style={{ color: confirmMatch ? '#10b981' : confirmMismatch ? '#ef4444' : '#94a3b8' }}>
+                {confirmMatch ? 'Passwords match' : confirmMismatch ? 'Passwords do not match' : 'Confirm your password'}
+              </span>
+            </div>
 
             {error && <p style={{ color: '#f87171', fontSize: 13, marginBottom: 12 }}>{error}</p>}
 

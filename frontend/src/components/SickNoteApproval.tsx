@@ -45,6 +45,9 @@ export default function SickNoteApproval({ token }: Props) {
   useEffect(() => { load(); }, []);
 
   async function approve(id: number) {
+    const note = notes.find(n => n.id === id);
+    const who = note ? `${note.learnerName} (${new Date(note.startDate).toLocaleDateString('en-ZA')} → ${new Date(note.endDate).toLocaleDateString('en-ZA')})` : `note #${id}`;
+    if (!window.confirm(`Are you sure you want to APPROVE this sick note?\n\n${who}\n\nAttendance records will be updated.`)) return;
     setSaving(true); setMsg('');
     try {
       const res = await fetch(`${API}/api/SickNote/${id}/approve`, {
@@ -58,6 +61,12 @@ export default function SickNoteApproval({ token }: Props) {
 
   async function reject(id: number) {
     if (!rejectReason.trim()) { setMsg('❌ Please enter a rejection reason.'); return; }
+    // Secondary confirmation after the user has typed a reason — prevents accidental rejection.
+    const note = notes.find(n => n.id === id);
+    const who = note ? `${note.learnerName} (${new Date(note.startDate).toLocaleDateString('en-ZA')} → ${new Date(note.endDate).toLocaleDateString('en-ZA')})` : `note #${id}`;
+    if (!window.confirm(
+      `⚠️ Please confirm REJECTION of this sick note.\n\n${who}\n\nRejection reason:\n"${rejectReason.trim()}"\n\nThis cannot be undone. The learner will NOT receive attendance credit.`
+    )) return;
     setSaving(true); setMsg('');
     try {
       const res = await fetch(`${API}/api/SickNote/${id}/approve`, {

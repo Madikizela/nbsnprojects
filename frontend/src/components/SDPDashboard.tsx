@@ -165,6 +165,12 @@ const SDPDashboard: React.FC = () => {
   const [showUpdateProjectModal, setShowUpdateProjectModal] = useState(false);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
+  // Tip / transient banner states
+  const [sidebarTip, setSidebarTip] = useState<string | null>(null);
+  const [projectsError, setProjectsError] = useState<string | null>(null);
+  const [departmentsError, setDepartmentsError] = useState<string | null>(null);
+  const [usersError, setUsersError] = useState<string | null>(null);
+
   // Department form state
   const [departmentFormData, setDepartmentFormData] = useState({
     name: '',
@@ -279,6 +285,46 @@ const SDPDashboard: React.FC = () => {
     setLoading(false);
   }, []);
 
+  // Retry entry-points — re-run the corresponding fetch.
+  const retryFetchProjects = () => {
+    setProjectsError(null);
+    const sdpId = user?.skillsDevelopmentProviderId;
+    if (!sdpId) return;
+    setProjectsLoading(true);
+    const token = localStorage.getItem('token');
+    fetch(`/api/sdp/projects`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
+      .then(d => { setProjects(d.projects || []); setProjectsError(null); })
+      .catch(e => setProjectsError(`Projects failed to load. ${e instanceof Error ? e.message : String(e)}`))
+      .finally(() => setProjectsLoading(false));
+  };
+
+  const retryFetchDepartments = () => {
+    setDepartmentsError(null);
+    const sdpId = user?.skillsDevelopmentProviderId;
+    if (!sdpId) return;
+    setDepartmentsLoading(true);
+    const token = localStorage.getItem('token');
+    fetch(`${API}/api/Departments/BySDP/${sdpId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
+      .then(d => { setDepartments(d); setDepartmentsError(null); })
+      .catch(e => setDepartmentsError(`Departments failed to load. ${e instanceof Error ? e.message : String(e)}`))
+      .finally(() => setDepartmentsLoading(false));
+  };
+
+  const retryFetchUsers = () => {
+    setUsersError(null);
+    const sdpId = user?.skillsDevelopmentProviderId;
+    if (!sdpId) return;
+    setUsersLoading(true);
+    const token = localStorage.getItem('token');
+    fetch(`/api/Users/BySDP/${sdpId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
+      .then(d => { setUsers(d); setUsersError(null); })
+      .catch(e => setUsersError(`Users failed to load. ${e instanceof Error ? e.message : String(e)}`))
+      .finally(() => setUsersLoading(false));
+  };
+
   // Fetch projects and departments for SDP users
   useEffect(() => {
     const fetchSDPData = async () => {
@@ -289,6 +335,7 @@ const SDPDashboard: React.FC = () => {
         setDataLoading(true);
         setProjectsLoading(true);
         setDepartmentsLoading(true);
+        setUsersLoading(true);
         
         try {
           const token = localStorage.getItem('token');
@@ -303,13 +350,15 @@ const SDPDashboard: React.FC = () => {
           if (projectsResponse.ok) {
             const projectsData = await projectsResponse.json();
             setProjects(projectsData.projects || []);
+            setProjectsError(null);
           } else {
             console.error('Failed to fetch projects');
             setProjects([]);
+            setProjectsError(`Projects failed to load (HTTP ${projectsResponse.status}). Please retry.`);
           }
           
           // Fetch departments for this SDP
-          const departmentsResponse = await fetch(`/api/SkillsDevelopmentProviders/${user.skillsDevelopmentProviderId}/Departments`, {
+          const departmentsResponse = await fetch(`${API}/api/Departments/BySDP/${user.skillsDevelopmentProviderId}`, {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -318,9 +367,11 @@ const SDPDashboard: React.FC = () => {
           if (departmentsResponse.ok) {
             const departmentsData = await departmentsResponse.json();
             setDepartments(departmentsData);
+            setDepartmentsError(null);
           } else {
             console.error('Failed to fetch departments');
             setDepartments([]);
+            setDepartmentsError(`Departments failed to load (HTTP ${departmentsResponse.status}). Please retry.`);
           }
 
           // Fetch users for this SDP
@@ -333,16 +384,22 @@ const SDPDashboard: React.FC = () => {
           if (usersResponse.ok) {
             const usersData = await usersResponse.json();
             setUsers(usersData);
+            setUsersError(null);
           } else {
             console.error('Failed to fetch users');
             setUsers([]);
+            setUsersError(`Users failed to load (HTTP ${usersResponse.status}). Please retry.`);
           }
           
         } catch (error) {
           console.error('Error fetching SDP data:', error);
+          const msg = error instanceof Error ? error.message : String(error);
           setProjects([]);
           setDepartments([]);
           setUsers([]);
+          setProjectsError(`Projects failed to load: ${msg}`);
+          setDepartmentsError(`Departments failed to load: ${msg}`);
+          setUsersError(`Users failed to load: ${msg}`);
         } finally {
           setDataLoading(false);
           setProjectsLoading(false);
@@ -357,7 +414,7 @@ const SDPDashboard: React.FC = () => {
 
   // Fetch projects when activeSection changes to projects
   useEffect(() => {
-    if (activeSection === 'projects' && user?.skillsDevelopmentProviderId) {
+    if (activeSection === 'projects' && user?.skillsDevelopmentProviderId && projects.length === 0 && !projectsError) {
       const fetchProjectsForActiveSection = async () => {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -373,9 +430,13 @@ const SDPDashboard: React.FC = () => {
           if (projectsResponse.ok) {
             const projectsData = await projectsResponse.json();
             setProjects(projectsData.projects || []);
+            setProjectsError(null);
+          } else {
+            setProjectsError(`Projects failed to load (HTTP ${projectsResponse.status}). Please retry.`);
           }
         } catch (error) {
-          console.error('Error fetching projects for section:', error);
+          const msg = error instanceof Error ? error.message : String(error);
+          setProjectsError(`Projects failed to load: ${msg}`);
         } finally {
           setProjectsLoading(false);
         }
@@ -387,7 +448,7 @@ const SDPDashboard: React.FC = () => {
 
   // Fetch users when activeSection changes to users
   useEffect(() => {
-    if (activeSection === 'users' && user?.skillsDevelopmentProviderId) {
+    if (activeSection === 'users' && user?.skillsDevelopmentProviderId && users.length === 0 && !usersError) {
       const fetchUsersForActiveSection = async () => {
         const token = localStorage.getItem('token');
         if (!token) return;
@@ -403,9 +464,13 @@ const SDPDashboard: React.FC = () => {
           if (usersResponse.ok) {
             const usersData = await usersResponse.json();
             setUsers(usersData);
+            setUsersError(null);
+          } else {
+            setUsersError(`Users failed to load (HTTP ${usersResponse.status}). Please retry.`);
           }
         } catch (error) {
-          console.error('Error fetching users for section:', error);
+          const msg = error instanceof Error ? error.message : String(error);
+          setUsersError(`Users failed to load: ${msg}`);
         } finally {
           setUsersLoading(false);
         }
@@ -1186,7 +1251,41 @@ const SDPDashboard: React.FC = () => {
     </div>
   );
 
-  const renderUpdateProject = () => (
+  const renderUpdateProject = () => {
+    // Defensive empty state: no project has been loaded into the form context.
+    // The user should NOT reach this through the normal flow, but if they do
+    // (bookmark, stale state, direct code path) give an actionable CTA.
+    if (!selectedProject) {
+      return (
+        <div className="row justify-content-center">
+          <div className="col-lg-8 col-xl-7">
+            <div className="card border-0 shadow-lg text-center" style={{
+              background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+              borderRadius: 16,
+            }}>
+              <div className="card-body text-white py-5 px-4">
+                <div style={{ fontSize: '3rem', lineHeight: 1 }} className="mb-3">🧭</div>
+                <h3 className="mb-2" style={{ fontWeight: 700 }}>No project selected</h3>
+                <p className="mb-4 opacity-90" style={{ maxWidth: 480, margin: '0 auto' }}>
+                  The Update Project form needs a specific project to edit. Open the projects
+                  list, find the card you want, and click its <strong>Update Project</strong> button.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveSection('projects')}
+                  className="btn btn-light px-5"
+                  style={{ fontWeight: 700, borderRadius: 999 }}
+                >
+                  📁 Go to Projects
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
     <div className="row justify-content-center">
       <div className="col-lg-10">
         <div className="card border-0 shadow-lg" style={{
@@ -1197,9 +1296,7 @@ const SDPDashboard: React.FC = () => {
           <div className="card-header border-0 text-white d-flex justify-content-between align-items-center" style={{ backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: '16px 16px 0 0', padding: '20px 24px' }}>
             <div>
               <h3 className="mb-1" style={{ fontWeight: 700, fontSize: '1.4rem' }}>✏️ Update Project</h3>
-              {selectedProject && (
-                <small className="opacity-75" style={{ fontSize: '0.85rem' }}>Project ID: {selectedProject.id}</small>
-              )}
+              <small className="opacity-75" style={{ fontSize: '0.85rem' }}>Project ID: {selectedProject.id} · {selectedProject.projectName}</small>
             </div>
           </div>
           <div className="card-body text-white" style={{ maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
@@ -2033,31 +2130,45 @@ const SDPDashboard: React.FC = () => {
     });
   };
 
-  // Update stipend calculation manually when needed
+  // Update stipend calculation manually when needed — lineItems live inside phases[]
   const updateStipendCalculation = () => {
     if (projectBudget && selectedProject && projectFormData.stipendAmount > 0) {
       const stipendTotal = projectFormData.stipendAmount * selectedProject.numberOfBeneficiaries * 4; // 4 months
-      
-      const updatedLineItems = projectBudget.lineItems.map(item => {
-        if (item.id === 'stipend') {
-          return {
-            ...item,
-            allocatedAmount: stipendTotal,
-            remainingAmount: stipendTotal - item.spentAmount,
-            description: `Learner stipends for 4 months (${selectedProject.numberOfBeneficiaries} learners × R${projectFormData.stipendAmount} × 4 months)`
-          };
-        }
-        return item;
+      const stipendDesc = `Learner stipends for 4 months (${selectedProject.numberOfBeneficiaries} learners × R${projectFormData.stipendAmount} × 4 months)`;
+
+      // Distribute the stipend across every phase — if the phase already has a
+      // 'stipend' line item we update it in place; otherwise it's skipped.
+      const updatedPhases = projectBudget.phases.map(phase => {
+        let phaseChanged = false;
+        const phaseItems = phase.lineItems.map(item => {
+          if (item.id === 'stipend') {
+            phaseChanged = true;
+            return {
+              ...item,
+              allocatedAmount: stipendTotal,
+              remainingAmount: stipendTotal - item.spentAmount,
+              description: stipendDesc
+            };
+          }
+          return item;
+        });
+        if (!phaseChanged) return phase;
+        const phaseAllocated = phaseItems.reduce((s, i) => s + i.allocatedAmount, 0);
+        return {
+          ...phase,
+          lineItems: phaseItems,
+          remainingBudget: phase.allocatedBudget - phaseAllocated
+        };
       });
 
-      const totalAllocated = updatedLineItems.reduce((sum, item) => sum + item.allocatedAmount, 0);
-      const remainingBudget = projectBudget.totalBudget - totalAllocated;
+      const totalAllocated = updatedPhases.reduce((sum, phase) =>
+        sum + phase.lineItems.reduce((ps, item) => ps + item.allocatedAmount, 0), 0);
 
       setProjectBudget({
         ...projectBudget,
-        lineItems: updatedLineItems,
+        phases: updatedPhases,
         totalAllocated,
-        remainingBudget
+        remainingBudget: projectBudget.totalBudget - totalAllocated
       });
     }
   };
@@ -2942,9 +3053,28 @@ const SDPDashboard: React.FC = () => {
                 <hr style={{ borderColor:'rgba(255,255,255,0.1)', margin:'12px 0' }} />
                 <h6 style={{ fontSize:'0.7rem', letterSpacing:'1.5px', fontWeight:700, color:'rgba(255,255,255,0.35)', textTransform:'uppercase', margin:'0 0 8px 4px' }}>Actions</h6>
                 <button
+                  title={
+                    projects.length === 0
+                      ? 'Create a project first'
+                      : selectedProject
+                      ? `Currently editing: ${selectedProject.projectName || 'Selected project'}`
+                      : 'Select a project from the Projects list first — no project currently loaded'
+                  }
                   style={{ color: activeSection === 'update-project' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'update-project' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'update-project' ? 700 : 400, transition:'all 0.15s', opacity: projects.length === 0 ? 0.4 : 1 }}
                   className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
-                  onClick={() => setActiveSection('update-project')}
+                  onClick={() => {
+                    // If no project is selected, drop the user on the projects list so they
+                    // can pick one via the card's "Update Project" button (the only valid way
+                    // to enter this flow with a preloaded selectedProject).
+                    if (!selectedProject) {
+                      setActiveSection('projects');
+                      setSidebarTip('💡 Select a project below by clicking its ✏️ Update Project button, then return here.');
+                      setTimeout(() => setSidebarTip(prev => prev?.startsWith('💡') ? null : prev), 6000);
+                      return;
+                    }
+                    setSidebarTip(null);
+                    setActiveSection('update-project');
+                  }}
                   disabled={projects.length === 0}
                 >
                   <span>✏️</span> Update Project
@@ -2970,6 +3100,52 @@ const SDPDashboard: React.FC = () => {
           {/* Main Content */}
           <div className="col-md-9 col-lg-10 d-flex flex-column" style={{ background:'#f1f5f9' }}>
             <div className="p-4 flex-grow-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 56px)', backgroundColor: '#f1f5f9' }}>
+              {/* ── Tip banner (sidebar-nav hints) ── */}
+              {sidebarTip && (
+                <div className="mb-3 alert alert-info alert-dismissible d-flex align-items-center gap-2 shadow-sm"
+                  style={{ borderRadius: 12, border: '1px solid #7dd3fc', background: '#f0f9ff' }}>
+                  <span style={{ fontSize: 18 }}>💡</span>
+                  <span style={{ color: '#0c4a6e', fontSize: 14, fontWeight: 500, flex: 1 }}>{sidebarTip}</span>
+                  <button type="button" className="btn-close" onClick={() => setSidebarTip(null)} aria-label="Close"></button>
+                </div>
+              )}
+
+              {/* ── Global API error banners ── */}
+              {(projectsError || departmentsError || usersError) && (
+                <div className="mb-3" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {projectsError && (
+                    <div className="alert alert-danger d-flex align-items-center gap-2 mb-0 shadow-sm"
+                      style={{ borderRadius: 12, border: '1px solid #fecaca', background: '#fef2f2' }}>
+                      <span style={{ fontSize: 18 }}>⛔</span>
+                      <span style={{ color: '#991b1b', fontSize: 14, flex: 1 }}>{projectsError}</span>
+                      <button type="button" className="btn btn-sm btn-danger"
+                        style={{ borderRadius: 8, padding: '4px 14px', fontWeight: 600, fontSize: 13 }}
+                        onClick={retryFetchProjects}>↻ Retry</button>
+                    </div>
+                  )}
+                  {departmentsError && (
+                    <div className="alert alert-danger d-flex align-items-center gap-2 mb-0 shadow-sm"
+                      style={{ borderRadius: 12, border: '1px solid #fecaca', background: '#fef2f2' }}>
+                      <span style={{ fontSize: 18 }}>⛔</span>
+                      <span style={{ color: '#991b1b', fontSize: 14, flex: 1 }}>{departmentsError}</span>
+                      <button type="button" className="btn btn-sm btn-danger"
+                        style={{ borderRadius: 8, padding: '4px 14px', fontWeight: 600, fontSize: 13 }}
+                        onClick={retryFetchDepartments}>↻ Retry</button>
+                    </div>
+                  )}
+                  {usersError && (
+                    <div className="alert alert-danger d-flex align-items-center gap-2 mb-0 shadow-sm"
+                      style={{ borderRadius: 12, border: '1px solid #fecaca', background: '#fef2f2' }}>
+                      <span style={{ fontSize: 18 }}>⛔</span>
+                      <span style={{ color: '#991b1b', fontSize: 14, flex: 1 }}>{usersError}</span>
+                      <button type="button" className="btn btn-sm btn-danger"
+                        style={{ borderRadius: 8, padding: '4px 14px', fontWeight: 600, fontSize: 13 }}
+                        onClick={retryFetchUsers}>↻ Retry</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activeSection === 'overview' && renderOverview()}
               {activeSection === 'projects' && renderProjects()}
               {activeSection === 'departments' && renderDepartments()}
@@ -2985,5 +3161,6 @@ const SDPDashboard: React.FC = () => {
     </div>
   );
 };
+}
 
 export default SDPDashboard;
