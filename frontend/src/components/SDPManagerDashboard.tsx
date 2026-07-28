@@ -1123,11 +1123,12 @@ const SDPManagerDashboard: React.FC = () => {
         });
       }
     } else if (overviewAttendancePeriod === 'week') {
-      // Show daily data for the past 7 days
+      // Show daily data for the past 7 days with dates
       for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+        const dayNum = date.getDate();
         
         const enrolled = filteredProjects.reduce((sum, project) => {
           const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
@@ -1135,27 +1136,40 @@ const SDPManagerDashboard: React.FC = () => {
         }, 0);
         
         dataPoints.push({
-          name: dayName,
+          name: `${dayName} ${dayNum}`,
           enrolled: Math.floor(enrolled * (0.7 + Math.random() * 0.3)), // Simulated weekly variation
           target: filteredProjects.reduce((sum, p) => sum + (p.numberOfBeneficiaries || 0), 0)
         });
       }
     } else {
-      // Show weekly data for the past month (4 weeks)
-      for (let i = 3; i >= 0; i--) {
-        const weekStart = new Date(today);
-        weekStart.setDate(weekStart.getDate() - (i * 7));
-        const weekLabel = `Week ${4 - i}`;
+      // Show daily data for the current month (from day 1 to today)
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      const daysInMonth = today.getDate(); // 1 to today
+      
+      const enrolledTotal = filteredProjects.reduce((sum, project) => {
+        const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
+        return sum + (attendanceProject?.totalLearners || 0);
+      }, 0);
+      
+      const targetTotal = filteredProjects.reduce((sum, p) => sum + (p.numberOfBeneficiaries || 0), 0);
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(currentYear, currentMonth, day);
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        const isToday = day === daysInMonth;
         
-        const enrolled = filteredProjects.reduce((sum, project) => {
-          const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
-          return sum + (attendanceProject?.totalLearners || 0);
-        }, 0);
+        // Simulate gradual enrollment growth through the month
+        const monthProgress = day / Math.max(1, daysInMonth);
+        const baseEnrollment = Math.floor(enrolledTotal * (0.6 + monthProgress * 0.4));
+        const weekendReduction = isWeekend ? 0.8 : 1.0;
+        const dailyVariation = 0.95 + Math.random() * 0.1; // ±5% variation
+        const todayBoost = isToday ? 1.02 : 1.0; // Slight boost for today
         
         dataPoints.push({
-          name: weekLabel,
-          enrolled: Math.floor(enrolled * (0.75 + (3 - i) * 0.08)), // Simulated monthly growth
-          target: filteredProjects.reduce((sum, p) => sum + (p.numberOfBeneficiaries || 0), 0)
+          name: `${day}`,
+          enrolled: Math.max(0, Math.floor(baseEnrollment * weekendReduction * dailyVariation * todayBoost)),
+          target: targetTotal
         });
       }
     }
@@ -1182,11 +1196,12 @@ const SDPManagerDashboard: React.FC = () => {
         });
       }
     } else if (overviewAttendancePeriod === 'week') {
-      // Show daily attendance for the past 7 days
+      // Show daily attendance for the past 7 days with dates
       for (let i = 6; i >= 0; i--) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
         const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+        const dayNum = date.getDate();
         
         const avgRate = filteredProjects.reduce((sum, project) => {
           const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
@@ -1198,25 +1213,39 @@ const SDPManagerDashboard: React.FC = () => {
         const rate = isWeekend ? Math.max(0, avgRate - 20 - Math.random() * 10) : avgRate + (Math.random() - 0.5) * 5;
         
         dataPoints.push({
-          name: dayName,
+          name: `${dayName} ${dayNum}`,
           rate: Math.min(100, Math.max(0, rate))
         });
       }
     } else {
-      // Show weekly attendance for the past month
-      for (let i = 3; i >= 0; i--) {
-        const weekStart = new Date(today);
-        weekStart.setDate(weekStart.getDate() - (i * 7));
-        const weekLabel = `Week ${4 - i}`;
+      // Show daily attendance for the current month (from day 1 to today)
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      const daysInMonth = today.getDate(); // 1 to today
+      
+      const avgRate = filteredProjects.reduce((sum, project) => {
+        const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
+        return sum + (attendanceProject?.attendanceRate || 0);
+      }, 0) / (filteredProjects.length || 1);
+      
+      for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(currentYear, currentMonth, day);
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+        const isToday = day === daysInMonth;
         
-        const avgRate = filteredProjects.reduce((sum, project) => {
-          const attendanceProject = attendanceProjects.find(ap => ap.projectId === project.id);
-          return sum + (attendanceProject?.attendanceRate || 0);
-        }, 0) / (filteredProjects.length || 1);
+        // Base rate with monthly trend
+        const monthProgress = day / Math.max(1, daysInMonth);
+        const baseRate = avgRate + Math.sin(monthProgress * Math.PI) * 5; // Slight curve
+        const weekendReduction = isWeekend ? -15 - Math.random() * 10 : 0;
+        const dailyVariation = (Math.random() - 0.5) * 6; // ±3% variation
+        const todayBoost = isToday ? 3 : 0; // Slight boost for today (known data)
+        
+        let rate = baseRate + weekendReduction + dailyVariation + todayBoost;
+        rate = Math.min(100, Math.max(0, rate));
         
         dataPoints.push({
-          name: weekLabel,
-          rate: Math.min(100, Math.max(70, avgRate + (Math.random() - 0.5) * 8))
+          name: `${day}`,
+          rate: parseFloat(rate.toFixed(1))
         });
       }
     }
@@ -4855,6 +4884,10 @@ const SDPManagerDashboard: React.FC = () => {
                       fontSize={11} 
                       stroke="#64748b"
                       tick={{ fill: '#64748b' }}
+                      interval={overviewAttendancePeriod === 'month' ? 'preserveStartEnd' : 0}
+                      angle={overviewAttendancePeriod === 'month' ? -30 : 0}
+                      textAnchor={overviewAttendancePeriod === 'month' ? 'end' : 'middle'}
+                      height={overviewAttendancePeriod === 'month' ? 50 : 30}
                     />
                     <YAxis 
                       fontSize={11}
@@ -4862,6 +4895,16 @@ const SDPManagerDashboard: React.FC = () => {
                       tick={{ fill: '#64748b' }}
                     />
                     <Tooltip 
+                      labelFormatter={(label: string) => {
+                        const today = new Date();
+                        if (overviewAttendancePeriod === 'month') {
+                          const monthName = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                          return `${monthName} ${label}`;
+                        } else if (overviewAttendancePeriod === 'week') {
+                          return label;
+                        }
+                        return overviewAttendancePeriod === 'today' ? `Today, ${label}` : label;
+                      }}
                       contentStyle={{ 
                         backgroundColor: '#fff', 
                         border: '1px solid #e2e8f0', 
@@ -4940,6 +4983,10 @@ const SDPManagerDashboard: React.FC = () => {
                       fontSize={11}
                       stroke="#64748b"
                       tick={{ fill: '#64748b' }}
+                      interval={overviewAttendancePeriod === 'month' ? 'preserveStartEnd' : 0}
+                      angle={overviewAttendancePeriod === 'month' ? -30 : 0}
+                      textAnchor={overviewAttendancePeriod === 'month' ? 'end' : 'middle'}
+                      height={overviewAttendancePeriod === 'month' ? 50 : 30}
                     />
                     <YAxis 
                       domain={[0, 100]} 
@@ -4949,6 +4996,16 @@ const SDPManagerDashboard: React.FC = () => {
                       label={{ value: '%', angle: 0, position: 'top', offset: 10 }}
                     />
                     <Tooltip 
+                      labelFormatter={(label: string) => {
+                        const today = new Date();
+                        if (overviewAttendancePeriod === 'month') {
+                          const monthName = today.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                          return `${monthName} ${label}`;
+                        } else if (overviewAttendancePeriod === 'week') {
+                          return label;
+                        }
+                        return overviewAttendancePeriod === 'today' ? `Today, ${label}` : label;
+                      }}
                       formatter={(value: any) => `${value.toFixed(1)}%`}
                       contentStyle={{ 
                         backgroundColor: '#fff', 
