@@ -96,7 +96,8 @@ export default function LearnerPortal() {
                 user.name.charAt(0).toUpperCase()
               )}
             </div>
-            <span style={{ fontWeight: 700, fontSize: 18, whiteSpace: 'nowrap' }}>NBSN Learner Portal</span>
+            <span style={{ fontWeight: 700, fontSize: 18, whiteSpace: 'nowrap' }}>NBSN Projects</span>
+            <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, whiteSpace: 'nowrap', marginLeft: 4 }}>Skills Development &amp; Training</span>
           </div>
 
           {/* Desktop Menu */}
@@ -381,8 +382,9 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
             width: 120, height: 120, borderRadius: 28, objectFit: 'contain',
             filter: 'drop-shadow(0 12px 32px rgba(16,185,129,0.5))'
           }} />
-          <h1 style={{ color:'#fff', fontSize:30, fontWeight:800, margin:'20px 0 6px' }}>Learner Portal</h1>
-          <p style={{ color:'rgba(255,255,255,0.6)', fontSize:15, margin:0 }}>NBSN Projects</p>
+          <h1 style={{ color:'#fff', fontSize:30, fontWeight:800, margin:'20px 0 4px' }}>Learner Portal</h1>
+          <p style={{ color:'rgba(255,255,255,0.85)', fontSize:14, fontWeight:600, margin:'0 0 2px', letterSpacing: 0.3 }}>Skills Development &amp; Training</p>
+          <p style={{ color:'rgba(255,255,255,0.5)', fontSize:13, margin:0 }}>NBSN Projects</p>
         </div>
 
         {/* Features */}
@@ -403,8 +405,8 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
           ))}
         </div>
 
-        <p style={{ position:'absolute', bottom:24, color:'rgba(255,255,255,0.3)', fontSize:12 }}>
-          © {new Date().getFullYear()} NBSN Projects
+        <p style={{ position:'absolute', bottom:24, color:'rgba(255,255,255,0.3)', fontSize:12, textAlign:'center' }}>
+          Skills Development &amp; Training<br />© {new Date().getFullYear()} NBSN Projects
         </p>
       </div>
 
@@ -506,13 +508,9 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
           </a>
 
           <p style={{ textAlign:'center', color:'#94a3b8', fontSize:12, marginTop:32 }}>
-            © {new Date().getFullYear()} NBSN Projects. All rights reserved.{' '}
-            <a
-              href="/popia-policy"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: '#10b981', textDecoration: 'underline' }}
-            >
+            NBSN Projects · Skills Development &amp; Training<br />
+            © {new Date().getFullYear()} All rights reserved.{' '}
+            <a href="/popia-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981', textDecoration: 'underline' }}>
               POPIA Privacy Policy
             </a>
           </p>

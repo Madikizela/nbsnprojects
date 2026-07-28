@@ -312,8 +312,8 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
         {/* Logo + title */}
         <div style={{ textAlign:'center', marginBottom:48, animation:'floatUp 4s ease-in-out infinite' }}>
           <img src={productIcon} alt="NBSN" style={{ width:120, height:120, borderRadius:28, objectFit:'contain', filter:'drop-shadow(0 12px 32px rgba(102,126,234,0.5))' }} />
-          <h1 style={{ color:'#fff', fontSize:32, fontWeight:800, margin:'20px 0 6px', letterSpacing:0.5 }}>NBSN Portal</h1>
-          <p style={{ color:'rgba(255,255,255,0.65)', fontSize:15, margin:0 }}>Skills Development & Training</p>
+          <h1 style={{ color:'#fff', fontSize:32, fontWeight:800, margin:'20px 0 4px', letterSpacing:0.5 }}>NBSN Projects</h1>
+          <p style={{ color:'rgba(255,255,255,0.85)', fontSize:14, fontWeight:600, margin:'0 0 2px', letterSpacing:0.3 }}>Skills Development &amp; Training</p>
         </div>
 
         {/* Feature list */}
