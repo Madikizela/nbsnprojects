@@ -543,6 +543,8 @@ interface LearnerProgress {
   summativeModeratedAt?: string;
 }
 
+type Toast = { id:number; type:'success'|'error'|'info'|'warning'; text:string };
+
 const SDPManagerDashboard: React.FC = () => {
   // API base URL constant
   const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
@@ -553,12 +555,19 @@ const SDPManagerDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [projects, setProjects] = useState<Project[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'reports' | 'team' | 'tasks' | 'attendanceTracking' | 'documentApprovals' | 'sickNotes' | 'marking' | 'moderation' | 'assessmentPlan' | 'candidatePreparation' | 'assessorReport' | 'systemLogs' | 'allUsers' | 'externalUsers'>((location.state as any)?.section || 'overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'reports' | 'team' | 'tasks' | 'attendanceTracking' | 'documentApprovals' | 'sickNotes' | 'marking' | 'moderation' | 'assessmentPlan' | 'candidatePreparation' | 'assessorReport' | 'systemLogs' | 'allUsers' | 'externalUsers' | 'learningMaterials'>((location.state as any)?.section || 'overview');
   const [dataLoading, setDataLoading] = useState(false);
   const [expandedProjects, setExpandedProjects] = useState<{[key: number]: boolean}>({});
   const [projectDetails, setProjectDetails] = useState<{[key: number]: any}>({});
   const [competencyReport, setCompetencyReport] = useState<CompetencyReport | null>(null);
   const [fetchingReport, setFetchingReport] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const pushToast = (type:Toast['type'], text:string) => {
+    const id = Date.now() + Math.floor(Math.random()*10000);
+    setToasts(t => [...t, { id, type, text }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 5500);
+  };
+  const dismissToast = (id:number) => setToasts(t => t.filter(x => x.id !== id));
 
   // Sick Note state
   const [sickNotes, setSickNotes] = useState<SickNoteResponse[]>([]);
@@ -1873,12 +1882,13 @@ const SDPManagerDashboard: React.FC = () => {
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
+        pushToast('success', `✅ POE compiled and downloaded for learner #${learnerId}`);
       } else {
-        alert('Failed to compile POE document. Please ensure all evidence is uploaded.');
+        pushToast('error', 'Failed to compile POE document. Please ensure all evidence is uploaded.');
       }
     } catch (error) {
       console.error('Error compiling POE:', error);
-      alert('An error occurred while compiling the POE document.');
+      pushToast('error', 'An error occurred while compiling the POE document.');
     }
   };
 
@@ -1980,14 +1990,14 @@ const SDPManagerDashboard: React.FC = () => {
       });
       
       if (response && response.ok) {
-        alert('Sick note approved successfully');
+        pushToast('success', 'Sick note approved successfully');
         fetchSickNotes();
       } else if (response) {
-        alert('Failed to approve sick note');
+        pushToast('error', 'Failed to approve sick note');
       }
     } catch (error) {
       console.error('Error approving sick note:', error);
-      alert('An error occurred');
+      pushToast('error', 'An error occurred approving the sick note');
     }
   };
 
@@ -2008,17 +2018,17 @@ const SDPManagerDashboard: React.FC = () => {
       });
       
       if (response && response.ok) {
-        alert('Sick note declined successfully');
+        pushToast('success', 'Sick note declined successfully');
         setShowSickNoteDeclineModal(false);
         setSickNoteDeclineReason('');
         setSickNoteToDecline(null);
         fetchSickNotes();
       } else if (response) {
-        alert('Failed to decline sick note');
+        pushToast('error', 'Failed to decline sick note');
       }
     } catch (error) {
       console.error('Error declining sick note:', error);
-      alert('An error occurred');
+      pushToast('error', 'An error occurred declining the sick note');
     }
   };
 
@@ -2032,11 +2042,11 @@ const SDPManagerDashboard: React.FC = () => {
         window.open(url, '_blank');
         setTimeout(() => window.URL.revokeObjectURL(url), 1000);
       } else if (response) {
-        alert('Failed to view sick note file');
+        pushToast('error', 'Failed to view sick note file');
       }
     } catch (error) {
       console.error('Error viewing sick note:', error);
-      alert('An error occurred');
+      pushToast('error', 'An error occurred viewing the sick note');
     }
   };
 
@@ -2193,13 +2203,14 @@ const SDPManagerDashboard: React.FC = () => {
         setShowAddQuestionModal(false);
         setNewQuestion({ questionNumber: 1, questionText: '', allocatedMarks: 0 });
         await fetchAssessmentDetails(currentAssessmentId);
+        pushToast('success', 'Question added successfully');
       } else if (response) {
         const error = await response.text();
-        alert(`Error: ${error}`);
+        pushToast('error', `Error adding question: ${error}`);
       }
     } catch (error) {
       console.error('Error adding question:', error);
-      alert('Error adding question');
+      pushToast('error', 'Error adding question');
     }
   };
 
@@ -2285,7 +2296,7 @@ const SDPManagerDashboard: React.FC = () => {
     e.preventDefault();
     
     if (!addMemberForm.firstName.trim() || !addMemberForm.lastName.trim() || !addMemberForm.email.trim()) {
-      alert('Please fill in all required fields');
+      pushToast('warning', 'Please fill in all required fields (First Name, Last Name, Email)');
       return;
     }
 
@@ -2319,14 +2330,14 @@ const SDPManagerDashboard: React.FC = () => {
           projectIds: []
         });
         setShowAddMemberModal(false);
-        alert('Team member added successfully! They will receive an email with their login credentials.');
+        pushToast('success', 'Team member added successfully! They will receive an email with their login credentials.');
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to add team member: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to add team member: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error adding team member:', error);
-      alert('An error occurred while adding the team member');
+      pushToast('error', 'An error occurred while adding the team member');
     } finally {
       setIsSubmitting(false);
     }
@@ -2345,14 +2356,14 @@ const SDPManagerDashboard: React.FC = () => {
 
       if (response && response.ok) {
         setTeamMembers(prev => prev.filter(member => member.id !== memberId));
-        alert('Team member removed successfully');
+        pushToast('success', 'Team member removed successfully');
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to remove team member: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to remove team member: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error removing team member:', error);
-      alert('An error occurred while removing the team member');
+      pushToast('error', 'An error occurred while removing the team member');
     }
   };
 
@@ -2395,7 +2406,7 @@ const SDPManagerDashboard: React.FC = () => {
     e.preventDefault();
     
     if (!addSiteForm.siteName.trim() || addSiteForm.projectId === 0) {
-      alert('Please fill in all required fields');
+      pushToast('warning', 'Please fill in all required fields (Site Name, Project)');
       return;
     }
 
@@ -2453,14 +2464,14 @@ const SDPManagerDashboard: React.FC = () => {
           description: ''
         });
         setShowAddSiteModal(false);
-        alert('Site added successfully!');
+        pushToast('success', 'Site added successfully!');
       } else {
         const errorData = await response.json();
-        alert(`Failed to add site: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to add site: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error adding site:', error);
-      alert('An error occurred while adding the site');
+      pushToast('error', 'An error occurred while adding the site');
     } finally {
       setIsSubmitting(false);
     }
@@ -2493,7 +2504,7 @@ const SDPManagerDashboard: React.FC = () => {
     e.preventDefault();
     
     if (!editSiteForm.siteName.trim() || !editSiteForm.category || !editingSiteId) {
-      alert('Please fill in all required fields');
+      pushToast('warning', 'Please fill in all required fields (Site Name, Category)');
       return;
     }
 
@@ -2526,14 +2537,14 @@ const SDPManagerDashboard: React.FC = () => {
         
         setShowEditSiteModal(false);
         setEditingSiteId(null);
-        alert('Site updated successfully!');
+        pushToast('success', 'Site updated successfully!');
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to update site: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to update site: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error updating site:', error);
-      alert('An error occurred while updating the site');
+      pushToast('error', 'An error occurred while updating the site');
     } finally {
       setIsSubmitting(false);
     }
@@ -2554,14 +2565,14 @@ const SDPManagerDashboard: React.FC = () => {
           ...prev,
           [projectId]: (prev[projectId] || []).filter(site => site.id !== siteId)
         }));
-        alert('Site deleted successfully');
+        pushToast('success', 'Site deleted successfully');
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to delete site: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to delete site: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting site:', error);
-      alert('An error occurred while deleting the site');
+      pushToast('error', 'An error occurred while deleting the site');
     }
   };
 
@@ -2618,20 +2629,20 @@ const SDPManagerDashboard: React.FC = () => {
     e.preventDefault();
     
     if (!addClassForm.className.trim() || !addClassForm.maxLearners || addClassForm.projectSiteId === 0) {
-      alert('Please fill in all required fields');
+      pushToast('warning', 'Please fill in all required fields (Class name, Max learners, Site)');
       return;
     }
 
     // Validate class name (only letters and spaces)
     if (!/^[a-zA-Z\s]+$/.test(addClassForm.className)) {
-      alert('Class name can only contain letters and spaces');
+      pushToast('warning', 'Class name can only contain letters and spaces');
       return;
     }
 
     // Validate max learners (only positive numbers)
     const maxLearners = parseInt(addClassForm.maxLearners);
     if (isNaN(maxLearners) || maxLearners <= 0) {
-      alert('Maximum learners must be a positive number');
+      pushToast('warning', 'Maximum learners must be a positive number');
       return;
     }
 
@@ -2662,14 +2673,14 @@ const SDPManagerDashboard: React.FC = () => {
           maxLearners: ''
         });
         setShowAddClassModal(false);
-        alert('Class added successfully!');
+        pushToast('success', 'Class added successfully!');
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to add class: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to add class: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error adding class:', error);
-      alert('An error occurred while adding the class');
+      pushToast('error', 'An error occurred while adding the class');
     } finally {
       setIsSubmitting(false);
     }
@@ -2690,14 +2701,14 @@ const SDPManagerDashboard: React.FC = () => {
           ...prev,
           [siteId]: (prev[siteId] || []).filter(cls => cls.id !== classId)
         }));
-        alert('Class deleted successfully');
+        pushToast('success', 'Class deleted successfully');
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to delete class: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to delete class: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error deleting class:', error);
-      alert('An error occurred while deleting the class');
+      pushToast('error', 'An error occurred while deleting the class');
     }
   };
 
@@ -2741,15 +2752,15 @@ const SDPManagerDashboard: React.FC = () => {
       const data = await response.json();
       if (response.ok) {
         if (data.emailSent) {
-          alert(`✅ Credentials sent to ${teacherName}'s email.`);
+          pushToast('success', `✅ Credentials sent to ${teacherName}'s email.`);
         } else {
-          alert(`⚠️ Email could not be sent.\n\nUsername: ${data.username}\nPassword: ${data.temporaryPassword}\n\nShare these manually.`);
+          pushToast('warning', `⚠️ Email could not be sent.\nUsername: ${data.username}\nPassword: ${data.temporaryPassword}\nShare these manually.`);
         }
       } else {
-        alert(`Failed: ${data.message || 'Unknown error'}`);
+        pushToast('error', `Failed: ${data.message || 'Unknown error'}`);
       }
     } catch (error) {
-      alert('An error occurred while resending credentials.');
+      pushToast('error', 'An error occurred while resending credentials.');
       console.error(error);
     }
   };
@@ -2765,17 +2776,17 @@ const SDPManagerDashboard: React.FC = () => {
       });
 
       if (response && response.ok) {
-        alert(`${teacherName} removed successfully`);
+        pushToast('success', `${teacherName} removed successfully`);
         if (selectedClassForTeacher) {
           await fetchClassTeachers(selectedClassForTeacher.id);
         }
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to remove teacher: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to remove teacher: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error removing teacher:', error);
-      alert('An error occurred while removing the teacher');
+      pushToast('error', 'An error occurred while removing the teacher');
     }
   };
 
@@ -2831,17 +2842,17 @@ const SDPManagerDashboard: React.FC = () => {
       });
 
       if (response && response.ok) {
-        alert('Teacher created and assigned successfully! Login credentials sent to email.');
+        pushToast('success', 'Teacher created and assigned successfully! Login credentials sent to email.');
         setNewTeacherForm({firstName: '', lastName: '', email: ''});
         setShowAddTeacherForm(false);
         await fetchClassTeachers(selectedClassForTeacher.id);
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to create teacher: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to create teacher: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error creating teacher:', error);
-      alert('An error occurred while creating the teacher');
+      pushToast('error', 'An error occurred while creating the teacher');
     }
   };
 
@@ -2898,62 +2909,62 @@ const SDPManagerDashboard: React.FC = () => {
     e.preventDefault();
     
     if (!addLearnerForm.title || !addLearnerForm.firstName.trim() || !addLearnerForm.lastName.trim() || !addLearnerForm.idNumber.trim() || addLearnerForm.siteClassId === 0) {
-      alert('Please fill in all required fields (Title, First Name, Last Name, ID Number)');
+      pushToast('warning', 'Please fill in all required fields (Title, First Name, Last Name, ID Number, Class)');
       return;
     }
 
     // Validate ID Number (must be 13 digits)
     if (!/^\d{13}$/.test(addLearnerForm.idNumber)) {
-      alert('ID Number must be exactly 13 digits (numbers only)');
+      pushToast('warning', 'ID Number must be exactly 13 digits (numbers only)');
       return;
     }
 
     // Validate ID number format
     const idValidation = parseSouthAfricanID(addLearnerForm.idNumber);
     if (!idValidation.valid) {
-      alert(`Invalid ID Number: ${idValidation.error}`);
+      pushToast('warning', `Invalid ID Number: ${idValidation.error}`);
       return;
     }
 
     // Check for any field validation errors
     if (Object.keys(formErrors).length > 0) {
-      alert('Please fix the validation errors before submitting:\n' + Object.values(formErrors).join('\n'));
+      pushToast('warning', 'Please fix the validation errors before submitting:\n' + Object.values(formErrors).join('\n'));
       return;
     }
 
     // Validate optional fields if filled
     if (addLearnerForm.contactNumber && !validateContactNumber(addLearnerForm.contactNumber)) {
-      alert('Invalid contact number. Must be 10 digits starting with 0');
+      pushToast('warning', 'Invalid contact number. Must be 10 digits starting with 0');
       return;
     }
 
     if (addLearnerForm.email && !validateEmail(addLearnerForm.email)) {
-      alert('Invalid email address');
+      pushToast('warning', 'Invalid email address');
       return;
     }
 
     if (addLearnerForm.postalCode && !validatePostalCode(addLearnerForm.postalCode)) {
-      alert('Invalid postal code. Must be 4 digits');
+      pushToast('warning', 'Invalid postal code. Must be 4 digits');
       return;
     }
 
     if (addLearnerForm.yearOfCompletion && !validateYear(addLearnerForm.yearOfCompletion)) {
-      alert(`Invalid year of completion. Must be between 1900 and ${new Date().getFullYear()}`);
+      pushToast('warning', `Invalid year of completion. Must be between 1900 and ${new Date().getFullYear()}`);
       return;
     }
 
     if (addLearnerForm.nextOfKinContactNumber && !validateContactNumber(addLearnerForm.nextOfKinContactNumber)) {
-      alert('Invalid next of kin contact number. Must be 10 digits starting with 0');
+      pushToast('warning', 'Invalid next of kin contact number. Must be 10 digits starting with 0');
       return;
     }
 
     if (addLearnerForm.accountNumber && !validateAccountNumber(addLearnerForm.accountNumber)) {
-      alert('Invalid account number. Must be 6-11 digits');
+      pushToast('warning', 'Invalid account number. Must be 6-11 digits');
       return;
     }
 
     if (addLearnerForm.branchCode && !validateBranchCode(addLearnerForm.branchCode)) {
-      alert('Invalid branch code. Must be 6 digits');
+      pushToast('warning', 'Invalid branch code. Must be 6 digits');
       return;
     }
 
@@ -3010,7 +3021,7 @@ const SDPManagerDashboard: React.FC = () => {
         }));
         resetLearnerForm();
         setShowAddLearnerModal(false);
-        alert('Learner added successfully!');
+        pushToast('success', 'Learner added successfully!');
       } else if (response) {
         // Try to parse as JSON, fallback to text
         const contentType = response.headers.get('content-type');
@@ -3033,12 +3044,12 @@ const SDPManagerDashboard: React.FC = () => {
           errorMessage = 'Failed to parse error response';
         }
         
-        alert(`Failed to add learner: ${errorMessage}`);
+        pushToast('error', `Failed to add learner: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Error adding learner:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      alert(`An error occurred while adding the learner: ${errorMessage}`);
+      pushToast('error', `An error occurred while adding the learner: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -3181,14 +3192,14 @@ const SDPManagerDashboard: React.FC = () => {
           setSelectedDocumentForView(null);
           setDocumentPreviewUrl(null);
         }
-        alert('Document approved successfully!');
+        pushToast('success', 'Document approved successfully!');
       } else if (response) {
         const error = await response.json();
-        alert(`Failed to approve document: ${error.message}`);
+        pushToast('error', `Failed to approve document: ${error.message}`);
       }
     } catch (error) {
       console.error('Error approving document:', error);
-      alert('An error occurred while approving the document');
+      pushToast('error', 'An error occurred while approving the document');
     }
   };
 
@@ -3221,14 +3232,14 @@ const SDPManagerDashboard: React.FC = () => {
           setSelectedDocumentForView(null);
           setDocumentPreviewUrl(null);
         }
-        alert('Document declined successfully!');
+        pushToast('success', 'Document declined successfully!');
       } else if (response) {
         const error = await response.json();
-        alert(`Failed to decline document: ${error.message}`);
+        pushToast('error', `Failed to decline document: ${error.message}`);
       }
     } catch (error) {
       console.error('Error declining document:', error);
-      alert('An error occurred while declining the document');
+      pushToast('error', 'An error occurred while declining the document');
     }
   };
 
@@ -3240,7 +3251,7 @@ const SDPManagerDashboard: React.FC = () => {
         .find(doc => doc.id === documentId);
       
       if (!document) {
-        alert('Document not found');
+        pushToast('error', 'Document not found');
         return;
       }
 
@@ -3255,12 +3266,12 @@ const SDPManagerDashboard: React.FC = () => {
         const url = window.URL.createObjectURL(blob);
         setDocumentPreviewUrl(url);
       } else if (response) {
-        alert('Failed to load document');
+        pushToast('error', 'Failed to load document');
         setShowDocumentModal(false);
       }
     } catch (error) {
       console.error('Error viewing document:', error);
-      alert('An error occurred while loading the document');
+      pushToast('error', 'An error occurred while loading the document');
       setShowDocumentModal(false);
     } finally {
       setPreviewLoading(false);
@@ -3291,11 +3302,11 @@ const SDPManagerDashboard: React.FC = () => {
         document.body.removeChild(a);
       } else if (response) {
         const error = await response.json();
-        alert(error.message || 'Failed to download documents');
+        pushToast('error', error.message || 'Failed to download documents');
       }
     } catch (error) {
       console.error('Error in bulk download:', error);
-      alert('An error occurred during bulk download');
+      pushToast('error', 'An error occurred during bulk download');
     } finally {
       setBulkDownloading(false);
     }
@@ -3373,15 +3384,15 @@ const SDPManagerDashboard: React.FC = () => {
               : l
           )
         }));
-        alert('Learner updated successfully');
+        pushToast('success', 'Learner updated successfully');
         setShowLearnerModal(false);
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to update learner: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to update learner: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error updating learner:', error);
-      alert('An error occurred while updating the learner');
+      pushToast('error', 'An error occurred while updating the learner');
     } finally {
       setIsSubmitting(false);
     }
@@ -3391,7 +3402,7 @@ const SDPManagerDashboard: React.FC = () => {
     e.preventDefault();
     
     if (!selectedLearner || !selectedFile || !selectedDocumentType) {
-      alert('Please select a document type and file');
+      pushToast('warning', 'Please select a document type and file');
       return;
     }
 
@@ -3416,14 +3427,14 @@ const SDPManagerDashboard: React.FC = () => {
         // Reset file input
         const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
-        alert('Document uploaded successfully');
+        pushToast('success', 'Document uploaded successfully');
       } else {
         const errorData = await response.json();
-        alert(`Failed to upload document: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to upload document: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error uploading document:', error);
-      alert('An error occurred while uploading the document');
+      pushToast('error', 'An error occurred while uploading the document');
     } finally {
       setUploadingDocument(false);
     }
@@ -3442,11 +3453,11 @@ const SDPManagerDashboard: React.FC = () => {
         setTimeout(() => window.URL.revokeObjectURL(url), 1000);
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to view document: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to view document: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error viewing document:', error);
-      alert('An error occurred while viewing the document');
+      pushToast('error', 'An error occurred while viewing the document');
     }
   };
 
@@ -3557,7 +3568,7 @@ const SDPManagerDashboard: React.FC = () => {
     e.preventDefault();
     
     if (!addTaskForm.title.trim() || !addTaskForm.dueDate || addTaskForm.assignedToUserId === 0) {
-      alert('Please fill in all required fields');
+      pushToast('warning', 'Please fill in all required fields (Title, Due Date, Assigned to)');
       return;
     }
 
@@ -3595,14 +3606,14 @@ const SDPManagerDashboard: React.FC = () => {
           reminders: []
         });
         setShowAddTaskModal(false);
-        alert('Task created successfully! The assigned user will receive an email notification.');
+        pushToast('success', 'Task created successfully! The assigned user will receive an email notification.');
       } else if (response) {
         const errorData = await response.json();
-        alert(`Failed to create task: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to create task: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error creating task:', error);
-      alert('An error occurred while creating the task');
+      pushToast('error', 'An error occurred while creating the task');
     } finally {
       setIsSubmitting(false);
     }
@@ -3621,7 +3632,7 @@ const SDPManagerDashboard: React.FC = () => {
       );
       
       if (invalidQuestions.length > 0) {
-        alert('Please ensure all questions have text and valid marks greater than 0.');
+        pushToast('warning', 'Please ensure all questions have text and valid marks greater than 0.');
         return;
       }
     }
@@ -3653,7 +3664,7 @@ const SDPManagerDashboard: React.FC = () => {
       });
 
       if (response && response.ok) {
-        alert(`Formative assessment added successfully!\n${formativeQuestions.length} question(s) saved\nTotal Marks: ${totalMarks.toFixed(2)}`);
+        pushToast('success', `Formative assessment added successfully!\n${formativeQuestions.length} question(s) saved\nTotal Marks: ${totalMarks.toFixed(2)}`);
         setShowFormativeModal(false);
         setFormativeForm({
           startDate: new Date().toISOString().split('T')[0],
@@ -3670,11 +3681,11 @@ const SDPManagerDashboard: React.FC = () => {
           fetchAssessmentsForUnitStandard(selectedUnitStandardId);
         }
       } else {
-        alert('Failed to add assessment');
+        pushToast('error', 'Failed to add assessment');
       }
     } catch (error) {
       console.error('Error adding formative assessment:', error);
-      alert('An error occurred');
+      pushToast('error', 'An error occurred adding the formative assessment');
     }
   };
 
@@ -3689,7 +3700,7 @@ const SDPManagerDashboard: React.FC = () => {
       );
       
       if (invalidQuestions.length > 0) {
-        alert('Please ensure all questions have text and valid marks greater than 0.');
+        pushToast('warning', 'Please ensure all questions have text and valid marks greater than 0.');
         return;
       }
     }
@@ -3724,7 +3735,7 @@ const SDPManagerDashboard: React.FC = () => {
       });
 
       if (response && response.ok) {
-        alert(`Summative assessment added successfully!\n${summativeQuestions.length} question(s) saved\nTotal Marks: ${totalMarks.toFixed(2)}`);
+        pushToast('success', `Summative assessment added successfully!\n${summativeQuestions.length} question(s) saved\nTotal Marks: ${totalMarks.toFixed(2)}`);
         setShowSummativeModal(false);
         setSummativeForm({
           startDate: new Date().toISOString().split('T')[0],
@@ -3741,11 +3752,11 @@ const SDPManagerDashboard: React.FC = () => {
           fetchAssessmentsForUnitStandard(selectedUnitStandardId);
         }
       } else {
-        alert('Failed to add assessment');
+        pushToast('error', 'Failed to add summative assessment');
       }
     } catch (error) {
       console.error('Error adding summative assessment:', error);
-      alert('An error occurred');
+      pushToast('error', 'An error occurred adding the summative assessment');
     }
   };
 
@@ -3828,7 +3839,7 @@ const SDPManagerDashboard: React.FC = () => {
       setMarkingProjectDetails(detailsData);
     } catch (error) {
       console.error('Failed to load project marking data:', error);
-      alert('Failed to load project learners and qualifications for marking');
+      pushToast('error', 'Failed to load project learners and qualifications for marking');
     }
   };
 
@@ -3928,7 +3939,7 @@ const SDPManagerDashboard: React.FC = () => {
       setModerationApproval(dbModApproval);
     } catch (error) {
       console.error('Failed to load assessment data:', error);
-      alert('Failed to load questions and learner answers');
+      pushToast('error', 'Failed to load questions and learner answers');
     }
   };
 
@@ -3936,7 +3947,7 @@ const SDPManagerDashboard: React.FC = () => {
     try {
       const response = await fetchWithAuth(`/api/LearnerAssessmentAnswers/${answerId}/download`);
       if (!response || !response.ok) {
-        alert('Unable to open learner upload');
+        pushToast('error', 'Unable to open learner upload');
         return;
       }
       const blob = await response.blob();
@@ -3944,7 +3955,7 @@ const SDPManagerDashboard: React.FC = () => {
       setMarkingAnswerPreviewUrl(url);
     } catch (error) {
       console.error('Failed to preview learner upload:', error);
-      alert('Failed to preview learner upload');
+      pushToast('error', 'Failed to preview learner upload');
     }
   };
 
@@ -3991,7 +4002,7 @@ const SDPManagerDashboard: React.FC = () => {
       }).filter(a => a !== null);
 
       if (answersToSubmit.length === 0) {
-        alert('No marks found to submit');
+        pushToast('warning', 'No marks found to submit');
         return;
       }
 
@@ -4003,7 +4014,7 @@ const SDPManagerDashboard: React.FC = () => {
         });
       }
 
-      alert('Marks submitted successfully to the server');
+      pushToast('success', 'Marks submitted successfully to the server');
       // Refresh answers and progress
       await Promise.all([
         openMarkingAssessment(expandedMarkingAssessment.id, expandedMarkingAssessment.type, isRemedialMarking),
@@ -4011,7 +4022,7 @@ const SDPManagerDashboard: React.FC = () => {
       ]);
     } catch (error) {
       console.error('Error submitting marks:', error);
-      alert(error instanceof Error ? error.message : 'Failed to submit marks to the server');
+      pushToast('error', error instanceof Error ? error.message : 'Failed to submit marks to the server');
     } finally {
       setMarkingSaving(false);
     }
@@ -4021,7 +4032,7 @@ const SDPManagerDashboard: React.FC = () => {
     if (!expandedMarkingAssessment || !markingLearnerId) return;
     const key = `sideMarking:${expandedMarkingAssessment.type}:${expandedMarkingAssessment.id}:learner:${markingLearnerId}`;
     localStorage.setItem(key, JSON.stringify(draftMarks));
-    alert('Marks saved as draft locally');
+    pushToast('info', 'Marks saved as draft locally');
   };
 
   const getDraftMarkStorageKey = (assessmentType: 'Formative' | 'Summative', assessmentId: number) =>
@@ -4086,7 +4097,7 @@ const SDPManagerDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading marking data:', error);
-      alert('Failed to load learner submissions for marking');
+      pushToast('error', 'Failed to load learner submissions for marking');
       setShowMarkingModal(false);
       setMarkingAssessment(null);
     } finally {
@@ -4097,7 +4108,7 @@ const SDPManagerDashboard: React.FC = () => {
   const saveMarkingDraft = () => {
     if (!markingAssessment) return;
     localStorage.setItem(getDraftMarkStorageKey(markingAssessment.type, markingAssessment.id), JSON.stringify(draftMarks));
-    alert('Draft marks saved on this browser');
+    pushToast('info', 'Draft marks saved on this browser');
   };
 
   const submitModalMarks = async () => {
@@ -4131,7 +4142,7 @@ const SDPManagerDashboard: React.FC = () => {
       }
 
       if (answersToSubmit.length === 0) {
-        alert('No marks found to submit');
+        pushToast('warning', 'No marks found to submit');
         setMarkingSaving(false);
         return;
       }
@@ -4144,7 +4155,7 @@ const SDPManagerDashboard: React.FC = () => {
         });
       }
 
-      alert('Marks submitted successfully to the server');
+      pushToast('success', 'Marks submitted successfully to the server');
       localStorage.removeItem(getDraftMarkStorageKey(markingAssessment.type, markingAssessment.id));
       await Promise.all([
         openMarkingModal(markingAssessment.id, markingAssessment.type, markingAssessment.unitStandardId),
@@ -4152,7 +4163,7 @@ const SDPManagerDashboard: React.FC = () => {
       ]);
     } catch (error) {
       console.error('Error submitting marks:', error);
-      alert(error instanceof Error ? error.message : 'Failed to submit marks to the server');
+      pushToast('error', error instanceof Error ? error.message : 'Failed to submit marks to the server');
     } finally {
       setMarkingSaving(false);
     }
@@ -4197,7 +4208,7 @@ const SDPManagerDashboard: React.FC = () => {
       });
 
       if (response && response.ok) {
-        alert('Logbook entry added successfully!');
+        pushToast('success', 'Logbook entry added successfully!');
         setShowLogbookModal(false);
         setLogbookForm({
           startDate: new Date().toISOString().split('T')[0],
@@ -4219,11 +4230,11 @@ const SDPManagerDashboard: React.FC = () => {
       } else {
         const errorText = await response.text();
         console.error('Logbook error response:', errorText);
-        alert(`Failed to add logbook entry: ${errorText || response.statusText}`);
+        pushToast('error', `Failed to add logbook entry: ${errorText || response.statusText}`);
       }
     } catch (error) {
       console.error('Error adding logbook entry:', error);
-      alert(`An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      pushToast('error', `An error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -4254,14 +4265,14 @@ const SDPManagerDashboard: React.FC = () => {
       if (response && response.ok) {
         const updatedTask = await response.json();
         setTasks(prev => prev.map(t => t.id === taskId ? updatedTask : t));
-        alert('Task status updated successfully');
+        pushToast('success', 'Task status updated successfully');
       } else {
         const errorData = await response.json();
-        alert(`Failed to update task: ${errorData.message || 'Unknown error'}`);
+        pushToast('error', `Failed to update task: ${errorData.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error updating task:', error);
-      alert('An error occurred while updating the task');
+      pushToast('error', 'An error occurred while updating the task');
     }
   };
 
@@ -4524,11 +4535,11 @@ const SDPManagerDashboard: React.FC = () => {
         a.click();
         window.URL.revokeObjectURL(url);
       } else if (response) {
-        alert('Failed to export monthly attendance');
+        pushToast('error', 'Failed to export monthly attendance');
       }
     } catch (error) {
       console.error('Error exporting attendance:', error);
-      alert('An error occurred during export');
+      pushToast('error', 'An error occurred during export');
     }
   };
 
@@ -4603,11 +4614,11 @@ const SDPManagerDashboard: React.FC = () => {
         a.click();
         window.URL.revokeObjectURL(url);
       } else if (response) {
-        alert('Failed to export stipend schedule');
+        pushToast('error', 'Failed to export stipend schedule');
       }
     } catch (error) {
       console.error('Error exporting stipend:', error);
-      alert('An error occurred during export');
+      pushToast('error', 'An error occurred during export');
     }
   };
 
@@ -4622,7 +4633,7 @@ const SDPManagerDashboard: React.FC = () => {
       // Collect all project IDs visible to this user
       const ids = filteredProjects.map((p: any) => p.id).join(',');
       if (!ids) {
-        alert('No projects found to download.');
+        pushToast('warning', 'No projects found to download.');
         return;
       }
 
@@ -4642,11 +4653,11 @@ const SDPManagerDashboard: React.FC = () => {
         document.body.removeChild(a);
       } else if (response) {
         const txt = await response.text();
-        alert(`Bulk download failed: ${txt}`);
+        pushToast('error', `Bulk download failed: ${txt}`);
       }
     } catch (error) {
       console.error('Error in bulk attendance download:', error);
-      alert('An error occurred during bulk download');
+      pushToast('error', 'An error occurred during bulk download');
     } finally {
       setBulkAttendanceDownloading(false);
     }
@@ -4662,7 +4673,7 @@ const SDPManagerDashboard: React.FC = () => {
       : progress?.summativeModerated;
 
     if (isAlreadyModeratedOverall) {
-      alert('This assessment has already been moderated and cannot be submitted again.');
+      pushToast('warning', 'This assessment has already been moderated and cannot be submitted again.');
       return;
     }
     
@@ -4678,7 +4689,7 @@ const SDPManagerDashboard: React.FC = () => {
 
     if (undecidedQuestions.length > 0) {
       const qNumbers = undecidedQuestions.map(q => q.questionNumber).join(', ');
-      alert(`Please make a decision (Uphold or Withdraw) for all questions before submitting. Undecided: Q${qNumbers}`);
+      pushToast('warning', `Please make a decision (Uphold or Withdraw) for all questions before submitting. Undecided: Q${qNumbers}`);
       return;
     }
 
@@ -4725,7 +4736,7 @@ const SDPManagerDashboard: React.FC = () => {
         });
       }
       
-      alert('Moderation submitted successfully');
+      pushToast('success', 'Moderation submitted successfully');
       
       // Refresh the assessment data instead of closing it to show the saved state
       await openMarkingAssessment(expandedMarkingAssessment.id, expandedMarkingAssessment.type, isRemedialMarking);
@@ -4740,7 +4751,7 @@ const SDPManagerDashboard: React.FC = () => {
       }
     } catch (error) {
       console.error('Error submitting moderation:', error);
-      alert(error instanceof Error ? error.message : 'An error occurred during moderation submission');
+      pushToast('error', error instanceof Error ? error.message : 'An error occurred during moderation submission');
     } finally {
       setMarkingSaving(false);
     }
@@ -8400,14 +8411,14 @@ const SDPManagerDashboard: React.FC = () => {
                   });
 
                   if (response && response.ok) {
-                    alert('Assessment plan saved and applied to all assigned learners!');
+                    pushToast('success', 'Assessment plan saved and applied to all assigned learners!');
                     fetchAssessmentStrategyPlans(); // Refresh plans
                     setShowAssessmentPlanForm(false);
                     setSelectedPlanUnitStandard(null);
                   }
                 } catch (error) {
                   console.error('Error saving plan:', error);
-                  alert('Failed to save assessment plan.');
+                  pushToast('error', 'Failed to save assessment plan.');
                 }
               }}
             >
@@ -8730,5497 +8741,3 @@ const SDPManagerDashboard: React.FC = () => {
                           placeholder="e.g., Safety Gear, Tools, Materials..."
                           rows={2}
                           value={assessmentPlanForm.practicalAssignment.equipment}
-                          onChange={(e) => setAssessmentPlanForm({
-                            ...assessmentPlanForm, 
-                            practicalAssignment: { ...assessmentPlanForm.practicalAssignment, equipment: e.target.value }
-                          })}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-5 pt-4 border-top text-center">
-                <p className="text-muted small mb-4">
-                  <strong>Verification Status:</strong> Verified Assessor Profile (Digital Signature Applied: {user?.name})
-                </p>
-                <button 
-                  className="btn btn-success btn-lg shadow-sm px-5 d-inline-flex align-items-center gap-2"
-                  onClick={async () => {
-                    const signatureData = signaturePadRef.current?.isEmpty() 
-                      ? assessmentPlanForm.assessorSignature 
-                      : signaturePadRef.current?.getCanvas().toDataURL('image/png');
-
-                    const planDto = {
-                      ...(assessmentStrategyPlans[selectedPlanUnitStandard.id] || {}),
-                      projectQualificationUnitStandardId: selectedPlanUnitStandard.id,
-                      assessmentDate: assessmentPlanForm.dateOfAssessment,
-                      questionnaireTime: assessmentPlanForm.questionnaire.time,
-                      questionnairePeople: assessmentPlanForm.questionnaire.people,
-                      questionnaireLocation: assessmentPlanForm.questionnaire.location,
-                      questionnaireEquipment: assessmentPlanForm.questionnaire.equipment,
-                      practicalTime: assessmentPlanForm.practicalAssignment.time,
-                      practicalPeople: assessmentPlanForm.practicalAssignment.people,
-                      practicalLocation: assessmentPlanForm.practicalAssignment.location,
-                      practicalEquipment: assessmentPlanForm.practicalAssignment.equipment,
-                      assessorName: user?.name,
-                      assessorNumber: assessmentPlanForm.assessorNumber,
-                      assessorSignature: signatureData
-                    };
-
-                    try {
-                      const response = await fetchWithAuth('/api/assessments/strategy-plans', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(planDto)
-                      });
-
-                      if (response && response.ok) {
-                        alert('Assessment plan saved and applied to all assigned learners!');
-                        fetchAssessmentStrategyPlans(); // Refresh plans
-                        setShowAssessmentPlanForm(false);
-                        setSelectedPlanUnitStandard(null);
-                      }
-                    } catch (error) {
-                      console.error('Error saving plan:', error);
-                      alert('Failed to save assessment plan.');
-                    }
-                  }}
-                >
-                  <span>💾</span> Save & Apply Plan
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // List of Unit Standards
-    const allUnitStandards: any[] = [];
-    filteredProjects.forEach(project => {
-      const details = projectDetails[project.id];
-      if (details?.learningPathways) {
-        details.learningPathways.forEach((lp: any) => {
-          if (lp.qualifications) {
-            lp.qualifications.forEach((q: any) => {
-              if (q.unitStandards) {
-                q.unitStandards.forEach((us: any) => {
-                  allUnitStandards.push({
-                    ...us,
-                    projectId: project.id,
-                    projectName: project.projectName,
-                    pathwayName: lp.pathway?.name || 'Unknown',
-                    actualQualificationName: q.legacyQualification?.name || q.occupationalQualification?.name || 'Unknown'
-                  });
-                });
-              }
-            });
-          }
-        });
-      }
-    });
-
-    return (
-      <div className="container-fluid">
-        <div className="card border-0 shadow-lg mb-4" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: "#ffffff" }}>
-          <div className="card-body text-center text-white py-4">
-            <h2 className="mb-2">📝 Assessment Planning</h2>
-            <p className="mb-0 opacity-75">Select a unit standard to create an assessment plan</p>
-          </div>
-        </div>
-
-        <div className="card border-0 shadow-lg">
-          <div className="card-header bg-white border-0 pt-4 px-4">
-            <h5 className="mb-0">Unit Standards</h5>
-            <p className="text-muted small">Available unit standards from your assigned projects</p>
-          </div>
-          <div className="card-body p-4">
-            {allUnitStandards.length > 0 ? (
-              <div className="row g-3">
-                {allUnitStandards.map((us, index) => (
-                  <div key={`${us.id}-${index}`} className="col-md-6 col-lg-4">
-                    {(() => {
-                      const hasStrategy = !!(assessmentStrategyPlans[us.id]?.assessmentDate);
-                      return (
-                        <div 
-                          className={`card h-100 hover-shadow transition-all ${hasStrategy ? 'opacity-75' : 'cursor-pointer'}`}
-                          style={{ borderLeft: `4px solid ${hasStrategy ? '#10b981' : '#0d9488'}` }}
-                          onClick={() => {
-                            if (!hasStrategy) {
-                              setSelectedPlanUnitStandard(us);
-                              setShowAssessmentPlanForm(true);
-                            }
-                          }}
-                        >
-                          <div className="card-body d-flex flex-column">
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <span className={`badge ${hasStrategy ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-info'} px-2 py-1`}>
-                                US ID: {us.unitStandardId || 'N/A'}
-                              </span>
-                              <span className="badge bg-info-subtle text-info px-2 py-1">L{us.level}</span>
-                            </div>
-                            <h6 className="card-title mb-2 text-dark">{us.unitStandardName}</h6>
-                            <div className="mb-3">
-                              <small className="text-muted d-block"><strong>Project:</strong> {us.projectName}</small>
-                              <small className="text-muted d-block"><strong>Pathway:</strong> {us.pathwayName}</small>
-                              <small className="text-muted d-block"><strong>Qualification:</strong> {us.actualQualificationName}</small>
-                              <small className="text-muted d-block"><strong>Credits:</strong> {us.credits}</small>
-                            </div>
-                            
-                            {hasStrategy ? (
-                              <div className="mt-auto">
-                                <div className="alert alert-success py-1 px-2 mb-2 small d-flex align-items-center gap-2">
-                                  <span>✅</span> Plan Created
-                                </div>
-                                <button className="btn btn-sm btn-outline-success w-100" disabled>
-                                  Plan Applied
-                                </button>
-                              </div>
-                            ) : (
-                              <button className="btn btn-sm btn-outline-primary w-100 mt-auto">
-                                Create Plan
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-5">
-                <div className="display-1 mb-3">📁</div>
-                <h4>No Unit Standards Found</h4>
-                <p className="text-muted">Expand projects in the "Projects" section to load unit standards first.</p>
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => setActiveSection('projects')}
-                >
-                  Go to Projects
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderCandidatePreparation = () => {
-    if (showPrepForm && selectedPrepUnitStandard) {
-      const isReadOnly = !!(assessmentStrategyPlans[selectedPrepUnitStandard.id]?.prepItemsJson);
-
-      return (
-        <div className="container-fluid py-4">
-          <div className="d-flex justify-content-between align-items-center mb-4">
-            <button 
-              className="btn btn-outline-primary shadow-sm d-flex align-items-center gap-2"
-              onClick={() => {
-                setShowPrepForm(false);
-                setSelectedPrepUnitStandard(null);
-              }}
-            >
-              <span style={{ fontSize: '1.2rem' }}>←</span> Back to Unit Standards
-            </button>
-            <div className="text-center">
-              <h3 className="mb-0 fw-bold text-info">Candidate Assessment Preparation</h3>
-              <p className="text-muted small mb-0">{isReadOnly ? 'View preparation record' : 'Prepare candidates for their upcoming assessment'}</p>
-            </div>
-            {!isReadOnly && (
-              <button 
-                className="btn btn-success shadow-sm px-4 d-flex align-items-center gap-2"
-                onClick={async () => {
-                  const planDto = {
-                    ...(assessmentStrategyPlans[selectedPrepUnitStandard.id] || {}),
-                    projectQualificationUnitStandardId: selectedPrepUnitStandard.id,
-                    prepDate: prepForm.date,
-                    prepTime: prepForm.time,
-                    prepVenue: prepForm.venue,
-                    prepComments: prepForm.comments,
-                    prepItemsJson: JSON.stringify(prepForm.items)
-                  };
-
-                  try {
-                    const response = await fetchWithAuth('/api/assessments/strategy-plans', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(planDto)
-                    });
-
-                    if (response && response.ok) {
-                      alert('Candidate preparation plan saved and applied to all assigned learners!');
-                      fetchAssessmentStrategyPlans(); // Refresh plans
-                      setShowPrepForm(false);
-                      setSelectedPrepUnitStandard(null);
-                    }
-                  } catch (error) {
-                    console.error('Error saving prep plan:', error);
-                    alert('Failed to save candidate preparation plan.');
-                  }
-                }}
-              >
-                <span>💾</span> Save & Apply
-              </button>
-            )}
-            {isReadOnly && (
-              <div className="badge bg-success-subtle text-success p-2 px-3 border border-success border-opacity-25 d-flex align-items-center gap-2">
-                <span>✅</span> Record Finalized
-              </div>
-            )}
-          </div>
-
-          {/* Context & Assessor Info */}
-          <div className="row g-4 mb-4">
-            <div className="col-lg-8">
-              <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '5px solid #0d9488' }}>
-                <div className="card-body p-4">
-                  <div className="d-flex align-items-center gap-3 mb-3">
-                    <div className="bg-primary-subtle p-3 rounded-circle">
-                      <span style={{ fontSize: '1.5rem' }}>📖</span>
-                    </div>
-                    <div>
-                      <h5 className="mb-1 fw-bold">{selectedPrepUnitStandard.unitStandardName}</h5>
-                      <div className="d-flex gap-2 align-items-center">
-                        <span className="badge bg-primary">ID: {selectedPrepUnitStandard.unitStandardId}</span>
-                        <span className="badge bg-info">Level {selectedPlanUnitStandard?.level || selectedPrepUnitStandard.level}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="row mt-4 pt-3 border-top g-3">
-                    <div className="col-md-6">
-                      <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.7rem' }}>Assigned Project</small>
-                      <p className="mb-0 fw-semibold">{selectedPrepUnitStandard.projectName}</p>
-                    </div>
-                    <div className="col-md-6">
-                      <small className="text-muted d-block text-uppercase fw-bold" style={{ fontSize: '0.7rem' }}>Qualification / Pathway</small>
-                      <p className="mb-0 fw-semibold">{selectedPrepUnitStandard.pathwayName}</p>
-                      <small className="text-muted">{selectedPrepUnitStandard.actualQualificationName}</small>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="col-lg-4">
-              <div className="card shadow-sm border-0 h-100" style={{ borderLeft: '5px solid #10b981' }}>
-                <div className="card-body p-4">
-                  <h6 className="text-uppercase text-muted fw-bold mb-3" style={{ fontSize: '0.75rem' }}>Assessor</h6>
-                  <div className="d-flex align-items-center gap-3 mb-3">
-                    <div className="bg-success-subtle p-2 rounded-circle">
-                      <span style={{ fontSize: '1.2rem' }}>👤</span>
-                    </div>
-                    <div>
-                      <p className="mb-0 fw-bold">{user?.name}</p>
-                      <p className="mb-0 text-muted small">{user?.email}</p>
-                    </div>
-                  </div>
-                  <div className="alert alert-info border-0 small mb-0 py-2">
-                    <span>💡 This prep plan applies to <strong>all candidates</strong> for this US.</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Main Form Card */}
-          <div className="card shadow-lg border-0 overflow-hidden mb-5">
-            <div className="card-header bg-white border-0 py-4 px-5">
-              <div className="row g-3">
-                <div className="col-md-4">
-                  <div className="p-2 bg-light rounded border">
-                    <label className="text-muted small fw-bold d-block mb-1">PREPARATION DATE</label>
-                    <input 
-                      type="date" 
-                      className="form-control form-control-sm border-0 bg-transparent fw-bold shadow-none p-0"
-                      value={prepForm.date}
-                      onChange={(e) => setPrepForm({...prepForm, date: e.target.value})}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                </div>
-                <div className="col-md-4">
-                  <div className="p-2 bg-light rounded border">
-                    <label className="text-muted small fw-bold d-block mb-1">TIME</label>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm border-0 bg-transparent fw-bold shadow-none p-0"
-                      placeholder="e.g., 09:00 AM"
-                      value={prepForm.time}
-                      onChange={(e) => setPrepForm({...prepForm, time: e.target.value})}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                </div>
-                <div className="col-md-4">
-                  <div className="p-2 bg-light rounded border">
-                    <label className="text-muted small fw-bold d-block mb-1">VENUE / LOCATION</label>
-                    <input 
-                      type="text" 
-                      className="form-control form-control-sm border-0 bg-transparent fw-bold shadow-none p-0"
-                      placeholder="Enter venue..."
-                      value={prepForm.venue}
-                      onChange={(e) => setPrepForm({...prepForm, venue: e.target.value})}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="card-body p-0">
-              <div className="table-responsive">
-                <table className="table table-hover mb-0 align-middle">
-                  <thead className="bg-light">
-                    <tr>
-                      <th className="ps-5 py-3" style={{ width: '40%' }}>How to prepare the candidate</th>
-                      <th className="py-3" style={{ width: '30%' }}>Document Requirements</th>
-                      <th className="py-3 text-center" style={{ width: '10%' }}>Agree</th>
-                      <th className="pe-5 py-3" style={{ width: '20%' }}>Action Required</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {prepForm.items.map((item, index) => (
-                      <tr key={item.id}>
-                        <td className="ps-5 py-3">
-                          <p className="mb-0 fw-medium text-dark">{item.text}</p>
-                        </td>
-                        <td className="py-3">
-                          <span className="text-muted small">{item.docs}</span>
-                        </td>
-                        <td className="py-3 text-center">
-                          <div className="form-check d-flex justify-content-center">
-                            <input 
-                              className="form-check-input shadow-none cursor-pointer" 
-                              type="checkbox"
-                              style={{ width: '1.2rem', height: '1.2rem' }}
-                              checked={item.agreed}
-                              onChange={(e) => {
-                                const newItems = [...prepForm.items];
-                                newItems[index].agreed = e.target.checked;
-                                setPrepForm({...prepForm, items: newItems});
-                              }}
-                              disabled={isReadOnly}
-                            />
-                          </div>
-                        </td>
-                        <td className="pe-5 py-3">
-                          <input 
-                            type="text" 
-                            className="form-control form-control-sm border-0 bg-light shadow-none"
-                            placeholder="Add action..."
-                            value={item.action}
-                            onChange={(e) => {
-                              const newItems = [...prepForm.items];
-                              newItems[index].action = e.target.value;
-                              setPrepForm({...prepForm, items: newItems});
-                            }}
-                            disabled={isReadOnly}
-                          />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              <div className="p-5 border-top bg-light-subtle">
-                <label className="form-label fw-bold text-muted text-uppercase small">Comments or questions:</label>
-                <textarea 
-                  className="form-control border shadow-sm" 
-                  rows={3}
-                  placeholder={isReadOnly ? 'No comments provided.' : 'Enter any additional comments or questions here...'}
-                  value={prepForm.comments}
-                  onChange={(e) => setPrepForm({...prepForm, comments: e.target.value})}
-                  disabled={isReadOnly}
-                ></textarea>
-                
-                <div className="mt-4 text-center">
-                  <p className="text-muted small mb-4">
-                    <strong>Digital Verification:</strong> This preparation record is digitally verified by Assessor {user?.name}.
-                  </p>
-                  {!isReadOnly && (
-                    <button 
-                      className="btn btn-success btn-lg shadow-sm px-5 d-inline-flex align-items-center gap-2 mb-3"
-                      onClick={async () => {
-                        const planDto = {
-                          ...(assessmentStrategyPlans[selectedPrepUnitStandard.id] || {}),
-                          projectQualificationUnitStandardId: selectedPrepUnitStandard.id,
-                          prepDate: prepForm.date,
-                          prepTime: prepForm.time,
-                          prepVenue: prepForm.venue,
-                          prepComments: prepForm.comments,
-                          prepItemsJson: JSON.stringify(prepForm.items)
-                        };
-
-                        try {
-                          const response = await fetchWithAuth('/api/assessments/strategy-plans', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(planDto)
-                          });
-
-                          if (response && response.ok) {
-                            alert('Candidate preparation plan saved and applied to all assigned learners!');
-                            fetchAssessmentStrategyPlans(); // Refresh plans
-                            setShowPrepForm(false);
-                            setSelectedPrepUnitStandard(null);
-                          }
-                        } catch (error) {
-                          console.error('Error saving prep plan:', error);
-                          alert('Failed to save candidate preparation plan.');
-                        }
-                      }}
-                    >
-                      <span>💾</span> Save & Apply
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // List of Unit Standards for Prep
-    const allUnitStandards: any[] = [];
-    filteredProjects.forEach(project => {
-      const details = projectDetails[project.id];
-      if (details?.learningPathways) {
-        details.learningPathways.forEach((lp: any) => {
-          if (lp.qualifications) {
-            lp.qualifications.forEach((q: any) => {
-              if (q.unitStandards) {
-                q.unitStandards.forEach((us: any) => {
-                  allUnitStandards.push({
-                    ...us,
-                    projectId: project.id,
-                    projectName: project.projectName,
-                    pathwayName: lp.pathway?.name || 'Unknown',
-                    actualQualificationName: q.legacyQualification?.name || q.occupationalQualification?.name || 'Unknown'
-                  });
-                });
-              }
-            });
-          }
-        });
-      }
-    });
-
-    return (
-      <div className="container-fluid">
-        <div className="card border-0 shadow-lg mb-4" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: "#ffffff" }}>
-          <div className="card-body text-center text-white py-4">
-            <h2 className="mb-2">🤝 Candidate Preparation</h2>
-            <p className="mb-0 opacity-75">Select a unit standard to record candidate assessment preparation</p>
-          </div>
-        </div>
-
-        <div className="card border-0 shadow-lg">
-          <div className="card-header bg-white border-0 pt-4 px-4">
-            <h5 className="mb-0">Unit Standards</h5>
-            <p className="text-muted small">Available unit standards from your assigned projects</p>
-          </div>
-          <div className="card-body p-4">
-            {allUnitStandards.length > 0 ? (
-              <div className="row g-3">
-                {allUnitStandards.map((us, index) => (
-                  <div key={`${us.id}-${index}`} className="col-md-6 col-lg-4">
-                    {(() => {
-                      const hasPrep = !!(assessmentStrategyPlans[us.id]?.prepItemsJson);
-                      return (
-                        <div 
-                          className={`card h-100 transition-all border-0 shadow-sm hover-shadow cursor-pointer ${hasPrep ? 'bg-success-subtle bg-opacity-10' : ''}`} 
-                          style={{ 
-                            borderTop: `4px solid ${hasPrep ? '#10b981' : '#0d9488'}`
-                          }}
-                          onClick={() => {
-                            const existingPlan = assessmentStrategyPlans[us.id];
-                            if (existingPlan && existingPlan.prepItemsJson) {
-                              try {
-                                setPrepForm({
-                                  date: existingPlan.prepDate ? existingPlan.prepDate.split('T')[0] : new Date().toISOString().split('T')[0],
-                                  time: existingPlan.prepTime || '',
-                                  venue: existingPlan.prepVenue || '',
-                                  comments: existingPlan.prepComments || '',
-                                  items: JSON.parse(existingPlan.prepItemsJson)
-                                });
-                              } catch (e) {
-                                console.error('Error parsing prep items:', e);
-                              }
-                            } else {
-                              // Reset to default if no plan exists
-                              setPrepForm({
-                                date: new Date().toISOString().split('T')[0],
-                                time: '',
-                                venue: '',
-                                comments: '',
-                                items: [
-                                  { id: 1, text: 'Explain to the candidate why your are meeting and the purpose of the assessment.', docs: 'NQF Framework Assessment process', agreed: false, action: '' },
-                                  { id: 2, text: 'Discuss the assessment plan in detail.', docs: 'Assessment strategy', agreed: false, action: '' },
-                                  { id: 3, text: 'Explain assessment process, show assessment instruments to candidate and describe assessment conditions.', docs: 'Assessment instruments', agreed: false, action: '' },
-                                  { id: 4, text: 'Identify the role-players during assessment.', docs: 'Assessors / Moderator', agreed: false, action: '' },
-                                  { id: 5, text: 'Describe the evidence required to be declared competent.', docs: 'Examples of evidence', agreed: false, action: '' },
-                                  { id: 6, text: 'Explain how evidence will be judged.', docs: '-', agreed: false, action: '' },
-                                  { id: 7, text: 'Explain to the candidate how to prepare: Give candidate summative task description.', docs: 'Summative task description', agreed: false, action: '' },
-                                  { id: 8, text: 'Confirm with the candidate what he/she should bring to the assessment.', docs: 'Detailed briefing on exact requirements', agreed: false, action: '' },
-                                  { id: 9, text: 'Ensure that candidate understands the procedures of all assessment practices.', docs: 'Appeals / Moderation / Assessment policy', agreed: false, action: '' },
-                                  { id: 10, text: 'Ask the candidate if he/she foresees any problems or identify any special needs.', docs: 'List needs', agreed: false, action: '' },
-                                  { id: 11, text: 'Check with candidate that he/she clearly understands the assessment procedure.', docs: '-', agreed: false, action: '' }
-                                ]
-                              });
-                            }
-                            setSelectedPrepUnitStandard(us);
-                            setShowPrepForm(true);
-                          }}
-                        >
-                          <div className="card-body d-flex flex-column">
-                            <div className="d-flex justify-content-between align-items-start mb-2">
-                              <span className={`badge ${hasPrep ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-info'} px-2 py-1`}>
-                                US ID: {us.unitStandardId || 'N/A'}
-                              </span>
-                              <span className="badge bg-info-subtle text-info px-2 py-1">L{us.level}</span>
-                            </div>
-                            <h6 className="card-title mb-2 text-dark fw-bold">{us.unitStandardName}</h6>
-                            <div className="mb-3">
-                              <small className="text-muted d-block"><strong>Project:</strong> {us.projectName}</small>
-                              <small className="text-muted d-block"><strong>Pathway:</strong> {us.pathwayName}</small>
-                              <small className="text-muted d-block"><strong>Qualification:</strong> {us.actualQualificationName}</small>
-                            </div>
-                            
-                            {hasPrep ? (
-                              <div className="mt-auto">
-                                <div className="alert alert-success py-1 px-2 mb-2 small d-flex align-items-center gap-2 border-0">
-                                  <span>✅</span> Preparation Recorded
-                                </div>
-                                <button className="btn btn-sm btn-success w-100" disabled>
-                                  Completed
-                                </button>
-                              </div>
-                            ) : (
-                              <button className="btn btn-sm btn-primary w-100 mt-auto">
-                                Record Preparation
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })()}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-5">
-                <div className="display-1 mb-3">📁</div>
-                <h4>No Unit Standards Found</h4>
-                <p className="text-muted">Expand projects in the "Projects" section to load unit standards first.</p>
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => setActiveSection('projects')}
-                >
-                  Go to Projects
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderLearningMaterials = () => {
-    return <LearningMaterialsSection
-      filteredProjects={filteredProjects}
-      projectDetails={projectDetails}
-      fetchWithAuth={fetchWithAuth}
-    />;
-  };
-
-  const renderAssessorReport = () => {
-    const handleProjectChange = async (projectId: number) => {
-      const project = filteredProjects.find(p => p.id === projectId);
-      setSelectedReportProject(project);
-      setSelectedReportLearner(null);
-      setReportLoading(true);
-      setFetchingReport(true);
-      
-      try {
-        const response = await fetchWithAuth(`/api/Learners/project/${projectId}`);
-        if (response && response.ok) {
-          const learners = await response.json();
-          setMarkingLearners(learners);
-        }
-        
-        // Fetch project details for US list
-        if (!projectDetails[projectId]) {
-          const detailsResponse = await fetchWithAuth(`/api/projects/${projectId}/details`);
-          if (detailsResponse && detailsResponse.ok) {
-            const details = await detailsResponse.json();
-            setProjectDetails(prev => ({ ...prev, [projectId]: details }));
-          }
-        }
-
-        // Fetch real competency report data
-        const reportResponse = await fetchWithAuth(`/api/AssessmentReports/project/${projectId}`);
-        if (reportResponse && reportResponse.ok) {
-          const reportData = await reportResponse.json();
-          setCompetencyReport(reportData);
-        }
-      } catch (error) {
-        console.error('Error fetching report data:', error);
-      } finally {
-        setReportLoading(false);
-        setFetchingReport(false);
-      }
-    };
-
-    const getAssessorDecision = (formativeScore: number, summativeScore: number) => {
-      // 50% threshold for Competence (C) or Not Yet Competent (NYC)
-      const formativeStatus = formativeScore >= 50 ? 'C' : 'NYC';
-      const summativeStatus = summativeScore >= 50 ? 'C' : 'NYC';
-      const decision = (formativeScore >= 50 && summativeScore >= 50) ? 'C' : 'NYC';
-      const remedialRequired = decision === 'NYC';
-      
-      return { formativeStatus, summativeStatus, decision, remedialRequired };
-    };
-
-    // Extract all US for the project
-    const projectUSList: any[] = [];
-    if (selectedReportProject) {
-      const details = projectDetails[selectedReportProject.id];
-      details?.learningPathways?.forEach((lp: any) => {
-        lp.qualifications?.forEach((q: any) => {
-          q.unitStandards?.forEach((us: any) => {
-            projectUSList.push({
-              ...us,
-              pathwayName: lp.pathway?.name || 'Unknown',
-              qualificationName: q.legacyQualification?.name || q.occupationalQualification?.name || 'Unknown'
-            });
-          });
-        });
-      });
-    }
-
-    return (
-      <div className="container-fluid py-4">
-        <div className="card border-0 shadow-lg mb-4" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16, color: "#ffffff" }}>
-          <div className="card-body text-center text-white py-4">
-            <h2 className="mb-2">📊 Assessor Reports</h2>
-            <p className="mb-0 opacity-75">Generate competency reports for individuals or entire classes</p>
-          </div>
-        </div>
-
-        <div className="row g-4 mb-4">
-          <div className="col-md-6">
-            <div className="card border-0 shadow-sm">
-              <div className="card-body">
-                <label className="form-label fw-bold small text-muted text-uppercase">1. Select Project</label>
-                <select 
-                  className="form-select border-0 bg-light shadow-none"
-                  value={selectedReportProject?.id || ''}
-                  onChange={(e) => handleProjectChange(Number(e.target.value))}
-                >
-                  <option value="">Choose project...</option>
-                  {filteredProjects.map(p => (
-                    <option key={p.id} value={p.id}>{p.projectName}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-          <div className="col-md-6">
-            <div className="card border-0 shadow-sm">
-              <div className="card-body">
-                <label className="form-label fw-bold small text-muted text-uppercase">2. Report Type</label>
-                <div className="d-flex gap-2">
-                  <button 
-                    className={`btn btn-sm flex-fill ${reportType === 'class' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setReportType('class')}
-                  >
-                    📋 Class Report (Learner Matrix)
-                  </button>
-                  <button 
-                    className={`btn btn-sm flex-fill ${reportType === 'individual' ? 'btn-primary' : 'btn-outline-primary'}`}
-                    onClick={() => setReportType('individual')}
-                  >
-                    👤 Individual Learner Report
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-          {reportType === 'individual' && selectedReportProject && (
-            <div className="col-12">
-              <div className="card border-0 shadow-sm">
-                <div className="card-body">
-                  <label className="form-label fw-bold small text-muted text-uppercase">3. Select Learner for Individual View</label>
-                  <select 
-                    className="form-select border-0 bg-light shadow-none"
-                    value={selectedReportLearner?.learnerId || ''}
-                    onChange={(e) => {
-                      const learner = markingLearners.find(l => l.learnerId === Number(e.target.value));
-                      setSelectedReportLearner(learner);
-                    }}
-                  >
-                    <option value="">Choose learner...</option>
-                    {markingLearners.map(l => (
-                      <option key={l.learnerId} value={l.learnerId}>{l.firstName} {l.lastName}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {selectedReportProject && (
-          <div className="card border-0 shadow-lg overflow-hidden">
-            <div className="card-header bg-white py-4 px-5 border-0 d-flex justify-content-between align-items-center">
-              <div>
-                <h4 className="mb-1 fw-bold">
-                  {reportType === 'individual' 
-                    ? `Competency Report: ${selectedReportLearner ? `${selectedReportLearner.firstName} ${selectedReportLearner.lastName}` : 'Select a learner'}`
-                    : `Class Competency Report: ${selectedReportProject.projectName}`
-                  }
-                </h4>
-                <p className="text-muted small mb-0">Decision based on 50% competency threshold per assessment type</p>
-              </div>
-              <button className="btn btn-outline-primary btn-sm d-flex align-items-center gap-2" onClick={() => window.print()}>
-                <span>🖨️</span> Print Report
-              </button>
-            </div>
-
-            <div className="card-body p-0">
-              {reportType === 'individual' ? (
-                selectedReportLearner ? (
-                  <div className="table-responsive">
-                    <table className="table table-hover align-middle mb-0">
-                      <thead style={{ backgroundColor: '#2563eb', color: 'white' }}>
-                        <tr>
-                          <th className="ps-4 py-3" style={{ width: '15%', borderRight: '1px solid rgba(255,255,255,0.1)' }}>US ID</th>
-                          <th className="py-3 px-3" style={{ width: '40%', borderRight: '1px solid rgba(255,255,255,0.1)' }}>Unit Standard/Module Title</th>
-                          <th className="py-3 text-center" style={{ width: '15%', borderRight: '1px solid rgba(255,255,255,0.1)' }}>Formative Assessment (C/NYC)</th>
-                          <th className="py-3 text-center" style={{ width: '15%', borderRight: '1px solid rgba(255,255,255,0.1)' }}>Summative Assessment (C/NYC)</th>
-                          <th className="py-3 text-center pe-4" style={{ width: '15%' }}>Assessor Decision</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(competencyReport?.unitStandards && competencyReport.unitStandards.length > 0 ? competencyReport.unitStandards : projectUSList).map((us) => {
-                          // Try to find status in report data
-                          const learnerCompetency = competencyReport?.learners?.find(l => l.learnerId === selectedReportLearner.learnerId);
-                          const learnerStatus = learnerCompetency?.unitStandardStatuses?.find(s => s.unitStandardId === us.id || s.unitStandardCode === us.unitStandardId);
-                          
-                          // Default to NYC as requested
-                          const formativeStatus = learnerStatus?.formativeStatus || 'NYC';
-                          const summativeStatus = learnerStatus?.summativeStatus || 'NYC';
-                          const decision = learnerStatus?.finalStatus || 'NYC';
-                          
-                          return (
-                            <tr key={us.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                              <td className="ps-4 py-3 fw-normal text-dark" style={{ borderRight: '1px solid #f1f5f9' }}>{us.unitStandardId}</td>
-                              <td className="py-3 px-3" style={{ borderRight: '1px solid #f1f5f9' }}>
-                                <div className="text-dark">{us.unitStandardId} - {us.unitStandardName}</div>
-                              </td>
-                              <td className="text-center py-3" style={{ borderRight: '1px solid #f1f5f9' }}>
-                                <span className={formativeStatus === 'C' ? 'text-success fw-bold' : 'text-danger fw-bold'}>
-                                  {formativeStatus}
-                                </span>
-                              </td>
-                              <td className="text-center py-3" style={{ borderRight: '1px solid #f1f5f9' }}>
-                                <span className={summativeStatus === 'C' ? 'text-success fw-bold' : 'text-danger fw-bold'}>
-                                  {summativeStatus}
-                                </span>
-                              </td>
-                              <td className="text-center py-3 pe-4">
-                                <span className={decision === 'C' ? 'text-success fw-bold' : 'text-danger fw-bold'}>
-                                  {decision === 'C' ? 'C' : 'NYC'}
-                                </span>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="text-center py-5">
-                    <div className="display-1 opacity-25">👤</div>
-                    <h5 className="mt-3">Please select a learner from the dropdown to view their individual report</h5>
-                    <p className="text-muted">Or switch to "Class Report" to see everyone at once.</p>
-                  </div>
-                )
-              ) : (
-                <div className="table-responsive">
-                  <table className="table table-hover align-middle mb-0">
-                    <thead style={{ backgroundColor: '#2563eb', color: 'white' }}>
-                      <tr>
-                        <th className="ps-4 py-3" style={{ borderRight: '1px solid rgba(255,255,255,0.1)' }}>Learner Name</th>
-                        {(competencyReport?.unitStandards && competencyReport.unitStandards.length > 0 ? competencyReport.unitStandards : projectUSList).map(us => (
-                          <th key={us.id} className="text-center py-3" style={{ borderRight: '1px solid rgba(255,255,255,0.1)' }}>US {us.unitStandardId || us.unitStandardCode}</th>
-                        ))}
-                        <th className="text-center pe-4 py-3">Overall Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(competencyReport?.learners || markingLearners).map((learner: any) => {
-                        const learnerId = learner.learnerId || learner.Id;
-                        const firstName = learner.firstName || learner.FirstName;
-                        const lastName = learner.lastName || learner.LastName;
-                        
-                        // Find status if report is loaded
-                        const reportLearner = competencyReport?.learners?.find(l => l.learnerId === learnerId);
-                        
-                        return (
-                          <tr key={learnerId} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                            <td className="ps-4 py-3 fw-bold text-dark" style={{ borderRight: '1px solid #f1f5f9' }}>{firstName} {lastName}</td>
-                            {(competencyReport?.unitStandards && competencyReport.unitStandards.length > 0 ? competencyReport.unitStandards : projectUSList).map((us) => {
-                              const status = reportLearner?.unitStandardStatuses?.find(s => s.unitStandardId === us.id || s.unitStandardCode === us.unitStandardId);
-                              const finalStatus = status?.finalStatus || 'NYC';
-                              
-                              return (
-                                <td key={us.id} className="text-center py-3" style={{ borderRight: '1px solid #f1f5f9' }}>
-                                  <span className={finalStatus === 'C' ? 'text-success fw-bold' : 'text-danger fw-bold'}>
-                                    {finalStatus}
-                                  </span>
-                                </td>
-                              );
-                            })}
-                            <td className="text-center py-3 pe-4">
-                              <span className={`badge ${
-                                (reportLearner?.overallStatus === 'Competent') ? 'bg-success-subtle text-success' :
-                                (reportLearner?.overallStatus === 'Not Yet Competent') ? 'bg-danger-subtle text-danger' :
-                                'bg-info-subtle text-info'
-                              }`}>
-                                {reportLearner?.overallStatus || 'In Progress'}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {(competencyReport?.learners?.length === 0 && markingLearners.length === 0) && (
-                        <tr>
-                          <td colSpan={(competencyReport?.unitStandards?.length || projectUSList.length) + 2} className="text-center py-5 text-muted">
-                            No learners found for this project.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-            
-            <div className="card-footer bg-white py-4 px-5 border-0">
-              <div className="alert alert-info border-0 shadow-sm d-flex align-items-center gap-3 mb-0">
-                <span className="fs-3">ℹ️</span>
-                <div>
-                  <h6 className="mb-1 fw-bold">Understanding the Decision</h6>
-                  <p className="mb-0 small">
-                    A learner is declared <strong>Competent (C)</strong> if they achieve 50% or more in both Formative and Summative assessments. 
-                    If either score is below 50%, they are declared <strong>Not Yet Competent (NYC)</strong>.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!selectedReportProject && (
-          <div className="card border-0 shadow-lg p-5 text-center">
-            <div className="display-1 opacity-25">📋</div>
-            <h4 className="mt-4">Select a Project to Begin</h4>
-            <p className="text-muted">You can generate comprehensive competency reports once a project is selected.</p>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const renderMarking = () => (
-    <div className="container-fluid">
-      <div className="mb-4">
-        <h3 className="mb-1">{activeSection === 'marking' ? 'Marking' : 'Moderation'}</h3>
-        <p className="text-muted mb-0">
-          {activeSection === 'marking' 
-            ? 'Projects → Learners → Qualifications → Unit Standards → Assessments → Mark Answer' 
-            : 'Projects → Learners → Qualifications → Unit Standards → Assessments → Moderate Answer'}
-        </p>
-      </div>
-
-      <div className="card mb-3">
-        <div className="card-body">
-          <label className="form-label fw-semibold">Select Project</label>
-            <select
-              className="form-select"
-              value={markingProjectId ?? ''}
-              onChange={(e) => {
-                const id = Number(e.target.value);
-                if (id) {
-                  handleSelectMarkingProject(id);
-                }
-              }}
-            >
-              <option value="">Choose project...</option>
-              {filteredProjects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  #{project.id} - {project.projectName}{project.contractNumber ? ` (${project.contractNumber})` : ''}
-                </option>
-              ))}
-            </select>
-        </div>
-      </div>
-
-      {markingProjectId && (
-        <div className="mt-3">
-          {/* Step 1: Learner List (Full Width) */}
-          {!markingLearnerId && (
-            <div className="card border-0 shadow-sm">
-              <div className="card-header bg-white py-3">
-                <h5 className="mb-0 fw-bold">Learners</h5>
-              </div>
-              <div className="card-body">
-                {markingLearners.length === 0 ? (
-                  <div className="text-center py-5 text-muted">
-                    <i className="fas fa-users fa-3x mb-3 opacity-25"></i>
-                    <p>No learners found in this project.</p>
-                  </div>
-                ) : (
-                  <div className="row g-3">
-                    {markingLearners.map((learner: any) => (
-                      <div key={learner.learnerId} className="col-12 col-md-6 col-lg-4">
-                        <button
-                          className={`btn w-100 text-start p-3 border-2 h-100 d-flex flex-column justify-content-between ${
-                            markingLearnerId === learner.learnerId
-                              ? (markedLearnerIds.has(learner.learnerId) ? 'btn-success' : (learner.hasUploads ? 'btn-warning' : 'btn-primary'))
-                              : (markedLearnerIds.has(learner.learnerId) ? 'btn-success' : (learner.hasUploads ? 'btn-warning' : 'btn-outline-primary'))
-                          }`}
-                          style={markedLearnerIds.has(learner.learnerId) ? {
-                            backgroundColor: '#16a34a',
-                            borderColor: '#15803d',
-                            color: '#ffffff',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          } : learner.hasUploads ? { 
-                            backgroundColor: '#f59e0b', 
-                            borderColor: '#d97706', 
-                            color: '#111827',
-                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                          } : { 
-                            borderStyle: 'solid',
-                            transition: 'all 0.2s ease'
-                          }}
-                          onClick={() => {
-                            setMarkingLearnerId(learner.learnerId);
-                            setExpandedMarkingQualification(null);
-                            setExpandedMarkingUnitStandard(null);
-                            setExpandedMarkingAssessment(null);
-                            setMarkingAssessmentQuestions([]);
-                            setMarkingLearnerAnswers([]);
-                            setMarkingAnswerPreviewUrl(null);
-                          }}
-                        >
-                          <div className="d-flex justify-content-between align-items-start mb-2">
-                            <div className="fw-bold fs-5">{learner.firstName} {learner.lastName}</div>
-                            {learner.hasUploads && (
-                              <span className="badge bg-dark">
-                                Uploads: {learner.uploadCount ?? 0}
-                              </span>
-                            )}
-                            {markedLearnerIds.has(learner.learnerId) && (
-                              <span className="badge bg-white text-success">
-                                ✓ Fully Marked
-                              </span>
-                            )}
-                          </div>
-                          <div>
-                            <small className={markedLearnerIds.has(learner.learnerId) ? 'text-white opacity-75' : (learner.hasUploads ? 'text-dark opacity-75' : 'text-muted')}>
-                              ID: {learner.idNumber || 'N/A'}
-                            </small>
-                          </div>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Step 2: Qualification Structure (Full Width) */}
-          {markingLearnerId && !expandedMarkingAssessment && (
-            <div className="card border-0 shadow-sm">
-              <div className="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                <div className="d-flex align-items-center">
-                  <button 
-                    className="btn btn-sm btn-outline-secondary me-3" 
-                    onClick={() => setMarkingLearnerId(null)}
-                  >
-                    ← Back to Learners
-                  </button>
-                  <button 
-                    className="btn btn-sm btn-primary me-3" 
-                    onClick={() => compilePOE(markingLearnerId)}
-                    title="Generate the full Portfolio of Evidence document"
-                  >
-                    📄 Compile POE Document
-                  </button>
-                  <div>
-                    <h5 className="mb-0 fw-bold">Qualification Structure</h5>
-                    <small className="text-muted">
-                      Learner: {markingLearners.find(l => l.learnerId === markingLearnerId)?.firstName} {markingLearners.find(l => l.learnerId === markingLearnerId)?.lastName}
-                    </small>
-                  </div>
-                </div>
-              </div>
-              <div className="card-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-                {(markingProjectDetails?.learningPathways || []).map((pathway: any, pIndex: number) => (
-                  <div key={pIndex} className="mb-4">
-                    <h6 className="fw-bold text-info mb-3 pb-2 border-bottom">
-                      {pathway.pathway?.name || 'Learning Pathway'}
-                    </h6>
-                    <div className="row g-3">
-                      {(pathway.qualifications || []).map((qual: any, qIndex: number) => {
-                        const qKey = pIndex * 1000 + qIndex;
-                        const qOpen = expandedMarkingQualification === qKey;
-                        
-                        // Calculate qualification completion
-                        const unitStandardIds = (qual.unitStandards || []).map((us: any) => us.id);
-                        const qualProgress = learnerProgress.filter(p => unitStandardIds.includes(p.projectQualificationUnitStandardId));
-                        const completedUSCount = qualProgress.filter(p => p.formativeCompleted && p.summativeCompleted).length;
-                        const totalUSCount = unitStandardIds.length;
-                        const isQualCompleted = totalUSCount > 0 && completedUSCount === totalUSCount;
-
-                        return (
-                          <div key={qIndex} className="col-12">
-                            <div className={`card border shadow-none ${isQualCompleted ? 'border-success' : ''}`}>
-                              <div 
-                                className={`card-header ${isQualCompleted ? 'bg-success bg-opacity-10' : 'bg-light'} cursor-pointer`}
-                                onClick={() => setExpandedMarkingQualification(qOpen ? null : qKey)}
-                                style={{ cursor: 'pointer' }}
-                              >
-                                <div className="d-flex justify-content-between align-items-center">
-                                  <span className={`fw-semibold ${isQualCompleted ? 'text-success' : ''}`}>
-                                    {qOpen ? '▼' : '▶'} {qual.legacyQualification?.name || qual.occupationalQualification?.name || `Qualification ${qIndex + 1}`}
-                                  </span>
-                                  {totalUSCount > 0 && (
-                                    <span className={`badge ${isQualCompleted ? 'bg-success' : 'bg-secondary'} ms-2`}>
-                                      {completedUSCount} / {totalUSCount} Unit Standards Marked
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                              {qOpen && (
-                                <div className="card-body p-3">
-                                  <div className="row g-3">
-                                    {(qual.unitStandards || []).map((us: any) => {
-                                      const usOpen = expandedMarkingUnitStandard === us.id;
-                                      const usData = assessmentData[us.id];
-                                      const progress = learnerProgress.find(p => p.projectQualificationUnitStandardId === us.id);
-                                      const isFormativeMarked = progress?.formativeCompleted;
-                                      const isSummativeMarked = progress?.summativeCompleted;
-
-                                      return (
-                                        <div key={us.id} className="col-12 col-md-6">
-                                          <div className={`border rounded h-100 ${isFormativeMarked && isSummativeMarked ? 'border-success' : ''}`}>
-                                            <div 
-                                              className={`p-2 ${isFormativeMarked && isSummativeMarked ? 'bg-success bg-opacity-10' : 'bg-light'} border-bottom d-flex justify-content-between align-items-center cursor-pointer`}
-                                              onClick={() => {
-                                                const open = usOpen ? null : us.id;
-                                                setExpandedMarkingUnitStandard(open);
-                                                if (open) fetchAssessmentsForUnitStandard(us.id);
-                                              }}
-                                              style={{ cursor: 'pointer' }}
-                                            >
-                                              <div className="d-flex align-items-center gap-2 overflow-hidden">
-                                                <small className="fw-bold text-truncate">{us.unitStandardName}</small>
-                                                <div className="d-flex gap-1 flex-shrink-0">
-                                                  {isFormativeMarked && <span className="badge bg-primary" style={{fontSize: '0.6rem'}}>F</span>}
-                                                  {isSummativeMarked && <span className="badge bg-success" style={{fontSize: '0.6rem'}}>S</span>}
-                                                </div>
-                                              </div>
-                                              <div className="d-flex align-items-center">
-                                                {isFormativeMarked && isSummativeMarked && <i className="fas fa-check-circle text-success me-2" style={{fontSize: '0.8rem'}}></i>}
-                                                <span>{usOpen ? '▼' : '▶'}</span>
-                                              </div>
-                                            </div>
-                                            {usOpen && (
-                                              <div className="p-2 d-flex flex-column gap-2" style={{ minHeight: '50px' }}>
-                                                {/* Assessment Plan Strategy Section */}
-                                                {assessmentStrategyPlans[us.id] && (
-                                                  <div className="bg-info bg-opacity-10 border border-info border-opacity-25 rounded p-2 mb-2">
-                                                    <div className="d-flex justify-content-between align-items-center mb-1">
-                                                      <small className="fw-bold text-info text-uppercase" style={{ fontSize: '0.65rem' }}>
-                                                        <i className="fas fa-clipboard-list me-1"></i> Assessment Plan Strategy
-                                                      </small>
-                                                      <span className="badge bg-info small" style={{ fontSize: '0.6rem' }}>Applied</span>
-                                                    </div>
-                                                    <div className="row g-2">
-                                                      <div className="col-6">
-                                                        <div className="bg-white bg-opacity-50 p-1 rounded small" style={{ fontSize: '0.7rem' }}>
-                                                          <strong>Date:</strong> {assessmentStrategyPlans[us.id].assessmentDate ? new Date(assessmentStrategyPlans[us.id].assessmentDate).toLocaleDateString() : 'Not set'}
-                                                        </div>
-                                                      </div>
-                                                      <div className="col-6">
-                                                        <div className="bg-white bg-opacity-50 p-1 rounded small" style={{ fontSize: '0.7rem' }}>
-                                                          <strong>Assessor:</strong> {assessmentStrategyPlans[us.id].assessorName || 'Not set'}
-                                                        </div>
-                                                      </div>
-                                                      <div className="col-12">
-                                                        <div className="bg-white bg-opacity-50 p-1 rounded small" style={{ fontSize: '0.7rem' }}>
-                                                          <strong>Venue:</strong> {assessmentStrategyPlans[us.id].questionnaireLocation || assessmentStrategyPlans[us.id].practicalLocation || 'Not specified'}
-                                                        </div>
-                                                      </div>
-                                                      {assessmentStrategyPlans[us.id].assessorNumber && (
-                                                        <div className="col-12">
-                                                          <div className="bg-white bg-opacity-50 p-1 rounded small" style={{ fontSize: '0.7rem' }}>
-                                                            <strong>Assessor Reg #:</strong> {assessmentStrategyPlans[us.id].assessorNumber}
-                                                          </div>
-                                                        </div>
-                                                      )}
-                                                      {assessmentStrategyPlans[us.id].assessorSignature && (
-                                                        <div className="col-12">
-                                                          <div className="bg-white bg-opacity-50 p-1 rounded small d-flex align-items-center gap-2" style={{ fontSize: '0.7rem' }}>
-                                                            <strong>Signature:</strong> 
-                                                            {assessmentStrategyPlans[us.id].assessorSignature.startsWith('data:image') ? (
-                                                              <img src={assessmentStrategyPlans[us.id].assessorSignature} alt="Signature" style={{ height: '20px', objectFit: 'contain' }} />
-                                                            ) : (
-                                                              <span className="text-success">✓ Captured</span>
-                                                            )}
-                                                          </div>
-                                                        </div>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                )}
-
-                                                <div className="d-flex flex-wrap gap-2">
-                                                  {loadingAssessments[us.id] ? (
-                                                    <div className="w-100 text-center py-2">
-                                                      <div className="spinner-border spinner-border-sm text-info" role="status"></div>
-                                                    </div>
-                                                  ) : (
-                                                    <>
-                                                      {(() => {
-                                                        const progress = (learnerProgress || []).find(p => p.projectQualificationUnitStandardId === us.id);
-                                                        return (
-                                                          <>
-                                                            {(usData?.formative || []).map((a: any) => {
-                                                              const isThisFormativeMarked = progress?.formativeAssessmentId === a.id && progress?.formativeCompleted;
-                                                              const isThisFormativeModerated = progress?.formativeAssessmentId === a.id && progress?.formativeModerated;
-                                                              const canModerate = activeSection === 'moderation' && isThisFormativeMarked;
-                                                              const isFormativeDone = isThisFormativeModerated;
-
-                                                              return (
-                                                                <div key={`f-group-${a.id}`} className="d-flex gap-1 align-items-center">
-                                                                  <button 
-                                                                    className={`btn btn-sm ${
-                                                                      activeSection === 'moderation' 
-                                                                        ? (isThisFormativeModerated ? 'btn-info text-white' : (isThisFormativeMarked ? 'btn-success' : 'btn-outline-secondary')) 
-                                                                        : (isThisFormativeMarked ? 'btn-primary' : 'btn-outline-primary')
-                                                                    }`} 
-                                                                    onClick={() => openMarkingAssessment(a.id, 'Formative', false)}
-                                                                    disabled={activeSection === 'moderation' ? !isThisFormativeMarked : false}
-                                                                  >
-                                                                    {activeSection === 'moderation' ? (
-                                                                      <>
-                                                                        <i className={`fas ${isThisFormativeModerated ? 'fa-eye' : (isThisFormativeMarked ? 'fa-user-check' : 'fa-clock')} me-1`}></i>
-                                                                        {isThisFormativeModerated ? 'View Moderation' : (isThisFormativeMarked ? 'Moderate Formative' : 'Awaiting Mark')}
-                                                                      </>
-                                                                    ) : (
-                                                                      <>
-                                                                        {isThisFormativeMarked && <i className="fas fa-check me-1"></i>}
-                                                                        Formative #{a.id}
-                                                                      </>
-                                                                    )}
-                                                                  </button>
-                                                                  {activeSection === 'marking' && (
-                                                                    <button 
-                                                                      className="btn btn-sm btn-outline-warning" 
-                                                                      onClick={() => openMarkingAssessment(a.id, 'Formative', true)}
-                                                                      title="Mark Remedial"
-                                                                      disabled={isFormativeDone}
-                                                                    >
-                                                                      Rem
-                                                                    </button>
-                                                                  )}
-                                                                </div>
-                                                              );
-                                                            })}
-                                                            {(usData?.summative || []).map((a: any) => {
-                                                              const isThisSummativeMarked = progress?.summativeAssessmentId === a.id && progress?.summativeCompleted;
-                                                              const isThisSummativeModerated = progress?.summativeAssessmentId === a.id && progress?.summativeModerated;
-                                                              const isSummativeDone = isThisSummativeModerated;
-                                                              
-                                                              return (
-                                                                <div key={`s-group-${a.id}`} className="d-flex gap-1 align-items-center">
-                                                                  <button 
-                                                                    className={`btn btn-sm ${
-                                                                      activeSection === 'moderation' 
-                                                                        ? (isThisSummativeModerated ? 'btn-info text-white' : (isThisSummativeMarked ? 'btn-success' : 'btn-outline-secondary')) 
-                                                                        : (isThisSummativeMarked ? 'btn-success' : 'btn-outline-success')
-                                                                    }`} 
-                                                                    onClick={() => openMarkingAssessment(a.id, 'Summative', false)}
-                                                                    disabled={activeSection === 'moderation' ? !isThisSummativeMarked : false}
-                                                                  >
-                                                                    {activeSection === 'moderation' ? (
-                                                                      <>
-                                                                        <i className={`fas ${isThisSummativeModerated ? 'fa-eye' : (isThisSummativeMarked ? 'fa-user-check' : 'fa-clock')} me-1`}></i>
-                                                                        {isThisSummativeModerated ? 'View Moderation' : (isThisSummativeMarked ? 'Moderate Summative' : 'Awaiting Mark')}
-                                                                      </>
-                                                                    ) : (
-                                                                      <>
-                                                                        {isThisSummativeMarked && <i className="fas fa-check me-1"></i>}
-                                                                        Summative #{a.id}
-                                                                      </>
-                                                                    )}
-                                                                  </button>
-                                                                  {activeSection === 'marking' && (
-                                                                    <button 
-                                                                      className="btn btn-sm btn-outline-warning" 
-                                                                      onClick={() => openMarkingAssessment(a.id, 'Summative', true)}
-                                                                      title="Mark Remedial"
-                                                                      disabled={isSummativeDone}
-                                                                    >
-                                                                      Rem
-                                                                    </button>
-                                                                  )}
-                                                                </div>
-                                                              );
-                                                            })}
-                                                          </>
-                                                        );
-                                                      })()}
-                                                      {(!usData?.formative?.length && !usData?.summative?.length) && (
-                                                        <small className="text-muted italic">No assessments found</small>
-                                                      )}
-                                                    </>
-                                                  )}
-                                                </div>
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Step 3: Marking Workspace (Split Screen) */}
-          {expandedMarkingAssessment && (
-            <div className="card border-0 shadow-sm">
-              <div className="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-                {(() => {
-                  const progress = (learnerProgress || []).find(p => p.projectQualificationUnitStandardId === expandedMarkingUnitStandard);
-                  const isModeratedAssessment = expandedMarkingAssessment.type === 'Formative' 
-                    ? progress?.formativeModerated 
-                    : progress?.summativeModerated;
-                  
-                  // Check if all questions have a decision for the "Submit" button state
-                  const allDecided = markingAssessmentQuestions.every(q => {
-                    const existingAnswer = markingLearnerAnswers.find((a: any) => a.learnerId === markingLearnerId && a.questionId === q.id);
-                    const isAlreadyModerated = existingAnswer && (existingAnswer.moderationStatus === 'Moderated' || existingAnswer.moderationStatus === 2 || existingAnswer.moderationStatus === 'ReturnedToAssessor' || existingAnswer.moderationStatus === 3);
-                    return isAlreadyModerated || moderationApproval[`q-${q.id}`] !== undefined;
-                  });
-                  
-                  return (
-                    <>
-                      <div className="d-flex align-items-center">
-                        <button 
-                          className="btn btn-sm btn-outline-secondary me-3" 
-                          onClick={() => setExpandedMarkingAssessment(null)}
-                        >
-                          ← Back to Structure
-                        </button>
-                        <h5 className="mb-0 fw-bold">
-                          {isRemedialMarking ? 'REMEDIAL ' : ''}{expandedMarkingAssessment.type} #{expandedMarkingAssessment.id} - {activeSection === 'moderation' && isModeratedAssessment ? 'Moderation View (Read-Only)' : 'Marking Workspace'}
-                        </h5>
-                      </div>
-                      <button 
-                        className={`btn ${activeSection === 'marking' ? 'btn-primary' : 'btn-success'} px-4`} 
-                        onClick={activeSection === 'marking' ? submitSectionMarks : submitModeration}
-                        disabled={markingSaving || (activeSection === 'marking' && markingLearnerAnswers.length === 0) || (activeSection === 'moderation' && (isModeratedAssessment || !allDecided))}
-                      >
-                        {markingSaving ? 'Saving...' : (activeSection === 'marking' ? 'Save Marks' : (isModeratedAssessment ? 'Moderated' : (allDecided ? 'Submit Moderation' : 'Decision Required')))}
-                      </button>
-                    </>
-                  );
-                })()}
-              </div>
-              <div className="card-body">
-                {activeSection === 'marking' && markingLearnerAnswers.length === 0 && (
-                  <div className="alert alert-warning d-flex align-items-center mb-4 border-0 shadow-sm">
-                    <span className="fs-4 me-3">⚠️</span>
-                    <div>
-                      <h6 className="alert-heading mb-1 fw-bold">No Script Uploaded</h6>
-                      <p className="mb-0 small">You cannot enter or save marks for this assessment because the learner hasn't uploaded any scripts yet.</p>
-                    </div>
-                  </div>
-                )}
-                <div className="row g-4">
-                  <div className="col-12 col-lg-5">
-                    <h6 className="fw-bold mb-3 d-flex align-items-center">
-                      <i className="fas fa-edit me-2 text-info"></i>
-                      Questions and Marking
-                    </h6>
-                    <div style={{ maxHeight: '60vh', overflowY: 'auto', paddingRight: '5px' }}>
-                      {markingAssessmentQuestions.length === 0 ? (
-                        <div className="text-center py-4 text-muted border rounded bg-light">
-                          No questions found for this assessment.
-                        </div>
-                      ) : (
-                        markingAssessmentQuestions.map((q: any) => {
-                        // Find the most relevant answer for this specific learner and question
-                        // We filter by learnerId and then sort to prioritize moderated entries (status 2 or 3)
-                        const learnerAnswers = (markingLearnerAnswers || [])
-                          .filter((a: any) => a.learnerId === markingLearnerId && a.questionId === q.id)
-                          .sort((a: any, b: any) => {
-                            const aStatus = a.moderationStatus === 'Moderated' || a.moderationStatus === 2 || a.moderationStatus === 'ReturnedToAssessor' || a.moderationStatus === 3 ? 1 : 0;
-                            const bStatus = b.moderationStatus === 'Moderated' || b.moderationStatus === 2 || b.moderationStatus === 'ReturnedToAssessor' || b.moderationStatus === 3 ? 1 : 0;
-                            if (aStatus !== bStatus) return bStatus - aStatus; // Moderated first
-                            return (b.answerId || b.id || 0) - (a.answerId || a.id || 0); // Newest first
-                          });
-
-                        const answer = learnerAnswers[0];
-                        // Allow marking if ANY uploads exist for this assessment, even if not linked to this specific question
-                        const hasAnyUploads = markingLearnerAnswers.length > 0;
-                        const hasScript = !!answer || hasAnyUploads;
-                        const isMarked = !!answer && answer.mark !== null && answer.mark !== undefined;
-                        
-                        return (
-                          <div key={q.id} className={`border rounded p-3 mb-3 bg-white shadow-sm ${isMarked ? 'border-success' : ''}`}>
-                            {(() => {
-                              const progress = (learnerProgress || []).find(p => p.projectQualificationUnitStandardId === expandedMarkingUnitStandard);
-                              const isModeratedAssessment = expandedMarkingAssessment.type === 'Formative' 
-                                ? progress?.formativeModerated 
-                                : progress?.summativeModerated;
-                              
-                              const isThisQuestionModerated = answer && (
-                                answer.moderationStatus === 'Moderated' || 
-                                answer.moderationStatus === 2 || 
-                                answer.moderationStatus === 'ReturnedToAssessor' || 
-                                answer.moderationStatus === 3
-                              );
-                              
-                              return (
-                                <>
-                                  <div className="d-flex justify-content-between align-items-start mb-2">
-                                    <div className="d-flex align-items-center gap-2">
-                                      <div className="fw-bold">Q{q.questionNumber}:</div>
-                                      {isMarked && <span className="badge bg-success small">Marked</span>}
-                                      {(activeSection === 'moderation' && (isModeratedAssessment || isThisQuestionModerated)) && <span className="badge bg-info text-white small">Moderated</span>}
-                                    </div>
-                                    <span className="badge bg-light text-dark border">
-                                      {q.allocatedMarks} marks
-                                    </span>
-                                  </div>
-                                  <div className="mb-3 text-dark">{q.questionText}</div>
-
-                                  {!hasScript && activeSection === 'marking' && (
-                                    <div className="alert alert-warning py-2 px-3 mb-3 border-0 small d-flex align-items-center">
-                                      <i className="fas fa-exclamation-triangle me-2"></i>
-                                      <span>No script uploaded for this question. Marking disabled.</span>
-                                    </div>
-                                  )}
-
-                                  {hasScript && !answer && activeSection === 'marking' && (
-                                    <div className="alert alert-info py-2 px-3 mb-3 border-0 small d-flex align-items-center">
-                                      <i className="fas fa-info-circle me-2"></i>
-                                      <span>No upload linked to this question specifically — use the uploads panel on the right to view the learner's answer.</span>
-                                    </div>
-                                  )}
-
-                                  {isMarked && activeSection === 'marking' && (
-                                    <div className="alert alert-info py-2 px-3 mb-3 border-0 small d-flex align-items-center">
-                                      <i className="fas fa-check-circle me-2"></i>
-                                      <span>Question has been marked. Scored: <strong>{answer.mark} / {q.allocatedMarks}</strong></span>
-                                    </div>
-                                  )}
-                                  
-                                  {/* Assessor Marking Section */}
-                                  <div className={`p-3 rounded mb-3 ${activeSection === 'marking' ? (isMarked ? 'bg-success bg-opacity-10 border-success' : (hasScript ? 'bg-light border-primary' : 'bg-light border-warning opacity-75')) : 'bg-light border'} border-start border-4`}>
-                                    <div className={`fw-bold small ${isMarked || activeSection === 'moderation' ? 'text-success' : 'text-info'} mb-2`}>ASSESSOR SECTION</div>
-                                    <div className="form-floating mb-2">
-                                      <input
-                                        className={`form-control ${activeSection === 'moderation' ? 'bg-light' : ''}`}
-                                        id={`q-${q.id}`}
-                                        type="text"
-                                        inputMode="decimal"
-                                        pattern="[0-9]*[.,]?[0-9]*"
-                                        placeholder="Enter mark"
-                                        value={activeSection === 'moderation' ? (answer?.mark?.toString() || '') : (draftMarks[`learner:${markingLearnerId}:assessment:${expandedMarkingAssessment.type}:${expandedMarkingAssessment.id}:question:${q.id}`] || '')}
-                                        onChange={(e) => {
-                                          if (activeSection === 'moderation') return;
-                                          // Normalise comma to dot, strip invalid chars
-                                          const raw = e.target.value.replace(',', '.');
-                                          if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return;
-                                          const numValue = parseFloat(raw);
-                                          const key = `learner:${markingLearnerId}:assessment:${expandedMarkingAssessment.type}:${expandedMarkingAssessment.id}:question:${q.id}`;
-                                          if (!isNaN(numValue) && numValue > q.allocatedMarks) {
-                                            setDraftMarks(prev => ({ ...prev, [key]: q.allocatedMarks.toString() }));
-                                            return;
-                                          }
-                                          setDraftMarks(prev => ({ ...prev, [key]: raw }));
-                                        }}
-                                        disabled={activeSection !== 'marking' || !hasScript || isMarked}
-                                      />
-                                      <label htmlFor={`q-${q.id}`}>Assessor Mark (max {q.allocatedMarks})</label>
-                                    </div>
-                                    <div className="form-floating">
-                                      <textarea
-                                        className={`form-control ${activeSection === 'moderation' ? 'bg-light' : ''}`}
-                                        style={{ height: '80px' }}
-                                        placeholder="Assessor comments"
-                                        value={activeSection === 'moderation' ? (answer?.assessorComments || '') : (moderationComments[`assessor:${q.id}`] || '')}
-                                        onChange={(e) => {
-                                          if (activeSection === 'moderation') return;
-                                          setModerationComments(prev => ({ ...prev, [`assessor:${q.id}`]: e.target.value }));
-                                        }}
-                                        disabled={activeSection !== 'marking' || !hasScript || isMarked}
-                                      ></textarea>
-                                      <label>Assessor Comments</label>
-                                    </div>
-                                  </div>
-
-                                  {/* Moderator Section */}
-                                  {activeSection === 'moderation' && (
-                                    <div className="p-3 rounded mb-3 bg-white border-success border-start border-4 shadow-sm">
-                                      <div className="d-flex justify-content-between align-items-center mb-3">
-                                        <div className="fw-bold small text-success text-uppercase tracking-wider">MODERATOR SECTION</div>
-                                        {answer && (
-                                          <span className={`badge border ${answer.mark > q.allocatedMarks ? 'bg-danger text-white' : 'bg-light text-dark'}`}>
-                                            Assessor Mark: <strong className={answer.mark > q.allocatedMarks ? 'text-white' : 'text-info'}>{answer.mark}</strong> / {q.allocatedMarks}
-                                            {answer.mark > q.allocatedMarks && <i className="fas fa-exclamation-triangle ms-2" title="Mark exceeds maximum!"></i>}
-                                          </span>
-                                        )}
-                                      </div>
-                                      
-                                      {answer && answer.mark > q.allocatedMarks && (
-                                        <div className="alert alert-danger py-1 px-2 small mb-3 border-0">
-                                          <i className="fas fa-exclamation-circle me-1"></i>
-                                          Warning: Assessor's mark ({answer.mark}) exceeds maximum ({q.allocatedMarks}). Upholding will cap it to {q.allocatedMarks}.
-                                        </div>
-                                      )}
-                                      
-                                      <div className="row g-2 mb-3">
-                                        <div className="col-12">
-                                          <div className="form-floating">
-                                            <input
-                                              className={`form-control ${moderationApproval[`q-${q.id}`] !== undefined || isModeratedAssessment || isThisQuestionModerated ? 'bg-light fw-bold text-success' : ''}`}
-                                              type="text"
-                                              inputMode="decimal"
-                                              pattern="[0-9]*[.,]?[0-9]*"
-                                              placeholder="Moderated mark"
-                                              value={moderationDraftMarks[`q-${q.id}`] !== undefined 
-                                                ? moderationDraftMarks[`q-${q.id}`] 
-                                                : (isThisQuestionModerated ? (answer?.moderatedMark?.toString() || '') : (moderationApproval[`q-${q.id}`] !== undefined ? (answer?.mark?.toString() || '') : ''))}
-                                              onChange={(e) => {
-                                                const raw = e.target.value.replace(',', '.');
-                                                if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return;
-                                                setModerationDraftMarks(prev => ({ ...prev, [`q-${q.id}`]: raw }));
-                                              }}
-                                              disabled={isModeratedAssessment}
-                                            />
-                                            <label>Moderated Mark (Max: {q.allocatedMarks})</label>
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      <div className="form-floating mb-3">
-                                        <textarea
-                                          className="form-control"
-                                          style={{ height: '80px' }}
-                                          placeholder="Moderator feedback"
-                                          value={isModeratedAssessment || isThisQuestionModerated ? (answer?.moderatorComments || '') : (moderationComments[`moderator:${q.id}`] || '')}
-                                          onChange={(e) => setModerationComments(prev => ({ ...prev, [`moderator:${q.id}`]: e.target.value }))}
-                                          disabled={isModeratedAssessment || isThisQuestionModerated}
-                                        ></textarea>
-                                        <label>Moderator Feedback / Comments</label>
-                                      </div>
-
-                                      <div className="d-flex gap-2">
-                                        <button 
-                                          className={`btn flex-grow-1 d-flex align-items-center justify-content-center gap-2 ${
-                                            (isThisQuestionModerated ? (answer?.moderationStatus === 2 || answer?.moderationStatus === 'Moderated') : moderationApproval[`q-${q.id}`] === true) 
-                                              ? 'btn-success disabled' 
-                                              : 'btn-outline-success'
-                                          }`}
-                                          onClick={() => {
-                                            if (isThisQuestionModerated || isModeratedAssessment || moderationApproval[`q-${q.id}`] !== undefined) return;
-                                            setModerationApproval(prev => ({ ...prev, [`q-${q.id}`]: true }));
-                                            if (answer) {
-                                              setModerationDraftMarks(prev => ({ ...prev, [`q-${q.id}`]: answer.mark.toString() }));
-                                            }
-                                          }}
-                                          disabled={isThisQuestionModerated || isModeratedAssessment || moderationApproval[`q-${q.id}`] !== undefined}
-                                        >
-                                          <i className={`fas ${(isThisQuestionModerated ? (answer?.moderationStatus === 2 || answer?.moderationStatus === 'Moderated') : moderationApproval[`q-${q.id}`] === true) ? 'fa-check-circle' : 'fa-check'}`}></i>
-                                          {(isThisQuestionModerated ? (answer?.moderationStatus === 2 || answer?.moderationStatus === 'Moderated') : moderationApproval[`q-${q.id}`] === true) ? 'Mark Upheld' : 'Uphold Mark'}
-                                        </button>
-                                        <button 
-                                          className={`btn flex-grow-1 d-flex align-items-center justify-content-center gap-2 ${
-                                            (isThisQuestionModerated ? (answer?.moderationStatus === 3 || answer?.moderationStatus === 'ReturnedToAssessor') : moderationApproval[`q-${q.id}`] === false) 
-                                              ? 'btn-danger disabled' 
-                                              : 'btn-outline-danger'
-                                          }`}
-                                          onClick={() => {
-                                            if (isThisQuestionModerated || isModeratedAssessment || moderationApproval[`q-${q.id}`] !== undefined) return;
-                                            setModerationApproval(prev => ({ ...prev, [`q-${q.id}`]: false }));
-                                            if (answer) {
-                                              setModerationDraftMarks(prev => ({ ...prev, [`q-${q.id}`]: answer.mark.toString() }));
-                                            }
-                                          }}
-                                          disabled={isThisQuestionModerated || isModeratedAssessment || moderationApproval[`q-${q.id}`] !== undefined}
-                                        >
-                                          <i className={`fas ${(isThisQuestionModerated ? (answer?.moderationStatus === 3 || answer?.moderationStatus === 'ReturnedToAssessor') : moderationApproval[`q-${q.id}`] === false) ? 'fa-times-circle' : 'fa-undo'}`}></i>
-                                          {(isThisQuestionModerated ? (answer?.moderationStatus === 3 || answer?.moderationStatus === 'ReturnedToAssessor') : moderationApproval[`q-${q.id}`] === false) ? 'Mark Withdrawn' : 'Withdraw Mark'}
-                                        </button>
-                                      </div>
-                                      
-                                      {(moderationApproval[`q-${q.id}`] !== undefined || (isThisQuestionModerated && !isModeratedAssessment)) && (
-                                        <div className="mt-2 text-center">
-                                          <button 
-                                            className="btn btn-link btn-sm text-muted text-decoration-none"
-                                            onClick={() => {
-                                              if (isModeratedAssessment) return;
-                                              setModerationApproval(prev => {
-                                                const next = { ...prev };
-                                                delete next[`q-${q.id}`];
-                                                return next;
-                                              });
-                                              setModerationDraftMarks(prev => {
-                                                const next = { ...prev };
-                                                delete next[`q-${q.id}`];
-                                                return next;
-                                              });
-                                              
-                                              // If it's already moderated in DB, we'll allow re-moderating by clearing the local status
-                                              if (isThisQuestionModerated && answer) {
-                                                setMarkingLearnerAnswers(prev => prev.map(a => 
-                                                  a.answerId === answer.answerId ? { ...a, moderationStatus: 1 } : a
-                                                ));
-                                              }
-                                            }}
-                                          >
-                                            <i className="fas fa-undo me-1"></i> Reset choice for this question
-                                          </button>
-                                        </div>
-                                      )}
-
-                                      {((isThisQuestionModerated && (answer?.moderationStatus === 2 || answer?.moderationStatus === 'Moderated')) || moderationApproval[`q-${q.id}`] === true) && (
-                                        <div className="mt-2 text-success small">
-                                          <i className="fas fa-info-circle me-1"></i>
-                                          Mark upheld. {answer && answer.mark > q.allocatedMarks ? `Capped at ${q.allocatedMarks} (Assessor had ${answer.mark})` : `Assessor's mark of ${answer?.mark} will be used.`}
-                                        </div>
-                                      )}
-                                      {((isThisQuestionModerated && (answer?.moderationStatus === 3 || answer?.moderationStatus === 'ReturnedToAssessor')) || moderationApproval[`q-${q.id}`] === false) && (
-                                        <div className="mt-2 text-danger small">
-                                          <i className="fas fa-exclamation-circle me-1"></i>
-                                          Mark withdrawn. This will be returned to the assessor for review.
-                                        </div>
-                                      )}
-                                    </div>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        );
-                      })
-                      )}
-
-                      {/* Overall Moderation Comments - Once at the end */}
-                      {activeSection === 'moderation' && markingAssessmentQuestions.length > 0 && (
-                        <div className="card border-0 shadow-sm mt-4 overflow-hidden">
-                          <div className="card-header bg-success text-white py-2">
-                            <h6 className="mb-0 small fw-bold text-uppercase tracking-wider">
-                              <i className="fas fa-comment-alt me-2"></i>
-                              Overall Moderation Summary / Feedback
-                            </h6>
-                          </div>
-                          <div className="card-body p-0">
-                            <textarea
-                              className="form-control border-0 rounded-0"
-                              style={{ height: '120px', resize: 'none' }}
-                              placeholder="Provide a final moderation summary for this assessment (Formative/Summative)..."
-                              value={overallModeratorComment}
-                              onChange={(e) => setOverallModeratorComment(e.target.value)}
-                            ></textarea>
-                          </div>
-                          <div className="card-footer bg-light py-2">
-                            <small className="text-muted">
-                              <i className="fas fa-info-circle me-1"></i>
-                              This comment will be applied to the entire assessment record.
-                            </small>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="col-12 col-lg-7">
-                    <h6 className="fw-bold mb-3 d-flex align-items-center">
-                      <i className="fas fa-eye me-2 text-info"></i>
-                      Learner Upload View
-                    </h6>
-                    <div className="card border-0 shadow-none bg-light h-100">
-                      <div className="card-header bg-transparent border-0 p-0 mb-3">
-                        <div className="d-flex flex-wrap gap-2">
-                          {markingLearnerAnswers.length === 0 ? (
-                            <small className="text-muted">No uploads found for this learner.</small>
-                          ) : (
-                            markingLearnerAnswers.map((a: any) => (
-                              <button 
-                                key={a.answerId} 
-                                className={`btn btn-sm ${markingAnswerPreviewUrl?.includes(`answerId=${a.answerId}`) ? 'btn-primary' : 'btn-outline-secondary'}`}
-                                onClick={() => openMarkingAnswerPreview(a.answerId)}
-                              >
-                                Q{a.questionNumber} View
-                              </button>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                      <div className="card-body p-0 border rounded overflow-hidden" style={{ minHeight: '500px', backgroundColor: '#ffffff' }}>
-                        {markingAnswerPreviewUrl ? (
-                          <iframe 
-                            src={markingAnswerPreviewUrl} 
-                            title="Learner upload preview" 
-                            style={{ width: '100%', height: '600px', border: 'none' }} 
-                          />
-                        ) : (
-                          <div className="h-100 d-flex flex-column align-items-center justify-content-center text-muted p-5 text-center">
-                            <i className="fas fa-file-image fa-4x mb-3 opacity-25"></i>
-                            <h6>No Preview Selected</h6>
-                            <p className="small">Select a question above to preview the learner's uploaded answer.</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-    </div>
-  );
-
-  const renderDocumentApprovals = () => (
-    <div>
-      {/* Statistics Summary */}
-      <div className="card border-0 shadow-lg mb-4" style={{
-        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: 16,
-        color: "#ffffff"
-      }}>
-        <div className="card-body text-white py-4">
-          <div className="d-flex justify-content-between align-items-center mb-3">
-            <div>
-              <h2 className="mb-2">📋 Document Approvals</h2>
-              <p className="mb-0 opacity-75">Review and approve learner documents across all projects</p>
-            </div>
-          </div>
-          
-          {documentApprovalStats && (
-            <div>
-              <div className="row g-3 mb-3">
-                <div className="col-md-3">
-                  <div className="text-center">
-                    <div className="h3 mb-1">{documentApprovalStats.totalDocuments}</div>
-                    <small className="opacity-75">Total Documents</small>
-                  </div>
-                </div>
-                <div className="col-md-3">
-                  <div className="text-center">
-                    <div className="h3 mb-1 text-warning">{documentApprovalStats.pendingDocuments}</div>
-                    <small className="opacity-75">Pending Review</small>
-                  </div>
-                </div>
-                <div className="col-md-3">
-                  <div className="text-center">
-                    <div className="h3 mb-1 text-success">{documentApprovalStats.approvedDocuments}</div>
-                    <small className="opacity-75">Approved ({documentApprovalStats.approvalRate}%)</small>
-                  </div>
-                </div>
-                <div className="col-md-3">
-                  <div className="text-center">
-                    <div className="h3 mb-1 text-danger">{documentApprovalStats.declinedDocuments}</div>
-                    <small className="opacity-75">Declined ({documentApprovalStats.declineRate}%)</small>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Expandable Document Type Breakdown */}
-              <div className="border-top pt-3">
-                <button 
-                  className="btn btn-link text-white p-0 d-flex align-items-center"
-                  onClick={() => setShowStatsBreakdown(!showStatsBreakdown)}
-                  style={{ textDecoration: 'none' }}
-                >
-                  <i className={`fas fa-chevron-${showStatsBreakdown ? 'up' : 'down'} me-2`}></i>
-                  <span>Document Compliance Summary ({documentApprovalStats.totalLearners} learners)</span>
-                </button>
-                
-                {showStatsBreakdown && (
-                  <div className="mt-3">
-                    <div className="row g-2">
-                      {documentApprovalStats.documentTypeBreakdown.map((docType, index) => (
-                        <div key={docType.documentType} className="col-md-6 col-lg-4">
-                          <div className="card bg-white bg-opacity-10 border-0">
-                            <div className="card-body p-3">
-                              <h6 className="card-title text-white mb-2">
-                                <i className="fas fa-file-alt me-2"></i>
-                                {docType.documentType}
-                              </h6>
-                              <div className="row g-1 small text-white">
-                                <div className="col-6">
-                                  <div className="d-flex justify-content-between">
-                                    <span>Expected:</span>
-                                    <strong>{docType.expectedDocuments}</strong>
-                                  </div>
-                                </div>
-                                <div className="col-6">
-                                  <div className="d-flex justify-content-between">
-                                    <span>Submitted:</span>
-                                    <strong className={docType.submittedDocuments === docType.expectedDocuments ? 'text-success' : 'text-warning'}>
-                                      {docType.submittedDocuments}
-                                    </strong>
-                                  </div>
-                                </div>
-                                <div className="col-6">
-                                  <div className="d-flex justify-content-between">
-                                    <span>Approved:</span>
-                                    <strong className="text-success">{docType.approvedDocuments}</strong>
-                                  </div>
-                                </div>
-                                <div className="col-6">
-                                  <div className="d-flex justify-content-between">
-                                    <span>Missing:</span>
-                                    <strong className={docType.missingDocuments > 0 ? 'text-danger' : 'text-success'}>
-                                      {docType.missingDocuments}
-                                    </strong>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="mt-2">
-                                <div className="d-flex justify-content-between align-items-center">
-                                  <small className="text-white opacity-75">Compliance:</small>
-                                  <span className={`badge ${
-                                    docType.complianceRate === 100 ? 'bg-success' :
-                                    docType.complianceRate >= 80 ? 'bg-warning' : 'bg-danger'
-                                  }`}>
-                                    {docType.complianceRate}%
-                                  </span>
-                                </div>
-                                <div className="progress mt-1" style={{ height: '4px' }}>
-                                  <div 
-                                    className={`progress-bar ${
-                                      docType.complianceRate === 100 ? 'bg-success' :
-                                      docType.complianceRate >= 80 ? 'bg-warning' : 'bg-danger'
-                                    }`}
-                                    style={{ width: `${docType.complianceRate}%` }}
-                                  ></div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Project Selection or Learner Documents */}
-      {!selectedProjectForApproval ? (
-        <div className="card border-0 shadow-lg">
-          <div className="card-body">
-            <h5 className="card-title mb-4">📁 Select Project to Review Documents</h5>
-            
-            {documentApprovalsLoading ? (
-              <div className="text-center py-5">
-                <div className="spinner-border text-info" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-                <p className="mt-2 mb-0">Loading projects...</p>
-              </div>
-            ) : projectDocuments.length === 0 ? (
-              <div className="text-center py-5">
-                <div className="text-muted">
-                  <i className="fas fa-folder-open fa-3x mb-3"></i>
-                  <h5>No Projects with Documents Found</h5>
-                  <p>No projects have learner documents that require approval.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="row g-3">
-                {projectDocuments.map(project => (
-                  <div key={project.projectId} className="col-md-6 col-lg-4">
-                    <div 
-                      className="card h-100 border-2 cursor-pointer hover-shadow"
-                      style={{ 
-                        borderColor: project.pendingDocuments > 0 ? '#ffc107' : '#28a745',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                      onClick={() => {
-                        setSelectedProjectForApproval(project);
-                        setExpandedLearners({}); // Reset expanded state
-                        fetchProjectLearnerDocuments(project.projectId);
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                        e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'translateY(0)';
-                        e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.1)';
-                      }}
-                    >
-                      <div className="card-body">
-                        <h6 className="card-title text-info">{project.projectName}</h6>
-                        <div className="row g-2 text-center">
-                          <div className="col-6">
-                            <div className="small text-muted">Total</div>
-                            <div className="fw-bold">{project.totalDocuments}</div>
-                          </div>
-                          <div className="col-6">
-                            <div className="small text-muted">Pending</div>
-                            <div className="fw-bold text-warning">{project.pendingDocuments}</div>
-                          </div>
-                          <div className="col-6">
-                            <div className="small text-muted">Approved</div>
-                            <div className="fw-bold text-success">{project.approvedDocuments}</div>
-                          </div>
-                          <div className="col-6">
-                            <div className="small text-muted">Declined</div>
-                            <div className="fw-bold text-danger">{project.declinedDocuments}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      ) : (
-        /* Learner Documents View */
-        <div className="card border-0 shadow-lg">
-          <div className="card-body">
-            <div className="d-flex justify-content-between align-items-center mb-4">
-              <h5 className="card-title mb-0">
-                👥 {selectedProjectForApproval.projectName} - Learner Documents
-              </h5>
-              <button 
-                className="btn btn-outline-secondary"
-                onClick={() => {
-                  setSelectedProjectForApproval(null);
-                  setSelectedProjectDocuments([]);
-                  setExpandedLearners({}); // Reset expanded state
-                }}
-              >
-                ← Back to Projects
-              </button>
-            </div>
-
-            <div className="card bg-light border-0 mb-4">
-              <div className="card-body">
-                <div className="row align-items-center g-3">
-                  <div className="col-md-4">
-                    <label className="form-label small fw-bold text-muted">Filter by Status</label>
-                    <select 
-                      className="form-select"
-                      value={documentFilterStatus}
-                      onChange={(e) => setDocumentFilterStatus(e.target.value)}
-                    >
-                      <option value="All">All Documents</option>
-                      <option value="Pending">Pending Approval</option>
-                      <option value="Approved">Approved Only</option>
-                      <option value="Declined">Declined Only</option>
-                    </select>
-                  </div>
-                  <div className="col-md-4 offset-md-4 text-md-end">
-                    <button 
-                      className="btn btn-primary"
-                      onClick={handleBulkDownload}
-                      disabled={bulkDownloading || selectedProjectDocuments.length === 0}
-                    >
-                      {bulkDownloading ? (
-                        <><span className="spinner-border spinner-border-sm me-2"></span>Preparing ZIP...</>
-                      ) : (
-                        <><i className="fas fa-file-archive me-2"></i>Bulk Download {documentFilterStatus !== 'All' ? documentFilterStatus : ''}</>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            {documentApprovalsLoading ? (
-              <div className="text-center py-5">
-                <div className="spinner-border text-info" role="status">
-                  <span className="visually-hidden">Loading...</span>
-                </div>
-                <p className="mt-2 mb-0">Loading learner documents...</p>
-              </div>
-            ) : selectedProjectDocuments.length === 0 ? (
-              <div className="text-center py-5">
-                <div className="text-muted">
-                  <i className="fas fa-file-alt fa-3x mb-3"></i>
-                  <h5>No Documents Found</h5>
-                  <p>No learners in this project have uploaded documents.</p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {selectedProjectDocuments
-                  .map(learner => ({
-                    ...learner,
-                    filteredDocuments: learner.documents.filter(doc => 
-                      documentFilterStatus === 'All' || doc.approvalStatus === documentFilterStatus
-                    )
-                  }))
-                  .filter(learner => 
-                    documentFilterStatus === 'All' || learner.filteredDocuments.length > 0
-                  )
-                  .map((learner, index) => (
-                  <div key={learner.learnerId} className="card border-0 shadow-sm mb-3">
-                    <div 
-                      className="card-header bg-light cursor-pointer"
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => toggleLearnerExpansion(learner.learnerId)}
-                    >
-                      <div className="d-flex justify-content-between align-items-center">
-                        <div className="d-flex align-items-center">
-                          <i className={`fas fa-chevron-${expandedLearners[learner.learnerId] ? 'down' : 'right'} me-2 text-muted`}></i>
-                          <div>
-                            <strong>{learner.firstName} {learner.lastName}</strong>
-                            <small className="text-muted ms-2">ID: {learner.idNumber}</small>
-                          </div>
-                        </div>
-                        <div className="d-flex gap-2">
-                          <span className="badge bg-secondary">{learner.totalDocuments} Total</span>
-                          <span className="badge bg-warning">{learner.pendingDocuments} Pending</span>
-                          <span className="badge bg-success">{learner.approvedDocuments} Approved</span>
-                          <span className="badge bg-danger">{learner.declinedDocuments} Declined</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {expandedLearners[learner.learnerId] && (
-                      <div className="card-body">
-                        {learner.filteredDocuments.length > 0 ? (
-                          <div className="table-responsive">
-                            <table className="table table-hover mb-0">
-                              <thead className="table-light">
-                                <tr>
-                                  <th>Document Type</th>
-                                  <th>File Name</th>
-                                  <th>Upload Date</th>
-                                  <th>Status</th>
-                                  <th>Actions</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {learner.filteredDocuments.map(document => (
-                                  <tr key={document.id}>
-                                    <td>
-                                      <span className="fw-medium">{document.documentType}</span>
-                                    </td>
-                                    <td>
-                                      <div>
-                                        <div className="fw-medium">{document.fileName}</div>
-                                        <small className="text-muted">
-                                          {(document.fileSize / 1024 / 1024).toFixed(2)} MB
-                                        </small>
-                                      </div>
-                                    </td>
-                                    <td>
-                                      <div>
-                                        <div>{new Date(document.uploadedAt).toLocaleDateString()}</div>
-                                        <small className="text-muted">
-                                          {new Date(document.uploadedAt).toLocaleTimeString()}
-                                        </small>
-                                      </div>
-                                    </td>
-                                    <td>
-                                      <span className={`badge ${
-                                        document.approvalStatus === 'Approved' ? 'bg-success' :
-                                        document.approvalStatus === 'Declined' ? 'bg-danger' :
-                                        'bg-warning'
-                                      }`}>
-                                        {document.approvalStatus}
-                                      </span>
-                                      {document.approvalStatus === 'Declined' && document.declineReason && (
-                                        <div className="small text-danger mt-1">
-                                          <i className="fas fa-exclamation-triangle"></i> {document.declineReason}
-                                        </div>
-                                      )}
-                                      {document.approvalStatus === 'Approved' && document.approvedAt && (
-                                        <div className="small text-success mt-1">
-                                          <i className="fas fa-check"></i> {new Date(document.approvedAt).toLocaleDateString()}
-                                        </div>
-                                      )}
-                                    </td>
-                                    <td>
-                                      <div className="btn-group btn-group-sm">
-                                        <button 
-                                          className={`btn ${
-                                            document.approvalStatus === 'Pending' ? 'btn-primary' : 'btn-outline-primary'
-                                          }`}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            viewDocument(document.id);
-                                          }}
-                                          title={document.approvalStatus === 'Pending' ? 'Review Document' : 'View Document'}
-                                        >
-                                          <i className="fas fa-eye me-1"></i>
-                                          {document.approvalStatus === 'Pending' ? 'Review' : 'View'}
-                                        </button>
-                                      </div>
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <div className="text-center py-4 text-muted">
-                            <i className="fas fa-file-invoice fa-3x mb-3 opacity-25"></i>
-                            <p className="mb-0">No documents {documentFilterStatus !== 'All' ? `with status "${documentFilterStatus}"` : 'uploaded yet'}.</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
-  return (
-    <div className="d-flex flex-column min-vh-100" style={{ backgroundColor: '#f1f5f9' }}>
-      
-      {/* Header */}
-      <nav className="navbar navbar-expand-lg shadow-sm" style={{ 
-        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-        borderBottom: '1px solid rgba(255,255,255,0.08)'
-      }}>
-        <div className="container-fluid">
-          <div className="d-flex align-items-center gap-2">
-            <span style={{ fontSize: '1.4rem' }}>{managerInfo.icon}</span>
-            <span className="navbar-brand mb-0 h1 text-white fw-bold" style={{ fontSize: '1rem', letterSpacing: '0.3px' }}>
-              {managerInfo.title}
-            </span>
-          </div>
-          <div className="d-flex align-items-center gap-3">
-            <div className="d-flex align-items-center gap-2">
-              <div style={{ width:32, height:32, borderRadius:'50%', background:'linear-gradient(135deg,#667eea,#764ba2)', display:'flex', alignItems:'center', justifyContent:'center', color:'#fff', fontWeight:700, fontSize:13 }}>
-                {user?.name?.charAt(0)?.toUpperCase()}
-              </div>
-              <span className="text-white" style={{ fontSize:'0.9rem', opacity:0.85 }}>
-                {user?.name}
-              </span>
-            </div>
-            <button onClick={handleLogout} className="btn btn-sm" style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:8, fontWeight:600 }}>
-              Logout
-            </button>
-          </div>
-        </div>
-      </nav>
-
-      <div className="container-fluid flex-grow-1 d-flex">
-        <div className="row flex-grow-1 g-0">
-          {/* Side Panel */}
-          <div className="col-md-3 col-lg-2 d-flex flex-column" style={{ background: '#1e293b', minHeight:'calc(100vh - 56px)' }}>
-            <div className="p-3 flex-grow-1">
-              <h6 className="text-uppercase mb-3 mt-2" style={{ fontSize: '0.7rem', letterSpacing: '1.5px', fontWeight: 700, color:'rgba(255,255,255,0.35)' }}>Navigation</h6>
-              <div className="nav flex-column gap-2">
-                {/* Overview - Visible for everyone except strictly Assessor/Moderator (QA Managers can see it) */}
-                {(!isAssessor && (!isModerator || isQA)) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'overview' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'overview' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'overview' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => setActiveSection('overview')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'overview') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'overview') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>📊</span>
-                    <span>Overview</span>
-                  </button>
-                )}
-
-                {/* Projects - Visible for everyone except strictly Assessor/Moderator (QA Managers can see it) */}
-                {(!isAssessor && (!isModerator || isQA)) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'projects' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'projects' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'projects' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => setActiveSection('projects')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'projects') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'projects') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>📁</span>
-                    <span>{isLogistics ? 'Logistics & Sites' : 'Projects'}</span>
-                  </button>
-                )}
-
-                {/* Team Management - Only for Managers/Admins */}
-                {(isAdmin || isQATrainingManager) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'team' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'team' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'team' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => setActiveSection('team')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'team') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'team') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>👥</span>
-                    <span>Team</span>
-                  </button>
-                )}
-
-                {/* Tasks - Visible for everyone except strictly Assessor/Moderator (QA Managers can see it) */}
-                {(!isAssessor && (!isModerator || isQA)) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'tasks' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'tasks' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'tasks' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => setActiveSection('tasks')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'tasks') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'tasks') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>✅</span>
-                    <span>Tasks</span>
-                  </button>
-                )}
-
-                {(isQA || isAssessor) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'marking' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'marking' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'marking' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => setActiveSection('marking')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'marking') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'marking') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>🧾</span>
-                    <span>Marking</span>
-                  </button>
-                )}
-                {(isQA || isAssessor) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'assessmentPlan' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'assessmentPlan' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'assessmentPlan' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => {
-                      setActiveSection('assessmentPlan');
-                      setShowAssessmentPlanForm(false);
-                      setSelectedPlanUnitStandard(null);
-                    }}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'assessmentPlan') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'assessmentPlan') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>📝</span>
-                    <span>Assessment plan</span>
-                  </button>
-                )}
-                {(isQA || isAssessor) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'candidatePreparation' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'candidatePreparation' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'candidatePreparation' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => {
-                      setActiveSection('candidatePreparation');
-                      setShowPrepForm(false);
-                      setSelectedPrepUnitStandard(null);
-                    }}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'candidatePreparation') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'candidatePreparation') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>🤝</span>
-                    <span>Candidate Preparation</span>
-                  </button>
-                )}
-                
-                {/* Learning Materials - Only for QA Managers */}
-                {(isQA) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'learningMaterials' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'learningMaterials' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'learningMaterials' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => setActiveSection('learningMaterials')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'learningMaterials') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'learningMaterials') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>📚</span>
-                    <span>Learning Materials</span>
-                  </button>
-                )}
-                
-                {(isQA) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'assessorReport' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'assessorReport' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'assessorReport' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => {
-                      setActiveSection('assessorReport');
-                      setSelectedReportProject(null);
-                      setSelectedReportLearner(null);
-                      setReportType('individual');
-                    }}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'assessorReport') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'assessorReport') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>📊</span>
-                    <span>Assessor Report</span>
-                  </button>
-                )}
-                {(isQA || isModerator) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'moderation' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'moderation' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'moderation' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => setActiveSection('moderation')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'moderation') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'moderation') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>⚖️</span>
-                    <span>Moderation</span>
-                  </button>
-                )}
-                {/* Document Approvals - Visible for everyone except strictly Assessor/Moderator (QA Managers can see it) */}
-                {(!isAssessor && (!isModerator || isQA)) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'documentApprovals' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'documentApprovals' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'documentApprovals' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => setActiveSection('documentApprovals')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'documentApprovals') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'documentApprovals') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>📋</span>
-                    <span>Document Approvals</span>
-                  </button>
-                )}
-                {/* Sick Notes - Only for Finance Managers and Administrator */}
-                {(isAdmin || isFinance) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'sickNotes' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'sickNotes' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'sickNotes' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => setActiveSection('sickNotes')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'sickNotes') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'sickNotes') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>🤒</span>
-                    <span>Sick Notes</span>
-                  </button>
-                )}
-                {/* Attendance Tracking - Visible for everyone except strictly Assessor/Moderator (QA Managers can see it) */}
-                {(!isAssessor && (!isModerator || isQA || isIT)) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'attendanceTracking' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'attendanceTracking' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'attendanceTracking' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => setActiveSection('attendanceTracking')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'attendanceTracking') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'attendanceTracking') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>📊</span>
-                    <span>Attendance Tracking</span>
-                  </button>
-                )}
-
-                {/* Reports - Only for Admin and QA Managers */}
-                {(isAdmin || isQA) && (
-                  <button
-                    className={`nav-link text-start border-0 ${activeSection === 'reports' ? 'active' : ''}`}
-                    style={{
-                      color: '#ffffff',
-                      backgroundColor: activeSection === 'reports' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                      padding: '12px 16px',
-                      borderRadius: '8px',
-                      fontSize: '0.95rem',
-                      fontWeight: activeSection === 'reports' ? 600 : 400,
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}
-                    onClick={() => setActiveSection('reports')}
-                    onMouseEnter={(e) => {
-                      if (activeSection !== 'reports') {
-                        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (activeSection !== 'reports') {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem' }}>📄</span>
-                    <span>Reports & Certificates</span>
-                  </button>
-                )}
-
-                {/* IT Specific Sections */}
-                {isIT && (
-                  <>
-                    <button
-                      className={`nav-link text-start border-0 ${activeSection === 'allUsers' ? 'active' : ''}`}
-                      style={{
-                        color: '#ffffff',
-                        backgroundColor: activeSection === 'allUsers' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        fontSize: '0.95rem',
-                        fontWeight: activeSection === 'allUsers' ? 600 : 400,
-                        transition: 'all 0.2s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px'
-                      }}
-                      onClick={() => setActiveSection('allUsers')}
-                    >
-                      <span style={{ fontSize: '1.2rem' }}>👤</span>
-                      <span>User Management</span>
-                    </button>
-                    <button
-                      className={`nav-link text-start border-0 ${activeSection === 'externalUsers' ? 'active' : ''}`}
-                      style={{
-                        color: '#ffffff',
-                        backgroundColor: activeSection === 'externalUsers' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        fontSize: '0.95rem',
-                        fontWeight: activeSection === 'externalUsers' ? 600 : 400,
-                        transition: 'all 0.2s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px'
-                      }}
-                      onClick={() => setActiveSection('externalUsers')}
-                    >
-                      <span style={{ fontSize: '1.2rem' }}>🏢</span>
-                      <span>External Users</span>
-                    </button>
-                    <button
-                      className={`nav-link text-start border-0 ${activeSection === 'systemLogs' ? 'active' : ''}`}
-                      style={{
-                        color: '#ffffff',
-                        backgroundColor: activeSection === 'systemLogs' ? 'rgba(255, 255, 255, 0.2)' : 'transparent',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        fontSize: '0.95rem',
-                        fontWeight: activeSection === 'systemLogs' ? 600 : 400,
-                        transition: 'all 0.2s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px'
-                      }}
-                      onClick={() => setActiveSection('systemLogs')}
-                    >
-                      <span style={{ fontSize: '1.2rem' }}>📜</span>
-                      <span>System Logs</span>
-                    </button>
-                  </>
-                )}
-
-                {/* Super User SDP Management Section */}
-                {isSuperUser && (
-                  <div className="mt-4 pt-4 border-top border-light border-opacity-25">
-                    <h6 className="text-white text-uppercase mb-3" style={{ fontSize: '0.7rem', letterSpacing: '1px', fontWeight: 600, opacity: 0.8 }}>Organization Management</h6>
-                    <button
-                      className="nav-link text-start border-0 w-100 mb-2"
-                      style={{
-                        color: '#ffffff',
-                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        fontSize: '0.95rem',
-                        transition: 'all 0.2s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px'
-                      }}
-                      onClick={() => navigate('/sdp-dashboard')}
-                    >
-                      <span>👤</span>
-                      <span>Add Dept Managers</span>
-                    </button>
-                    <button
-                      className="nav-link text-start border-0 w-100"
-                      style={{
-                        color: '#ffffff',
-                        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                        padding: '12px 16px',
-                        borderRadius: '8px',
-                        fontSize: '0.95rem',
-                        transition: 'all 0.2s ease',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px'
-                      }}
-                      onClick={() => navigate('/sdp-dashboard')}
-                    >
-                      <span style={{ fontSize: '1.2rem' }}>🎓</span>
-                      <span>SDP Organization</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="col-md-9 col-lg-10 d-flex flex-column">
-            <div className="p-4 flex-grow-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 76px)', backgroundColor: '#f1f5f9' }}>
-              {/* ── Global fetch error banners (mirror SDPDashboard T0.3) ── */}
-              {(logsError || allUsersError || strategyPlansError) && (
-                <div className="mb-3" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {logsError && (
-                    <div className="alert alert-danger d-flex align-items-center gap-2 mb-0 shadow-sm"
-                      style={{ borderRadius: 12, border: '1px solid #fecaca', background: '#fef2f2' }}>
-                      <span style={{ fontSize: 18 }}>⛔</span>
-                      <span style={{ color: '#991b1b', fontSize: 14, flex: 1 }}>{logsError}</span>
-                      <button type="button" className="btn btn-sm btn-danger"
-                        style={{ borderRadius: 8, padding: '4px 14px', fontWeight: 600, fontSize: 13 }}
-                        onClick={retryFetchSystemLogs}>↻ Retry</button>
-                    </div>
-                  )}
-                  {allUsersError && (
-                    <div className="alert alert-danger d-flex align-items-center gap-2 mb-0 shadow-sm"
-                      style={{ borderRadius: 12, border: '1px solid #fecaca', background: '#fef2f2' }}>
-                      <span style={{ fontSize: 18 }}>⛔</span>
-                      <span style={{ color: '#991b1b', fontSize: 14, flex: 1 }}>{allUsersError}</span>
-                      <button type="button" className="btn btn-sm btn-danger"
-                        style={{ borderRadius: 8, padding: '4px 14px', fontWeight: 600, fontSize: 13 }}
-                        onClick={retryFetchAllSdpUsers}>↻ Retry</button>
-                    </div>
-                  )}
-                  {strategyPlansError && (
-                    <div className="alert alert-danger d-flex align-items-center gap-2 mb-0 shadow-sm"
-                      style={{ borderRadius: 12, border: '1px solid #fecaca', background: '#fef2f2' }}>
-                      <span style={{ fontSize: 18 }}>⛔</span>
-                      <span style={{ color: '#991b1b', fontSize: 14, flex: 1 }}>{strategyPlansError}</span>
-                      <button type="button" className="btn btn-sm btn-danger"
-                        style={{ borderRadius: 8, padding: '4px 14px', fontWeight: 600, fontSize: 13 }}
-                        onClick={retryFetchStrategyPlans}>↻ Retry</button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeSection === 'overview' && renderOverview()}
-              {activeSection === 'projects' && renderProjects()}
-              {activeSection === 'team' && renderTeam()}
-              {activeSection === 'tasks' && renderTasks()}
-              {activeSection === 'marking' && renderMarking()}
-              {activeSection === 'moderation' && renderMarking()}
-              {activeSection === 'assessmentPlan' && renderAssessmentPlan()}
-              {activeSection === 'candidatePreparation' && renderCandidatePreparation()}
-              {activeSection === 'learningMaterials' && isQA && renderLearningMaterials()}
-              {activeSection === 'assessorReport' && renderAssessorReport()}
-              {activeSection === 'reports' && (isAdmin || isQA) && <FunderReport token={localStorage.getItem('token') || ''} />}
-              {activeSection === 'sickNotes' && (isAdmin || isFinance) && renderSickNotes()}
-              {activeSection === 'attendanceTracking' && (!isAssessor && (!isModerator || isQA || isIT)) && renderAttendanceTracking()}
-              {activeSection === 'documentApprovals' && (!isAssessor && (!isModerator || isQA)) && renderDocumentApprovals()}
-              {activeSection === 'allUsers' && isIT && renderAllUsers()}
-              {activeSection === 'systemLogs' && isIT && renderSystemLogs()}
-              {activeSection === 'externalUsers' && isIT && renderExternalUsers()}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Formative Assessment Modal */}
-      {showFormativeModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content bg-dark text-light">
-              <div className="modal-header border-secondary">
-                <h5 className="modal-title">📝 Add Formative Assessment</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => {
-                  setShowFormativeModal(false);
-                  setFormativeQuestions([]);
-                }}></button>
-              </div>
-              <form onSubmit={handleAddFormativeAssessment}>
-                <div className="modal-body">
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Start Date *</label>
-                      <input 
-                        type="date" 
-                        className="form-control bg-secondary text-light border-0" 
-                        value={formativeForm.startDate}
-                        onChange={(e) => setFormativeForm({...formativeForm, startDate: e.target.value})}
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">End Date *</label>
-                      <input 
-                        type="date" 
-                        className="form-control bg-secondary text-light border-0" 
-                        value={formativeForm.endDate}
-                        onChange={(e) => setFormativeForm({...formativeForm, endDate: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Questions Section */}
-                  <div className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <div>
-                        <label className="form-label mb-0">Assessment Questions</label>
-                        {formativeQuestions.length > 0 && (
-                          <div className="text-success small mt-1">
-                            Total: {formativeQuestions.length} question{formativeQuestions.length !== 1 ? 's' : ''} | 
-                            Total Marks: {formativeQuestions.reduce((sum, q) => sum + (parseFloat(q.allocatedMarks) || 0), 0).toFixed(2)}
-                          </div>
-                        )}
-                      </div>
-                      <button 
-                        type="button" 
-                        className="btn btn-sm btn-success"
-                        onClick={() => {
-                          const nextNumber = formativeQuestions.length + 1;
-                          setFormativeQuestions([...formativeQuestions, {
-                            questionNumber: nextNumber,
-                            questionText: '',
-                            allocatedMarks: ''
-                          }]);
-                        }}
-                      >
-                        + Add Question
-                      </button>
-                    </div>
-                    
-                    {formativeQuestions.length === 0 && (
-                      <div className="alert alert-info mb-0">
-                        <small>📝 No questions added yet. Click "Add Question" to create assessment questions.</small>
-                      </div>
-                    )}
-                    
-                    {formativeQuestions.map((question, index) => (
-                      <div key={index} className="card bg-secondary mb-2 p-3 border border-secondary">
-                        <div className="d-flex justify-content-between align-items-start mb-2">
-                          <strong className="text-light">Question {question.questionNumber}</strong>
-                          <button 
-                            type="button" 
-                            className="btn btn-sm btn-danger"
-                            onClick={() => {
-                              const updated = formativeQuestions.filter((_, i) => i !== index);
-                              // Renumber questions
-                              updated.forEach((q, i) => q.questionNumber = i + 1);
-                              setFormativeQuestions(updated);
-                            }}
-                            title="Remove question"
-                          >
-                            ×
-                          </button>
-                        </div>
-                        <div className="mb-2">
-                          <label className="form-label small text-muted mb-1">Question Text *</label>
-                          <textarea 
-                            className="form-control form-control-sm bg-dark text-light border-0" 
-                            placeholder="Enter the question that learners will answer..."
-                            value={question.questionText}
-                            onChange={(e) => {
-                              const updated = [...formativeQuestions];
-                              updated[index].questionText = e.target.value;
-                              setFormativeQuestions(updated);
-                            }}
-                            rows={2}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="form-label small text-muted mb-1">Marks Allocated *</label>
-                          <input 
-                            type="number" 
-                            step="0.5"
-                            min="0"
-                            className="form-control form-control-sm bg-dark text-light border-0" 
-                            placeholder="e.g., 10"
-                            value={question.allocatedMarks}
-                            onChange={(e) => {
-                              const updated = [...formativeQuestions];
-                              updated[index].allocatedMarks = e.target.value;
-                              setFormativeQuestions(updated);
-                            }}
-                            required
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {formativeQuestions.length > 0 && (
-                      <div className="alert alert-secondary mt-2 mb-0">
-                        <div className="d-flex justify-content-between align-items-center">
-                          <small className="text-light">
-                            <strong>Summary:</strong> {formativeQuestions.length} question{formativeQuestions.length !== 1 ? 's' : ''} added
-                          </small>
-                          <small className="text-success">
-                            <strong>Total Marks: {formativeQuestions.reduce((sum, q) => sum + (parseFloat(q.allocatedMarks) || 0), 0).toFixed(2)}</strong>
-                          </small>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="modal-footer border-secondary">
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowFormativeModal(false);
-                    setFormativeQuestions([]);
-                  }}>Cancel</button>
-                  <button type="submit" className="btn btn-primary">Add Assessment</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Summative Assessment Modal */}
-      {showSummativeModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content bg-dark text-light">
-              <div className="modal-header border-secondary">
-                <h5 className="modal-title">✅ Add Summative Assessment</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => {
-                  setShowSummativeModal(false);
-                  setSummativeQuestions([]);
-                }}></button>
-              </div>
-              <form onSubmit={handleAddSummativeAssessment}>
-                <div className="modal-body">
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Start Date *</label>
-                      <input 
-                        type="date" 
-                        className="form-control bg-secondary text-light border-0" 
-                        value={summativeForm.startDate}
-                        onChange={(e) => setSummativeForm({...summativeForm, startDate: e.target.value})}
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">End Date *</label>
-                      <input 
-                        type="date" 
-                        className="form-control bg-secondary text-light border-0" 
-                        value={summativeForm.endDate}
-                        onChange={(e) => setSummativeForm({...summativeForm, endDate: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
-                  
-                  {/* Questions Section */}
-                  <div className="mb-3">
-                    <div className="d-flex justify-content-between align-items-center mb-2">
-                      <div>
-                        <label className="form-label mb-0">Assessment Questions</label>
-                        {summativeQuestions.length > 0 && (
-                          <div className="text-success small mt-1">
-                            Total: {summativeQuestions.length} question{summativeQuestions.length !== 1 ? 's' : ''} | 
-                            Total Marks: {summativeQuestions.reduce((sum, q) => sum + (parseFloat(q.allocatedMarks) || 0), 0).toFixed(2)}
-                          </div>
-                        )}
-                      </div>
-                      <button 
-                        type="button" 
-                        className="btn btn-sm btn-success"
-                        onClick={() => {
-                          const nextNumber = summativeQuestions.length + 1;
-                          setSummativeQuestions([...summativeQuestions, {
-                            questionNumber: nextNumber,
-                            questionText: '',
-                            allocatedMarks: ''
-                          }]);
-                        }}
-                      >
-                        + Add Question
-                      </button>
-                    </div>
-                    
-                    {summativeQuestions.length === 0 && (
-                      <div className="alert alert-info mb-0">
-                        <small>📝 No questions added yet. Click "Add Question" to create assessment questions.</small>
-                      </div>
-                    )}
-                    
-                    {summativeQuestions.map((question, index) => (
-                      <div key={index} className="card bg-secondary mb-2 p-3 border border-secondary">
-                        <div className="d-flex justify-content-between align-items-start mb-2">
-                          <strong className="text-light">Question {question.questionNumber}</strong>
-                          <button 
-                            type="button" 
-                            className="btn btn-sm btn-danger"
-                            onClick={() => {
-                              const updated = summativeQuestions.filter((_, i) => i !== index);
-                              // Renumber questions
-                              updated.forEach((q, i) => q.questionNumber = i + 1);
-                              setSummativeQuestions(updated);
-                            }}
-                            title="Remove question"
-                          >
-                            ×
-                          </button>
-                        </div>
-                        <div className="mb-2">
-                          <label className="form-label small text-muted mb-1">Question Text *</label>
-                          <textarea 
-                            className="form-control form-control-sm bg-dark text-light border-0" 
-                            placeholder="Enter the question that learners will answer..."
-                            value={question.questionText}
-                            onChange={(e) => {
-                              const updated = [...summativeQuestions];
-                              updated[index].questionText = e.target.value;
-                              setSummativeQuestions(updated);
-                            }}
-                            rows={2}
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="form-label small text-muted mb-1">Marks Allocated *</label>
-                          <input 
-                            type="number" 
-                            step="0.5"
-                            min="0"
-                            className="form-control form-control-sm bg-dark text-light border-0" 
-                            placeholder="e.g., 10"
-                            value={question.allocatedMarks}
-                            onChange={(e) => {
-                              const updated = [...summativeQuestions];
-                              updated[index].allocatedMarks = e.target.value;
-                              setSummativeQuestions(updated);
-                            }}
-                            required
-                          />
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {summativeQuestions.length > 0 && (
-                      <div className="alert alert-secondary mt-2 mb-0">
-                        <div className="d-flex justify-content-between align-items-center">
-                          <small className="text-light">
-                            <strong>Summary:</strong> {summativeQuestions.length} question{summativeQuestions.length !== 1 ? 's' : ''} added
-                          </small>
-                          <small className="text-success">
-                            <strong>Total Marks: {summativeQuestions.reduce((sum, q) => sum + (parseFloat(q.allocatedMarks) || 0), 0).toFixed(2)}</strong>
-                          </small>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="modal-footer border-secondary">
-                  <button type="button" className="btn btn-secondary" onClick={() => {
-                    setShowSummativeModal(false);
-                    setSummativeQuestions([]);
-                  }}>Cancel</button>
-                  <button type="submit" className="btn btn-success">Add Assessment</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Logbook Entry Modal */}
-      {showLogbookModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content bg-dark text-light">
-              <div className="modal-header border-secondary">
-                <h5 className="modal-title">📖 Add Logbook Entry</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowLogbookModal(false)}></button>
-              </div>
-              <form onSubmit={handleAddLogbookEntry}>
-                <div className="modal-body">
-                  <div className="row">
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">Start Date *</label>
-                      <input 
-                        type="date" 
-                        className="form-control bg-secondary text-light border-0" 
-                        value={logbookForm.startDate}
-                        onChange={(e) => setLogbookForm({...logbookForm, startDate: e.target.value})}
-                        required
-                      />
-                    </div>
-                    <div className="col-md-6 mb-3">
-                      <label className="form-label">End Date *</label>
-                      <input 
-                        type="date" 
-                        className="form-control bg-secondary text-light border-0" 
-                        value={logbookForm.endDate}
-                        onChange={(e) => setLogbookForm({...logbookForm, endDate: e.target.value})}
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Activity Description *</label>
-                    <textarea 
-                      className="form-control bg-secondary text-light border-0" 
-                      rows={4}
-                      value={logbookForm.activityDescription}
-                      onChange={(e) => setLogbookForm({...logbookForm, activityDescription: e.target.value})}
-                      required
-                      placeholder="Describe the practical activity performed..."
-                    ></textarea>
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Hours Spent</label>
-                    <input 
-                      type="number" 
-                      step="0.5"
-                      className="form-control bg-secondary text-light border-0" 
-                      value={logbookForm.hoursSpent}
-                      onChange={(e) => setLogbookForm({...logbookForm, hoursSpent: e.target.value})}
-                      placeholder="e.g., 2.5"
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Supervisor Name</label>
-                    <input 
-                      type="text" 
-                      className="form-control bg-secondary text-light border-0" 
-                      value={logbookForm.supervisorName}
-                      onChange={(e) => setLogbookForm({...logbookForm, supervisorName: e.target.value})}
-                    />
-                  </div>
-                  <div className="mb-3">
-                    <label className="form-label">Comments</label>
-                    <textarea 
-                      className="form-control bg-secondary text-light border-0" 
-                      rows={2}
-                      value={logbookForm.comments}
-                      onChange={(e) => setLogbookForm({...logbookForm, comments: e.target.value})}
-                    ></textarea>
-                  </div>
-                </div>
-                <div className="modal-footer border-secondary">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowLogbookModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-warning text-dark">Add Entry</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Learner Marking Modal */}
-      {showMarkingModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.6)'}}>
-          <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div className="modal-content bg-dark text-light">
-              <div className="modal-header border-secondary">
-                <div>
-                  <h5 className="modal-title">🧾 Assessment Marking</h5>
-                  <small className="text-muted">
-                    {markingAssessment ? `${markingAssessment.type} #${markingAssessment.id}` : ''}
-                  </small>
-                </div>
-                <button
-                  type="button"
-                  className="btn-close btn-close-white"
-                  onClick={() => {
-                    setShowMarkingModal(false);
-                    setMarkingAssessment(null);
-                    setMarkingData(null);
-                    setDraftMarks({});
-                  }}
-                ></button>
-              </div>
-              <div className="modal-body">
-                {markingLoading ? (
-                  <div className="text-center py-4">
-                    <div className="spinner-border text-light" role="status"></div>
-                    <div className="mt-2">Loading learner submissions...</div>
-                  </div>
-                ) : !markingData?.learners || markingData.learners.length === 0 ? (
-                  <div className="alert alert-secondary mb-0">
-                    No learner submissions found for this assessment yet.
-                  </div>
-                ) : (
-                  <div className="d-flex flex-column gap-3">
-                    {markingData.learners.map((learner: any) => (
-                      <div key={learner.learnerId} className="card bg-secondary border-0">
-                        <div className="card-header d-flex justify-content-between align-items-center">
-                          <strong>{learner.learnerName || `Learner #${learner.learnerId}`}</strong>
-                          <span className="badge bg-info text-dark">
-                            Draft Total: {calculateLearnerTotal(learner).toFixed(2)}
-                          </span>
-                        </div>
-                        <div className="card-body">
-                          {(learner.answers || []).map((answer: any) => {
-                            const markKey = `${learner.learnerId}-${answer.questionId}`;
-                            const isMarked = answer.mark !== null && answer.mark !== undefined;
-                            
-                            return (
-                              <div key={answer.answerId} className={`mb-3 p-3 rounded ${isMarked ? 'border border-success' : ''}`} style={{backgroundColor: '#1f2937'}}>
-                                <div className="d-flex justify-content-between align-items-start mb-1">
-                                  <div>
-                                    <strong>Q{answer.questionNumber}:</strong> {answer.questionText || 'Question text not available'}
-                                  </div>
-                                  {isMarked && <span className="badge bg-success">Marked</span>}
-                                </div>
-                                <div className="mb-2 text-light">
-                                  {answer.scannedDocumentName ? (
-                                    <>
-                                      <small>Uploaded answer: {answer.scannedDocumentName}</small>
-                                      <br />
-                                      <small className="text-muted">Submitted: {new Date(answer.scannedAt).toLocaleString()}</small>
-                                    </>
-                                  ) : (
-                                    <div className="text-warning small d-flex align-items-center">
-                                      <i className="fas fa-exclamation-triangle me-1"></i>
-                                      No script uploaded - marking disabled
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="row g-2 align-items-end">
-                                  <div className="col-12 col-md-4">
-                                    <label className="form-label mb-1">Mark</label>
-                                    <input
-                                      type="text"
-                                      inputMode="decimal"
-                                      pattern="[0-9]*[.,]?[0-9]*"
-                                      min="0"
-                                      className="form-control form-control-sm bg-dark text-light border-secondary"
-                                      value={draftMarks[markKey] || ''}
-                                      onChange={(e) => {
-                                        const raw = e.target.value.replace(',', '.');
-                                        if (raw !== '' && !/^\d*\.?\d*$/.test(raw)) return;
-                                        const numValue = parseFloat(raw);
-                                        if (answer.allocatedMarks && !isNaN(numValue) && numValue > answer.allocatedMarks) {
-                                          setDraftMarks(prev => ({ ...prev, [markKey]: answer.allocatedMarks.toString() }));
-                                          return;
-                                        }
-                                        setDraftMarks(prev => ({ ...prev, [markKey]: raw }));
-                                      }}
-                                      placeholder={isMarked ? `Score: ${answer.mark}` : (answer.scannedDocumentName ? "Enter mark" : "No script")}
-                                      disabled={!answer.scannedDocumentName || isMarked}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="modal-footer border-secondary">
-                <button type="button" className="btn btn-outline-light" onClick={saveMarkingDraft} disabled={markingSaving}>
-                  Save Draft Marks
-                </button>
-                <button type="button" className="btn btn-primary" onClick={submitModalMarks} disabled={markingSaving}>
-                  {markingSaving ? 'Submitting...' : 'Submit Marks to Server'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setShowMarkingModal(false);
-                    setMarkingAssessment(null);
-                    setMarkingData(null);
-                    setDraftMarks({});
-                  }}
-                  disabled={markingSaving}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Add Site Modal - For Logistics Managers */}
-      {showAddSiteModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div className="modal-content" style={{ background: '#1e293b', color: '#fff' }}>
-              <div className="modal-header border-0" style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', borderRadius: '0', padding: '20px 24px' }}>
-                <div>
-                  <h5 className="modal-title" style={{ fontWeight: 700, fontSize: '1.3rem', color: '#fff' }}>🏢 Site Information</h5>
-                  <small style={{ color: 'rgba(255,255,255,0.8)' }}>Please fill in the details below to add a new site</small>
-                </div>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowAddSiteModal(false)}></button>
-              </div>
-              <form onSubmit={handleAddSite}>
-                <div className="modal-body" style={{maxHeight: '70vh', overflowY: 'auto', padding: '24px'}}>
-                  {/* Basic Site Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Basic Site Information</h6>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <label className="form-label">Site Name *</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addSiteForm.siteName}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, siteName: e.target.value})}
-                          required
-                          placeholder="Enter site name"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Category *</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={addSiteForm.category}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, category: e.target.value})}
-                          required
-                        >
-                          <option value="">Select Category</option>
-                          <option value="Workplace">Workplace</option>
-                          <option value="Institutional">Institutional</option>
-                        </select>
-                      </div>
-                      <div className="col-md-12">
-                        <label className="form-label">Beneficiaries</label>
-                        <input 
-                          type="number" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addSiteForm.capacity}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, capacity: e.target.value})}
-                          placeholder="Number of beneficiaries"
-                          min="0"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Coordinates */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Coordinates</h6>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <label className="form-label">Latitude</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addSiteForm.latitude}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, latitude: e.target.value})}
-                          placeholder="e.g., -26.2041"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Longitude</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addSiteForm.longitude}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, longitude: e.target.value})}
-                          placeholder="e.g., 28.0473"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contact Person Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>👤 Contact Person Information</h6>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <label className="form-label">First Name</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addSiteForm.contactFirstName}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, contactFirstName: e.target.value})}
-                          placeholder="First name"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Last Name</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addSiteForm.contactLastName}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, contactLastName: e.target.value})}
-                          placeholder="Last name"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Cell Number</label>
-                        <input 
-                          type="tel" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addSiteForm.contactCellNumber}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, contactCellNumber: e.target.value})}
-                          placeholder="0XX XXX XXXX"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Email Address</label>
-                        <input 
-                          type="email" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addSiteForm.contactEmail}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, contactEmail: e.target.value})}
-                          placeholder="email@example.com"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Location Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Location Information</h6>
-                    <div className="row g-3">
-                      <div className="col-md-12">
-                        <label className="form-label">Province</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={addSiteForm.province}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, province: e.target.value})}
-                        >
-                          <option value="">Select Province</option>
-                          <option value="Eastern Cape">Eastern Cape</option>
-                          <option value="Free State">Free State</option>
-                          <option value="Gauteng">Gauteng</option>
-                          <option value="KwaZulu-Natal">KwaZulu-Natal</option>
-                          <option value="Limpopo">Limpopo</option>
-                          <option value="Mpumalanga">Mpumalanga</option>
-                          <option value="Northern Cape">Northern Cape</option>
-                          <option value="North West">North West</option>
-                          <option value="Western Cape">Western Cape</option>
-                        </select>
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">City</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addSiteForm.city}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, city: e.target.value})}
-                          placeholder="City"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Postal Code</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addSiteForm.postalCode}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, postalCode: e.target.value})}
-                          placeholder="0000"
-                        />
-                      </div>
-                      <div className="col-12">
-                        <label className="form-label">Address</label>
-                        <textarea 
-                          className="form-control bg-secondary text-light border-0" 
-                          rows={2}
-                          value={addSiteForm.address}
-                          onChange={(e) => setAddSiteForm({...addSiteForm, address: e.target.value})}
-                          placeholder="Street address"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer border-0" style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '16px 24px' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowAddSiteModal(false)} style={{ borderRadius: 10, fontWeight: 600 }}>Cancel</button>
-                  <button type="submit" className="btn" disabled={isSubmitting} style={{ background: 'linear-gradient(135deg, #0d9488, #06b6d4)', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, padding: '8px 20px' }}>
-                    {isSubmitting ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                        Adding...
-                      </>
-                    ) : (
-                      '🏢 Add Site'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Site Modal - For Logistics Managers */}
-      {showEditSiteModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div className="modal-content bg-dark text-light">
-              <div className="modal-header border-secondary">
-                <div>
-                  <h5 className="modal-title">✏️ Update Site Information</h5>
-                  <small className="text-muted">Modify the details below to update the site</small>
-                </div>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowEditSiteModal(false)}></button>
-              </div>
-              <form onSubmit={handleUpdateSite}>
-                <div className="modal-body" style={{maxHeight: '70vh', overflowY: 'auto'}}>
-                  {/* Basic Site Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Basic Site Information</h6>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <label className="form-label">Site Name *</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={editSiteForm.siteName}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, siteName: e.target.value})}
-                          required
-                          placeholder="Enter site name"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Category *</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={editSiteForm.category}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, category: e.target.value})}
-                          required
-                        >
-                          <option value="">Select Category</option>
-                          <option value="Workplace">Workplace</option>
-                          <option value="Institutional">Institutional</option>
-                        </select>
-                      </div>
-                      <div className="col-md-12">
-                        <label className="form-label">Beneficiaries</label>
-                        <input 
-                          type="number" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={editSiteForm.capacity}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, capacity: e.target.value})}
-                          placeholder="Number of beneficiaries"
-                          min="0"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Coordinates */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Coordinates</h6>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <label className="form-label">Latitude</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={editSiteForm.latitude}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, latitude: e.target.value})}
-                          placeholder="e.g., -26.2041"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Longitude</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={editSiteForm.longitude}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, longitude: e.target.value})}
-                          placeholder="e.g., 28.0473"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Contact Person Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>👤 Contact Person Information</h6>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <label className="form-label">First Name</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={editSiteForm.contactFirstName}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, contactFirstName: e.target.value})}
-                          placeholder="First name"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Last Name</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={editSiteForm.contactLastName}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, contactLastName: e.target.value})}
-                          placeholder="Last name"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Cell Number</label>
-                        <input 
-                          type="tel" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={editSiteForm.contactCellNumber}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, contactCellNumber: e.target.value})}
-                          placeholder="0XX XXX XXXX"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Email Address</label>
-                        <input 
-                          type="email" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={editSiteForm.contactEmail}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, contactEmail: e.target.value})}
-                          placeholder="email@example.com"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Location Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Location Information</h6>
-                    <div className="row g-3">
-                      <div className="col-md-12">
-                        <label className="form-label">Province</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={editSiteForm.province}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, province: e.target.value})}
-                        >
-                          <option value="">Select Province</option>
-                          <option value="Eastern Cape">Eastern Cape</option>
-                          <option value="Free State">Free State</option>
-                          <option value="Gauteng">Gauteng</option>
-                          <option value="KwaZulu-Natal">KwaZulu-Natal</option>
-                          <option value="Limpopo">Limpopo</option>
-                          <option value="Mpumalanga">Mpumalanga</option>
-                          <option value="Northern Cape">Northern Cape</option>
-                          <option value="North West">North West</option>
-                          <option value="Western Cape">Western Cape</option>
-                        </select>
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">City</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={editSiteForm.city}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, city: e.target.value})}
-                          placeholder="City"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Postal Code</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={editSiteForm.postalCode}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, postalCode: e.target.value})}
-                          placeholder="0000"
-                        />
-                      </div>
-                      <div className="col-12">
-                        <label className="form-label">Address</label>
-                        <textarea 
-                          className="form-control bg-secondary text-light border-0" 
-                          rows={2}
-                          value={editSiteForm.address}
-                          onChange={(e) => setEditSiteForm({...editSiteForm, address: e.target.value})}
-                          placeholder="Street address"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer border-secondary">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowEditSiteModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                        Updating...
-                      </>
-                    ) : (
-                      '💾 Update Site'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Class Modal - For Logistics Managers */}
-      {showAddClassModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content bg-dark text-light">
-              <div className="modal-header border-secondary">
-                <div>
-                  <h5 className="modal-title">🎓 Class Information</h5>
-                  <small className="text-muted">Please fill in the details below to add a new class</small>
-                </div>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowAddClassModal(false)}></button>
-              </div>
-              <form onSubmit={handleAddClass}>
-                <div className="modal-body">
-                  {/* Basic Class Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Basic Class Information</h6>
-                    <div className="mb-3">
-                      <label className="form-label">Class Name *</label>
-                      <input 
-                        type="text" 
-                        className="form-control bg-secondary text-light border-0" 
-                        value={addClassForm.className}
-                        onChange={(e) => setAddClassForm({...addClassForm, className: e.target.value})}
-                        required
-                        placeholder="Enter class name"
-                        pattern="[a-zA-Z\s]+"
-                        title="Only letters and spaces are allowed"
-                      />
-                      <small className="text-muted">Only letters and spaces are allowed.</small>
-                    </div>
-                    <div className="mb-3">
-                      <label className="form-label">Maximum Learners *</label>
-                      <input 
-                        type="number" 
-                        className="form-control bg-secondary text-light border-0" 
-                        value={addClassForm.maxLearners}
-                        onChange={(e) => setAddClassForm({...addClassForm, maxLearners: e.target.value})}
-                        required
-                        placeholder="Enter maximum number of learners"
-                        min="1"
-                      />
-                      <small className="text-muted">Only positive numbers are allowed.</small>
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer border-secondary">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowAddClassModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                        Adding...
-                      </>
-                    ) : (
-                      '🎓 Add Class'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Add Learner Modal */}
-      {showAddLearnerModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div className="modal-content bg-dark text-light">
-              <div className="modal-header border-secondary">
-                <div>
-                  <h5 className="modal-title">👨‍🎓 Learner Information</h5>
-                  <small className="text-muted">Please fill in the learner details below</small>
-                </div>
-                <button type="button" className="btn-close btn-close-white" onClick={closeLearnerModal}></button>
-              </div>
-              <form onSubmit={handleAddLearner}>
-                <div className="modal-body" style={{maxHeight: '70vh', overflowY: 'auto'}}>
-                  {/* Personal Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Personal Information</h6>
-                    <div className="row g-3">
-                      <div className="col-md-2">
-                        <label className="form-label">Title *</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={addLearnerForm.title}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, title: e.target.value})}
-                          required
-                        >
-                          <option value="">Select Title</option>
-                          <option value="Mr">Mr</option>
-                          <option value="Mrs">Mrs</option>
-                          <option value="Miss">Miss</option>
-                          <option value="Sir">Sir</option>
-                          <option value="Dr">Dr</option>
-                        </select>
-                      </div>
-                      <div className="col-md-5">
-                        <label className="form-label">Name *</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.firstName}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, firstName: e.target.value})}
-                          required
-                          placeholder="First name"
-                        />
-                      </div>
-                      <div className="col-md-5">
-                        <label className="form-label">Surname *</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.lastName}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, lastName: e.target.value})}
-                          required
-                          placeholder="Last name"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">ID Number *</label>
-                        <input 
-                          type="text" 
-                          className={`form-control bg-secondary text-light border-0 ${idNumberError ? 'border-danger border' : ''}`}
-                          value={addLearnerForm.idNumber}
-                          onChange={(e) => handleIdNumberChange(e.target.value)}
-                          required
-                          placeholder="13-digit SA ID number"
-                          maxLength={13}
-                          inputMode="numeric"
-                        />
-                        {idNumberError ? (
-                          <small className="text-danger">⚠️ {idNumberError}</small>
-                        ) : addLearnerForm.idNumber.length === 13 ? (
-                          <small className="text-success">✓ Valid ID - DOB and gender auto-filled</small>
-                        ) : (
-                          <small className="text-muted">Enter 13-digit SA ID number (numbers only)</small>
-                        )}
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Contact Number</label>
-                        <input 
-                          type="tel" 
-                          className={`form-control bg-secondary text-light border-0 ${formErrors.contactNumber ? 'border-danger border' : ''}`}
-                          value={addLearnerForm.contactNumber}
-                          onChange={(e) => handleFieldChange('contactNumber', e.target.value)}
-                          placeholder="0821234567"
-                          maxLength={10}
-                          inputMode="numeric"
-                        />
-                        {formErrors.contactNumber ? (
-                          <small className="text-danger">⚠️ {formErrors.contactNumber}</small>
-                        ) : (
-                          <small className="text-muted">10 digits starting with 0</small>
-                        )}
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Email</label>
-                        <input 
-                          type="email" 
-                          className={`form-control bg-secondary text-light border-0 ${formErrors.email ? 'border-danger border' : ''}`}
-                          value={addLearnerForm.email}
-                          onChange={(e) => handleFieldChange('email', e.target.value)}
-                          placeholder="email@example.com"
-                        />
-                        {formErrors.email && (
-                          <small className="text-danger">⚠️ {formErrors.email}</small>
-                        )}
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Date of Birth</label>
-                        <input 
-                          type="date" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.dateOfBirth}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, dateOfBirth: e.target.value})}
-                          readOnly
-                          title="Auto-filled from ID number"
-                        />
-                        <small className="text-muted">Auto-filled from ID</small>
-                      </div>
-                      <div className="col-md-3">
-                        <label className="form-label">Age</label>
-                        <input 
-                          type="number" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.age}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, age: e.target.value})}
-                          placeholder="Age"
-                          min="0"
-                          readOnly
-                          title="Auto-calculated from ID number"
-                        />
-                        <small className="text-muted">Auto-calculated</small>
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Gender *</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={addLearnerForm.gender}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, gender: e.target.value})}
-                          disabled={addLearnerForm.idNumber.length === 13}
-                          title={addLearnerForm.idNumber.length === 13 ? "Auto-filled from ID number" : ""}
-                        >
-                          <option value="">Select Gender</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                          <option value="Prefer not to say">Prefer not to say</option>
-                        </select>
-                        {addLearnerForm.idNumber.length === 13 && (
-                          <small className="text-muted">Auto-filled from ID</small>
-                        )}
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Race</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={addLearnerForm.race}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, race: e.target.value})}
-                        >
-                          <option value="">Select Race</option>
-                          <option value="Asian">Asian</option>
-                          <option value="Black">Black</option>
-                          <option value="Colored">Colored</option>
-                          <option value="White">White</option>
-                          <option value="Other">Other</option>
-                          <option value="Prefer not to say">Prefer not to say</option>
-                        </select>
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Home Language</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={addLearnerForm.homeLanguage}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, homeLanguage: e.target.value})}
-                        >
-                          <option value="">Select Language</option>
-                          <option value="English">English</option>
-                          <option value="IsiZulu">IsiZulu</option>
-                          <option value="Sesotho">Sesotho</option>
-                          <option value="IsiXhosa">IsiXhosa</option>
-                          <option value="Tshonga">Tshonga</option>
-                          <option value="Afrikaans">Afrikaans</option>
-                        </select>
-                      </div>
-                      <div className="col-md-12">
-                        <label className="form-label">Disability</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={addLearnerForm.disability}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, disability: e.target.value})}
-                        >
-                          <option value="None">None</option>
-                          <option value="Visual Impairment">Visual Impairment</option>
-                          <option value="Hearing Impairment">Hearing Impairment</option>
-                          <option value="Physical Disability">Physical Disability</option>
-                          <option value="Mental Disability">Mental Disability</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Address Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Address Information</h6>
-                    <div className="row g-3">
-                      <div className="col-12">
-                        <label className="form-label">Address Line 1</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.addressLine1}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, addressLine1: e.target.value})}
-                          placeholder="Street address"
-                        />
-                      </div>
-                      <div className="col-12">
-                        <label className="form-label">Address Line 2</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.addressLine2}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, addressLine2: e.target.value})}
-                          placeholder="Suburb"
-                        />
-                      </div>
-                      <div className="col-12">
-                        <label className="form-label">Address Line 3</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.addressLine3}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, addressLine3: e.target.value})}
-                          placeholder="City"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Postal Code</label>
-                        <input 
-                          type="text" 
-                          className={`form-control bg-secondary text-light border-0 ${formErrors.postalCode ? 'border-danger border' : ''}`}
-                          value={addLearnerForm.postalCode}
-                          onChange={(e) => handleFieldChange('postalCode', e.target.value.replace(/\D/g, ''))}
-                          placeholder="0000"
-                          maxLength={4}
-                          inputMode="numeric"
-                        />
-                        {formErrors.postalCode ? (
-                          <small className="text-danger">⚠️ {formErrors.postalCode}</small>
-                        ) : (
-                          <small className="text-muted">4 digits</small>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Education Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>🎓 Education Information</h6>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <label className="form-label">High School Name</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.highSchoolName}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, highSchoolName: e.target.value})}
-                          placeholder="School name"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Year of Completion</label>
-                        <input 
-                          type="number" 
-                          className={`form-control bg-secondary text-light border-0 ${formErrors.yearOfCompletion ? 'border-danger border' : ''}`}
-                          value={addLearnerForm.yearOfCompletion}
-                          onChange={(e) => handleFieldChange('yearOfCompletion', e.target.value)}
-                          placeholder="YYYY"
-                          min="1900"
-                          max={new Date().getFullYear()}
-                        />
-                        {formErrors.yearOfCompletion ? (
-                          <small className="text-danger">⚠️ {formErrors.yearOfCompletion}</small>
-                        ) : (
-                          <small className="text-muted">Between 1900 and {new Date().getFullYear()}</small>
-                        )}
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">School Location</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.schoolLocation}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, schoolLocation: e.target.value})}
-                          placeholder="City/Town"
-                        />
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Highest Grade Passed</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.highestGradePassed}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, highestGradePassed: e.target.value})}
-                          placeholder="e.g., Grade 12"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Next of Kin Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>👤 Next of Kin Information</h6>
-                    <div className="row g-3">
-                      <div className="col-md-4">
-                        <label className="form-label">Name</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.nextOfKinName}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, nextOfKinName: e.target.value})}
-                          placeholder="Full name"
-                        />
-                      </div>
-                      <div className="col-md-4">
-                        <label className="form-label">Relation</label>
-                        <input 
-                          type="text" 
-                          className="form-control bg-secondary text-light border-0" 
-                          value={addLearnerForm.nextOfKinRelation}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, nextOfKinRelation: e.target.value})}
-                          placeholder="e.g., Mother, Father, Spouse"
-                        />
-                      </div>
-                      <div className="col-md-4">
-                        <label className="form-label">Contact Number</label>
-                        <input 
-                          type="tel" 
-                          className={`form-control bg-secondary text-light border-0 ${formErrors.nextOfKinContactNumber ? 'border-danger border' : ''}`}
-                          value={addLearnerForm.nextOfKinContactNumber}
-                          onChange={(e) => handleFieldChange('nextOfKinContactNumber', e.target.value)}
-                          placeholder="0821234567"
-                          maxLength={10}
-                          inputMode="numeric"
-                        />
-                        {formErrors.nextOfKinContactNumber && (
-                          <small className="text-danger">⚠️ {formErrors.nextOfKinContactNumber}</small>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Bank Information */}
-                  <div className="mb-4">
-                    <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>🏦 Bank Information</h6>
-                    <div className="row g-3">
-                      <div className="col-md-6">
-                        <label className="form-label">Bank Name</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={addLearnerForm.bankName}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, bankName: e.target.value})}
-                        >
-                          <option value="">Select Bank</option>
-                          <option value="ABSA">ABSA</option>
-                          <option value="Capitec">Capitec</option>
-                          <option value="FNB">FNB</option>
-                          <option value="Nedbank">Nedbank</option>
-                          <option value="Standard Bank">Standard Bank</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Account Type</label>
-                        <select 
-                          className="form-select bg-secondary text-light border-0"
-                          value={addLearnerForm.accountType}
-                          onChange={(e) => setAddLearnerForm({...addLearnerForm, accountType: e.target.value})}
-                        >
-                          <option value="">Select Account Type</option>
-                          <option value="Savings">Savings</option>
-                          <option value="Cheque">Cheque</option>
-                          <option value="Transmission">Transmission</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Account Number</label>
-                        <input 
-                          type="text" 
-                          className={`form-control bg-secondary text-light border-0 ${formErrors.accountNumber ? 'border-danger border' : ''}`}
-                          value={addLearnerForm.accountNumber}
-                          onChange={(e) => handleFieldChange('accountNumber', e.target.value.replace(/\D/g, ''))}
-                          placeholder="Account number"
-                          maxLength={11}
-                          inputMode="numeric"
-                        />
-                        {formErrors.accountNumber ? (
-                          <small className="text-danger">⚠️ {formErrors.accountNumber}</small>
-                        ) : (
-                          <small className="text-muted">6-11 digits</small>
-                        )}
-                      </div>
-                      <div className="col-md-6">
-                        <label className="form-label">Branch Code</label>
-                        <input 
-                          type="text" 
-                          className={`form-control bg-secondary text-light border-0 ${formErrors.branchCode ? 'border-danger border' : ''}`}
-                          value={addLearnerForm.branchCode}
-                          onChange={(e) => handleFieldChange('branchCode', e.target.value.replace(/\D/g, ''))}
-                          placeholder="Branch code"
-                          maxLength={6}
-                          inputMode="numeric"
-                        />
-                        {formErrors.branchCode ? (
-                          <small className="text-danger">⚠️ {formErrors.branchCode}</small>
-                        ) : (
-                          <small className="text-muted">6 digits</small>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer border-secondary">
-                  <button type="button" className="btn btn-secondary" onClick={closeLearnerModal}>Cancel</button>
-                  <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                        Adding...
-                      </>
-                    ) : (
-                      '👨‍🎓 Add Learner'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* View/Edit Learner Modal */}
-      {showLearnerModal && selectedLearner && editLearnerForm && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
-            <div className="modal-content bg-dark text-light">
-              <div className="modal-header border-secondary">
-                <div>
-                  <h5 className="modal-title">👨‍🎓 {selectedLearner.firstName} {selectedLearner.lastName}</h5>
-                  <small className="text-muted">ID: {selectedLearner.idNumber}</small>
-                </div>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowLearnerModal(false)}></button>
-              </div>
-              
-              {/* Tabs */}
-              <div className="modal-body p-0">
-                <ul className="nav nav-tabs bg-secondary border-0">
-                  <li className="nav-item">
-                    <button 
-                      className={`nav-link ${learnerModalTab === 'info' ? 'active bg-dark text-light' : 'text-light'}`}
-                      onClick={() => setLearnerModalTab('info')}
-                      style={{border: 'none'}}
-                    >
-                      📋 Learner Information
-                    </button>
-                  </li>
-                  <li className="nav-item">
-                    <button 
-                      className={`nav-link ${learnerModalTab === 'documents' ? 'active bg-dark text-light' : 'text-light'}`}
-                      onClick={() => setLearnerModalTab('documents')}
-                      style={{border: 'none'}}
-                    >
-                      📄 Documents
-                    </button>
-                  </li>
-                </ul>
-
-                {/* Tab Content */}
-                <div className="p-4" style={{maxHeight: '60vh', overflowY: 'auto'}}>
-                  {learnerModalTab === 'info' ? (
-                    <form onSubmit={handleUpdateLearner}>
-                      {/* Personal Information */}
-                      <div className="mb-4">
-                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Personal Information</h6>
-                        
-                        {/* Profile Image */}
-                        <div className="row mb-4">
-                          <div className="col-12 d-flex justify-content-center">
-                            <div className="text-center">
-                              <div 
-                                className="bg-secondary rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2"
-                                style={{
-                                  width: '150px',
-                                  height: '150px',
-                                  border: '3px solid #6c757d',
-                                  overflow: 'hidden'
-                                }}
-                              >
-                                {selectedLearner?.profilePhotoPath ? (
-                                  <>
-                                    {console.log('🖼️ Displaying profile photo for:', selectedLearner.firstName, selectedLearner.lastName, 'Path:', selectedLearner.profilePhotoPath)}
-                                    <img 
-                                      src={`${(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}/api/Learners/${selectedLearner.id}/profile-photo`}
-                                      alt={`${selectedLearner.firstName} ${selectedLearner.lastName}`}
-                                      style={{
-                                        width: '100%',
-                                        height: '100%',
-                                        objectFit: 'cover'
-                                      }}
-                                      onLoad={() => console.log('✅ Profile photo loaded successfully')}
-                                      onError={(e) => {
-                                        console.error('❌ Profile photo failed to load:', e);
-                                        // Fallback to placeholder if image fails to load
-                                        const target = e.target as HTMLImageElement;
-                                        target.style.display = 'none';
-                                        target.parentElement!.innerHTML = `
-                                          <div class="text-center">
-                                            <div style="font-size: 3rem">👤</div>
-                                            <small class="text-muted d-block" style="font-size: 0.7rem">Photo Load Failed</small>
-                                          </div>
-                                        `;
-                                      }}
-                                    />
-                                  </>
-                                ) : (
-                                  <div className="text-center">
-                                    <div style={{fontSize: '3rem'}}>👤</div>
-                                    <small className="text-muted d-block" style={{fontSize: '0.7rem'}}>No Photo</small>
-                                  </div>
-                                )}
-                              </div>
-                              <small className="text-muted d-block">
-                                {selectedLearner?.profilePhotoPath ? '📸 Profile Photo' : '📸 Profile photo will be available in mobile app'}
-                              </small>
-                              <small className="text-muted d-block" style={{fontSize: '0.75rem'}}>
-                                {selectedLearner?.firstName} {selectedLearner?.lastName}
-                              </small>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="row g-3">
-                          <div className="col-md-2">
-                            <label className="form-label">Title *</label>
-                            <select 
-                              className="form-select bg-secondary text-light border-0"
-                              value={editLearnerForm.title}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, title: e.target.value})}
-                              required
-                            >
-                              <option value="">Select Title</option>
-                              <option value="Mr">Mr</option>
-                              <option value="Mrs">Mrs</option>
-                              <option value="Miss">Miss</option>
-                              <option value="Sir">Sir</option>
-                              <option value="Dr">Dr</option>
-                            </select>
-                          </div>
-                          <div className="col-md-5">
-                            <label className="form-label">Name *</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.firstName}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, firstName: e.target.value})}
-                              required
-                            />
-                          </div>
-                          <div className="col-md-5">
-                            <label className="form-label">Surname *</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.lastName}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, lastName: e.target.value})}
-                              required
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">ID Number *</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0"
-                              value={editLearnerForm.idNumber}
-                              readOnly
-                              title="ID number cannot be changed"
-                            />
-                            <small className="text-muted">ID number cannot be changed</small>
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Contact Number</label>
-                            <input 
-                              type="tel" 
-                              className="form-control bg-secondary text-light border-0"
-                              value={editLearnerForm.contactNumber}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, contactNumber: e.target.value.replace(/\D/g, '')})}
-                              maxLength={10}
-                              inputMode="numeric"
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Email</label>
-                            <input 
-                              type="email" 
-                              className="form-control bg-secondary text-light border-0"
-                              value={editLearnerForm.email}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, email: e.target.value})}
-                            />
-                          </div>
-                          <div className="col-md-3">
-                            <label className="form-label">Date of Birth</label>
-                            <input 
-                              type="date" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.dateOfBirth}
-                              readOnly
-                            />
-                          </div>
-                          <div className="col-md-3">
-                            <label className="form-label">Age</label>
-                            <input 
-                              type="number" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.age}
-                              readOnly
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Gender</label>
-                            <select 
-                              className="form-select bg-secondary text-light border-0"
-                              value={editLearnerForm.gender}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, gender: e.target.value})}
-                            >
-                              <option value="">Select Gender</option>
-                              <option value="Male">Male</option>
-                              <option value="Female">Female</option>
-                              <option value="Other">Other</option>
-                            </select>
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Race</label>
-                            <select 
-                              className="form-select bg-secondary text-light border-0"
-                              value={editLearnerForm.race}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, race: e.target.value})}
-                            >
-                              <option value="">Select Race</option>
-                              <option value="Asian">Asian</option>
-                              <option value="Black">Black</option>
-                              <option value="Colored">Colored</option>
-                              <option value="White">White</option>
-                              <option value="Other">Other</option>
-                            </select>
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Home Language</label>
-                            <select 
-                              className="form-select bg-secondary text-light border-0"
-                              value={editLearnerForm.homeLanguage}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, homeLanguage: e.target.value})}
-                            >
-                              <option value="">Select Language</option>
-                              <option value="English">English</option>
-                              <option value="IsiZulu">IsiZulu</option>
-                              <option value="Sesotho">Sesotho</option>
-                              <option value="IsiXhosa">IsiXhosa</option>
-                              <option value="Tshonga">Tshonga</option>
-                              <option value="Afrikaans">Afrikaans</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Address Information */}
-                      <div className="mb-4">
-                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📍 Address Information</h6>
-                        <div className="row g-3">
-                          <div className="col-12">
-                            <label className="form-label">Address Line 1</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.addressLine1}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, addressLine1: e.target.value})}
-                            />
-                          </div>
-                          <div className="col-12">
-                            <label className="form-label">Address Line 2</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.addressLine2}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, addressLine2: e.target.value})}
-                            />
-                          </div>
-                          <div className="col-12">
-                            <label className="form-label">Address Line 3</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.addressLine3}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, addressLine3: e.target.value})}
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Postal Code</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0"
-                              value={editLearnerForm.postalCode}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, postalCode: e.target.value.replace(/\D/g, '')})}
-                              maxLength={4}
-                              inputMode="numeric"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Education Information */}
-                      <div className="mb-4">
-                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>🎓 Education Information</h6>
-                        <div className="row g-3">
-                          <div className="col-md-6">
-                            <label className="form-label">High School Name</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.highSchoolName}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, highSchoolName: e.target.value})}
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Year of Completion</label>
-                            <input 
-                              type="number" 
-                              className="form-control bg-secondary text-light border-0"
-                              value={editLearnerForm.yearOfCompletion}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, yearOfCompletion: e.target.value})}
-                              min="1900"
-                              max={new Date().getFullYear()}
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">School Location</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.schoolLocation}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, schoolLocation: e.target.value})}
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Highest Grade Passed</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.highestGradePassed}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, highestGradePassed: e.target.value})}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Next of Kin Information */}
-                      <div className="mb-4">
-                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>👤 Next of Kin Information</h6>
-                        <div className="row g-3">
-                          <div className="col-md-4">
-                            <label className="form-label">Name</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.nextOfKinName}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, nextOfKinName: e.target.value})}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Relation</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0" 
-                              value={editLearnerForm.nextOfKinRelation}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, nextOfKinRelation: e.target.value})}
-                            />
-                          </div>
-                          <div className="col-md-4">
-                            <label className="form-label">Contact Number</label>
-                            <input 
-                              type="tel" 
-                              className="form-control bg-secondary text-light border-0"
-                              value={editLearnerForm.nextOfKinContactNumber}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, nextOfKinContactNumber: e.target.value.replace(/\D/g, '')})}
-                              maxLength={10}
-                              inputMode="numeric"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Bank Information */}
-                      <div className="mb-4">
-                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>🏦 Bank Information</h6>
-                        <div className="row g-3">
-                          <div className="col-md-6">
-                            <label className="form-label">Bank Name</label>
-                            <select 
-                              className="form-select bg-secondary text-light border-0"
-                              value={editLearnerForm.bankName}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, bankName: e.target.value})}
-                            >
-                              <option value="">Select Bank</option>
-                              <option value="ABSA">ABSA</option>
-                              <option value="Capitec">Capitec</option>
-                              <option value="FNB">FNB</option>
-                              <option value="Nedbank">Nedbank</option>
-                              <option value="Standard Bank">Standard Bank</option>
-                              <option value="Other">Other</option>
-                            </select>
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Account Type</label>
-                            <select 
-                              className="form-select bg-secondary text-light border-0"
-                              value={editLearnerForm.accountType}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, accountType: e.target.value})}
-                            >
-                              <option value="">Select Account Type</option>
-                              <option value="Savings">Savings</option>
-                              <option value="Cheque">Cheque</option>
-                              <option value="Transmission">Transmission</option>
-                              <option value="Other">Other</option>
-                            </select>
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Account Number</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0"
-                              value={editLearnerForm.accountNumber}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, accountNumber: e.target.value.replace(/\D/g, '')})}
-                              maxLength={11}
-                              inputMode="numeric"
-                            />
-                          </div>
-                          <div className="col-md-6">
-                            <label className="form-label">Branch Code</label>
-                            <input 
-                              type="text" 
-                              className="form-control bg-secondary text-light border-0"
-                              value={editLearnerForm.branchCode}
-                              onChange={(e) => setEditLearnerForm({...editLearnerForm, branchCode: e.target.value.replace(/\D/g, '')})}
-                              maxLength={6}
-                              inputMode="numeric"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="d-flex justify-content-end gap-2">
-                        <button type="button" className="btn btn-secondary" onClick={() => setShowLearnerModal(false)}>
-                          {isLogistics ? 'Close' : 'Cancel'}
-                        </button>
-                        {!isLogistics && (
-                          <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                            {isSubmitting ? (
-                              <>
-                                <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                                Updating...
-                              </>
-                            ) : (
-                              '💾 Update Learner'
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </form>
-                  ) : (
-                    <div>
-                      {/* Documents Tab */}
-                      {!isLogistics && (
-                        <div className="mb-4">
-                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📄 Upload Document</h6>
-                        <form onSubmit={handleUploadDocument}>
-                          <div className="row g-3">
-                            <div className="col-md-6">
-                              <label className="form-label">Document Type *</label>
-                              <select
-                                className="form-select bg-secondary text-light border-0"
-                                value={selectedDocumentType}
-                                onChange={(e) => setSelectedDocumentType(e.target.value)}
-                                required
-                              >
-                                <option value="">Select Type</option>
-                                {documentTypes
-                                  .filter(type => !learnerDocuments.some(doc => doc.documentType === type))
-                                  .map(type => (
-                                    <option key={type} value={type}>{type}</option>
-                                  ))}
-                              </select>
-                              {documentTypes.filter(type => !learnerDocuments.some(doc => doc.documentType === type)).length === 0 && (
-                                <small className="text-warning d-block mt-1">
-                                  ⚠️ All document types have been uploaded
-                                </small>
-                              )}
-                            </div>
-                            <div className="col-md-6">
-                              <label className="form-label">Select File * (PDF, JPG, PNG - Max 10MB)</label>
-                              <input 
-                                type="file" 
-                                className="form-control bg-secondary text-light border-0"
-                                accept=".pdf,.jpg,.jpeg,.png"
-                                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                                required
-                              />
-                            </div>
-                            <div className="col-12">
-                              <button 
-                                type="submit" 
-                                className="btn btn-primary" 
-                                disabled={uploadingDocument || documentTypes.filter(type => !learnerDocuments.some(doc => doc.documentType === type)).length === 0}
-                              >
-                                {uploadingDocument ? (
-                                  <>
-                                    <span className="spinner-border spinner-border-sm me-2" role="status"></span>
-                                    Uploading...
-                                  </>
-                                ) : (
-                                  '📤 Upload Document'
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-                      )}
-                      {/* Document Status Summary */}
-                      <div className="mb-4 p-3 bg-secondary rounded">
-                        <h6 className="text-light mb-2">📊 Document Status</h6>
-                        <div className="d-flex flex-wrap gap-2">
-                          {documentTypes.map(type => {
-                            const isUploaded = learnerDocuments.some(doc => doc.documentType === type);
-                            return (
-                              <span 
-                                key={type}
-                                className={`badge ${isUploaded ? 'bg-success' : 'bg-warning text-dark'}`}
-                                title={isUploaded ? 'Uploaded' : 'Not uploaded'}
-                              >
-                                {isUploaded ? '✓' : '○'} {type}
-                              </span>
-                            );
-                          })}
-                        </div>
-                        <small className="text-muted d-block mt-2">
-                          {learnerDocuments.length} of {documentTypes.length} documents uploaded
-                        </small>
-                      </div>
-
-                      {/* Documents List */}
-                      <div>
-                        <h6 className="mb-3" style={{ color: '#06b6d4', fontWeight: 600 }}>📋 Uploaded Documents</h6>
-                        {learnerDocuments.length > 0 ? (
-                          <div className="list-group">
-                            {learnerDocuments.map((doc) => (
-                              <div key={doc.id} className="list-group-item bg-secondary text-light border-0 mb-2">
-                                <div className="d-flex justify-content-between align-items-center">
-                                  <div className="flex-grow-1">
-                                    <h6 className="mb-1">📄 {doc.documentType}</h6>
-                                    <small className="text-muted d-block">{doc.fileName}</small>
-                                    <small className="text-muted d-block">
-                                      Size: {(doc.fileSize / 1024).toFixed(2)} KB | 
-                                      Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()} {new Date(doc.uploadedAt).toLocaleTimeString()}
-                                      {doc.uploadedByUserName && ` by ${doc.uploadedByUserName}`}
-                                    </small>
-                                  </div>
-                                  <div>
-                                    <button 
-                                      className="btn btn-sm btn-outline-primary"
-                                      onClick={() => handleViewDocument(doc.id)}
-                                      title="View document in new tab"
-                                    >
-                                      👁️ View
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-4 bg-secondary rounded">
-                            <p className="text-muted mb-2">📭 No documents uploaded yet</p>
-                            <small className="text-muted">Upload documents using the form above</small>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Teacher Management Modal */}
-      {showTeacherModal && selectedClassForTeacher && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content" style={{backgroundColor: '#1e293b', color: 'white'}}>
-              <div className="modal-header border-secondary">
-                <h5 className="modal-title">👨‍🏫 Teachers for {selectedClassForTeacher.name}</h5>
-                <button type="button" className="btn-close btn-close-white" onClick={() => setShowTeacherModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                {teachersLoading ? (
-                  <div className="text-center py-3">
-                    <div className="spinner-border text-light" role="status">
-                      <span className="visually-hidden">Loading...</span>
-                    </div>
-                    <p className="mt-2">Loading teachers...</p>
-                  </div>
-                ) : classTeachers.length > 0 ? (
-                  <div>
-                    <h6 className="mb-3">Assigned Teachers:</h6>
-                    {classTeachers.map((teacher) => (
-                      <div key={teacher.id} className="card mb-2" style={{backgroundColor: 'rgba(139, 92, 246, 0.1)', border: '1px solid #8b5cf6'}}>
-                        <div className="card-body p-3">
-                          <div className="d-flex justify-content-between align-items-start">
-                            <div>
-                              <h6 className="mb-1">
-                                <i className="bi bi-person-fill me-2"></i>
-                                {teacher.teacherName}
-                              </h6>
-                              <small className="text-white-50">
-                                <i className="bi bi-envelope me-2"></i>
-                                {teacher.teacherEmail}
-                              </small>
-                              <br />
-                              <small className="text-white-50">
-                                <i className="bi bi-calendar me-2"></i>
-                                Assigned: {new Date(teacher.assignedDate).toLocaleDateString()}
-                              </small>
-                            </div>
-                            <div className="d-flex gap-2">
-                              <button
-                                className="btn btn-sm btn-outline-light"
-                                title="Resend login credentials"
-                                onClick={() => handleResendTeacherCredentials(teacher.teacherId, teacher.teacherName)}
-                              >
-                                📧 Resend
-                              </button>
-                              <button
-                                className="btn btn-sm btn-danger"
-                                onClick={() => handleRemoveTeacher(teacher.id, teacher.teacherName)}
-                              >
-                                Remove
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <hr className="border-secondary my-3" />
-                  </div>
-                ) : (
-                  <div className="alert alert-info">
-                    No teachers assigned yet.
-                  </div>
-                )}
-
-                {!showAddTeacherForm ? (
-                  <button
-                    className="btn btn-primary w-100"
-                    onClick={() => setShowAddTeacherForm(true)}
-                  >
-                    <i className="bi bi-person-plus me-2"></i>
-                    Add Teacher
-                  </button>
-                ) : (
-                  <div className="card" style={{backgroundColor: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)'}}>
-                    <div className="card-body">
-                      <h6 className="mb-3">Create New Teacher</h6>
-                      <div className="mb-3">
-                        <label className="form-label">First Name *</label>
-                        <input
-                          type="text"
-                          className={`form-control ${teacherFormErrors.firstName ? 'is-invalid' : ''}`}
-                          value={newTeacherForm.firstName}
-                          onChange={(e) => {
-                            setNewTeacherForm({...newTeacherForm, firstName: e.target.value});
-                            setTeacherFormErrors({...teacherFormErrors, firstName: ''});
-                          }}
-                          placeholder="Enter first name"
-                        />
-                        {teacherFormErrors.firstName && (
-                          <div className="invalid-feedback">{teacherFormErrors.firstName}</div>
-                        )}
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label">Last Name *</label>
-                        <input
-                          type="text"
-                          className={`form-control ${teacherFormErrors.lastName ? 'is-invalid' : ''}`}
-                          value={newTeacherForm.lastName}
-                          onChange={(e) => {
-                            setNewTeacherForm({...newTeacherForm, lastName: e.target.value});
-                            setTeacherFormErrors({...teacherFormErrors, lastName: ''});
-                          }}
-                          placeholder="Enter last name"
-                        />
-                        {teacherFormErrors.lastName && (
-                          <div className="invalid-feedback">{teacherFormErrors.lastName}</div>
-                        )}
-                      </div>
-                      <div className="mb-3">
-                        <label className="form-label">Email *</label>
-                        <input
-                          type="email"
-                          className={`form-control ${teacherFormErrors.email ? 'is-invalid' : ''}`}
-                          value={newTeacherForm.email}
-                          onChange={(e) => {
-                            setNewTeacherForm({...newTeacherForm, email: e.target.value});
-                            setTeacherFormErrors({...teacherFormErrors, email: ''});
-                          }}
-                          placeholder="teacher@example.com"
-                        />
-                        {teacherFormErrors.email && (
-                          <div className="invalid-feedback">{teacherFormErrors.email}</div>
-                        )}
-                      </div>
-                      <small className="text-white-50 d-block mb-3">
-                        <i className="bi bi-info-circle me-1"></i>
-                        A system-generated password will be sent to the teacher's email.
-                      </small>
-                      <div className="d-flex gap-2">
-                        <button
-                          className="btn btn-secondary flex-fill"
-                          onClick={() => {
-                            setShowAddTeacherForm(false);
-                            setNewTeacherForm({firstName: '', lastName: '', email: ''});
-                            setTeacherFormErrors({firstName: '', lastName: '', email: ''});
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          className="btn btn-primary flex-fill"
-                          onClick={handleCreateTeacher}
-                        >
-                          Create Teacher
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Document Preview Modal with Approval Controls */}
-      {showDocumentModal && selectedDocumentForView && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.8)'}}>
-          <div className="modal-dialog modal-fullscreen">
-            <div className="modal-content">
-              <div className="modal-header text-white border-0" style={{
-                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0e4d8a 100%)',
-                position: 'relative'
-              }}>
-                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'linear-gradient(180deg,#a855f7,#7c3aed)' }}></div>
-                <div className="d-flex align-items-center" style={{ paddingLeft: 8 }}>
-                  <i className="fas fa-file-alt me-2"></i>
-                  <div>
-                    <h5 className="modal-title mb-0">Document Review</h5>
-                    <small className="opacity-75">
-                      {selectedDocumentForView.learnerFirstName} {selectedDocumentForView.learnerLastName} - {selectedDocumentForView.documentType}
-                    </small>
-                  </div>
-                </div>
-                <button 
-                  type="button" 
-                  className="btn-close btn-close-white" 
-                  onClick={() => {
-                    setShowDocumentModal(false);
-                    setSelectedDocumentForView(null);
-                    if (documentPreviewUrl) {
-                      window.URL.revokeObjectURL(documentPreviewUrl);
-                      setDocumentPreviewUrl(null);
-                    }
-                  }}
-                ></button>
-              </div>
-              
-              <div className="modal-body p-0 d-flex" style={{ height: 'calc(100vh - 120px)' }}>
-                {/* Document Preview Area */}
-                <div className="flex-grow-1 d-flex flex-column">
-                  {previewLoading ? (
-                    <div className="d-flex justify-content-center align-items-center h-100">
-                      <div className="text-center">
-                        <div className="spinner-border text-info mb-3" role="status">
-                          <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <p>Loading document...</p>
-                      </div>
-                    </div>
-                  ) : documentPreviewUrl ? (
-                    <div className="h-100">
-                      {selectedDocumentForView.mimeType.startsWith('image/') ? (
-                        <img 
-                          src={documentPreviewUrl} 
-                          alt={selectedDocumentForView.fileName}
-                          className="w-100 h-100"
-                          style={{ objectFit: 'contain', backgroundColor: '#f8f9fa' }}
-                        />
-                      ) : selectedDocumentForView.mimeType === 'application/pdf' ? (
-                        <iframe 
-                          src={documentPreviewUrl}
-                          className="w-100 h-100 border-0"
-                          title={selectedDocumentForView.fileName}
-                        />
-                      ) : (
-                        <div className="d-flex justify-content-center align-items-center h-100 bg-light">
-                          <div className="text-center">
-                            <i className="fas fa-file fa-4x text-muted mb-3"></i>
-                            <h5>Preview not available</h5>
-                            <p className="text-muted">This file type cannot be previewed in the browser.</p>
-                            <button 
-                              className="btn btn-outline-primary"
-                              onClick={() => window.open(documentPreviewUrl, '_blank')}
-                            >
-                              <i className="fas fa-external-link-alt me-2"></i>
-                              Open in New Tab
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="d-flex justify-content-center align-items-center h-100">
-                      <div className="text-center text-muted">
-                        <i className="fas fa-exclamation-triangle fa-3x mb-3"></i>
-                        <h5>Failed to load document</h5>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                
-                {/* Approval Controls Sidebar */}
-                <div className="border-start bg-light" style={{ width: '350px', minWidth: '350px' }}>
-                  <div className="p-4">
-                    <h6 className="fw-bold mb-3">
-                      <i className="fas fa-clipboard-check me-2 text-info"></i>
-                      Document Information
-                    </h6>
-                    
-                    {/* Document Details */}
-                    <div className="mb-4">
-                      <div className="row g-2 small">
-                        <div className="col-12">
-                          <strong>Learner:</strong><br/>
-                          {selectedDocumentForView.learnerFirstName} {selectedDocumentForView.learnerLastName}
-                        </div>
-                        <div className="col-12">
-                          <strong>ID Number:</strong><br/>
-                          {selectedDocumentForView.learnerIdNumber}
-                        </div>
-                        <div className="col-12">
-                          <strong>Document Type:</strong><br/>
-                          {selectedDocumentForView.documentType}
-                        </div>
-                        <div className="col-12">
-                          <strong>File Name:</strong><br/>
-                          {selectedDocumentForView.fileName}
-                        </div>
-                        <div className="col-12">
-                          <strong>File Size:</strong><br/>
-                          {(selectedDocumentForView.fileSize / 1024 / 1024).toFixed(2)} MB
-                        </div>
-                        <div className="col-12">
-                          <strong>Upload Date:</strong><br/>
-                          {new Date(selectedDocumentForView.uploadedAt).toLocaleDateString()} at {new Date(selectedDocumentForView.uploadedAt).toLocaleTimeString()}
-                        </div>
-                        <div className="col-12">
-                          <strong>Current Status:</strong><br/>
-                          <span className={`badge ${
-                            selectedDocumentForView.approvalStatus === 'Approved' ? 'bg-success' :
-                            selectedDocumentForView.approvalStatus === 'Declined' ? 'bg-danger' :
-                            'bg-warning'
-                          }`}>
-                            {selectedDocumentForView.approvalStatus}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Approval Status */}
-                    {selectedDocumentForView.approvalStatus === 'Approved' && (
-                      <div className="alert alert-success">
-                        <i className="fas fa-check-circle me-2"></i>
-                        <strong>Approved</strong><br/>
-                        <small>
-                          {selectedDocumentForView.approvedAt && 
-                            `Approved on ${new Date(selectedDocumentForView.approvedAt).toLocaleDateString()}`
-                          }
-                        </small>
-                      </div>
-                    )}
-
-                    {selectedDocumentForView.approvalStatus === 'Declined' && (
-                      <div className="alert alert-danger">
-                        <i className="fas fa-times-circle me-2"></i>
-                        <strong>Declined</strong><br/>
-                        {selectedDocumentForView.declineReason && (
-                          <small><strong>Reason:</strong> {selectedDocumentForView.declineReason}</small>
-                        )}
-                        <br/>
-                        <small>
-                          {selectedDocumentForView.approvedAt && 
-                            `Declined on ${new Date(selectedDocumentForView.approvedAt).toLocaleDateString()}`
-                          }
-                        </small>
-                      </div>
-                    )}
-
-                    {/* Approval Actions - Only show for pending documents */}
-                    {selectedDocumentForView.approvalStatus === 'Pending' && (
-                      <div className="mt-4">
-                        <h6 className="fw-bold mb-3 text-info">
-                          <i className="fas fa-gavel me-2"></i>
-                          Make Decision
-                        </h6>
-                        
-                        <div className="d-grid gap-2">
-                          <button 
-                            className="btn btn-success btn-lg"
-                            onClick={() => approveDocument(selectedDocumentForView.id)}
-                          >
-                            <i className="fas fa-check me-2"></i>
-                            Approve Document
-                          </button>
-                          
-                          <button 
-                            className="btn btn-danger btn-lg"
-                            onClick={() => {
-                              setDocumentToDecline(selectedDocumentForView);
-                              setShowDeclineModal(true);
-                            }}
-                          >
-                            <i className="fas fa-times me-2"></i>
-                            Decline Document
-                          </button>
-                        </div>
-                        
-                        <div className="mt-3 p-3 bg-info bg-opacity-10 rounded">
-                          <small className="text-info">
-                            <i className="fas fa-info-circle me-1"></i>
-                            Review the document carefully before making your decision. 
-                            Approved documents will be marked as verified, while declined documents will require resubmission.
-                          </small>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Decline Document Modal */}
-      {showDeclineModal && documentToDecline && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">❌ Decline Document</h5>
-                <button 
-                  type="button" 
-                  className="btn-close" 
-                  onClick={() => {
-                    setShowDeclineModal(false);
-                    setDeclineReason('');
-                    setDocumentToDecline(null);
-                  }}
-                ></button>
-              </div>
-              <div className="modal-body">
-                <div className="mb-3">
-                  <p><strong>Document:</strong> {documentToDecline.fileName}</p>
-                  <p><strong>Type:</strong> {documentToDecline.documentType}</p>
-                  <p><strong>Learner:</strong> {documentToDecline.learnerFirstName} {documentToDecline.learnerLastName}</p>
-                </div>
-                <div className="mb-3">
-                  <label className="form-label">Reason for Decline *</label>
-                  <textarea 
-                    className="form-control" 
-                    rows={4}
-                    value={declineReason}
-                    onChange={(e) => setDeclineReason(e.target.value)}
-                    placeholder="Please provide a reason for declining this document..."
-                    required
-                  />
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button 
-                  type="button" 
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setShowDeclineModal(false);
-                    setDeclineReason('');
-                    setDocumentToDecline(null);
-                  }}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="button" 
-                  className="btn btn-danger"
-                  onClick={() => {
-                    if (declineReason.trim()) {
-                      declineDocument(documentToDecline.id, declineReason.trim());
-                    } else {
-                      alert('Please provide a reason for declining the document.');
-                    }
-                  }}
-                  disabled={!declineReason.trim()}
-                >
-                  Decline Document
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-      {/* Sick Note Decline Modal */}
-      {showSickNoteDeclineModal && (
-        <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.5)'}}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content">
-              <div className="modal-header">
-                <h5 className="modal-title">❌ Decline Sick Note</h5>
-                <button type="button" className="btn-close" onClick={() => setShowSickNoteDeclineModal(false)}></button>
-              </div>
-              <form onSubmit={handleDeclineSickNote}>
-                <div className="modal-body">
-                  <p>Are you sure you want to decline the sick note for <strong>{sickNoteToDecline?.learnerName}</strong>?</p>
-                  <div className="mb-3">
-                    <label className="form-label">Reason for Decline *</label>
-                    <textarea 
-                      className="form-control" 
-                      rows={3} 
-                      value={sickNoteDeclineReason}
-                      onChange={(e) => setSickNoteDeclineReason(e.target.value)}
-                      placeholder="Please provide a reason for declining this sick note..."
-                      required
-                    ></textarea>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowSickNoteDeclineModal(false)}>Cancel</button>
-                  <button type="submit" className="btn btn-danger">Decline Sick Note</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Attendance Calendar Modal */}
-      {showAttendanceCalendar && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.85)' }}>
-          <div className="modal-dialog modal-dialog-centered" style={{ maxWidth: '95vw', margin: '10px auto' }}>
-            <div className="modal-content" style={{ backgroundColor: '#0f172a', color: 'white', maxHeight: '95vh', display: 'flex', flexDirection: 'column' }}>
-              
-              {/* Header */}
-              <div className="modal-header py-2" style={{ borderBottom: '1px solid #334155', backgroundColor: '#1e3a8a', flexShrink: 0 }}>
-                <h6 className="modal-title mb-0 d-flex align-items-center gap-2">
-                  📅 <span>Attendance Calendar</span>
-                  {calendarData && <span className="text-light">— {calendarData.firstName} {calendarData.lastName}</span>}
-                </h6>
-                <button type="button" className="btn-close btn-close-white" onClick={() => { setShowAttendanceCalendar(false); setCalendarData(null); }}></button>
-              </div>
-
-              <div className="modal-body p-2" style={{ overflowY: 'auto', flex: 1 }}>
-                {calendarLoading ? (
-                  <div className="text-center py-5">
-                    <div className="spinner-border text-info" role="status"><span className="visually-hidden">Loading...</span></div>
-                    <p className="mt-3">Loading attendance calendar...</p>
-                  </div>
-                ) : calendarData ? (
-                  <div className="row g-2" style={{ minHeight: 0 }}>
-                    {/* LEFT COLUMN - Calendar */}
-                    <div className="col-lg-8">
-
-                      {/* Month Navigation - compact */}
-                      <div className="d-flex justify-content-between align-items-center mb-2 px-1">
-                        <button className="btn btn-outline-light btn-sm py-0 px-2" style={{ fontSize: '0.75rem' }} onClick={() => changeCalendarMonth('prev')}>← Prev</button>
-                        <div className="text-center">
-                          <span className="fw-bold" style={{ fontSize: '0.9rem' }}>{calendarData.monthName} {calendarData.year}</span>
-                          <span className="text-muted ms-2" style={{ fontSize: '0.7rem' }}>
-                            {calendarData.year}/{String(calendarData.month).padStart(2,'0')}/01 – {calendarData.year}/{String(calendarData.month).padStart(2,'0')}/{new Date(calendarData.year, calendarData.month, 0).getDate()}
-                          </span>
-                        </div>
-                        <button className="btn btn-outline-light btn-sm py-0 px-2" style={{ fontSize: '0.75rem' }} onClick={() => changeCalendarMonth('next')}>Next →</button>
-                      </div>
-
-                    {/* Calendar Grid */}
-                    <div style={{ backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '8px' }}>
-                      {/* Days of Week Header */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', marginBottom: '3px' }}>
-                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
-                          <div key={day} className="text-center py-1 fw-bold" style={{ fontSize: '0.7rem', color: 'white', backgroundColor: '#1e3a8a', borderRadius: '4px' }}>
-                            {day}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Calendar Days - chunked into weeks */}
-                      {(() => {
-                        const firstDay = new Date(calendarData.year, calendarData.month - 1, 1);
-                        let startOffset = firstDay.getDay();
-                        startOffset = startOffset === 0 ? 6 : startOffset - 1;
-
-                        // Build flat array: nulls for offset + actual days
-                        const allCells: (any | null)[] = [];
-                        for (let i = 0; i < startOffset; i++) allCells.push(null);
-                        calendarData.calendarDays.forEach((d: any) => allCells.push(d));
-                        // Pad end to complete last row
-                        while (allCells.length % 7 !== 0) allCells.push(null);
-
-                        // Split into weeks
-                        const weeks: (any | null)[][] = [];
-                        for (let i = 0; i < allCells.length; i += 7) weeks.push(allCells.slice(i, i + 7));
-
-                        const today = new Date(); today.setHours(0,0,0,0);
-
-                        return weeks.map((week, wi) => (
-                          <div key={wi} style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px', marginBottom: '3px' }}>
-                            {week.map((day, di) => {
-                              if (!day) return (
-                                <div key={`e-${wi}-${di}`} style={{ minHeight: '72px', backgroundColor: '#070d17', borderRadius: '4px' }} />
-                              );
-
-                              const isWeekend = day.isWeekend;
-                              const isPresent = day.status === 'Present';
-                              const isAbsent = day.status === 'Absent';
-                              const isLate = day.status === 'Late';
-                              const dayDate = new Date(calendarData.year, calendarData.month - 1, day.day);
-                              const isFuture = dayDate > today;
-                              // Past working days with no record = absent
-                              const isAbsentNoRecord = day.status === 'No Record' && !isFuture && !isWeekend;
-
-                              let bg = '#1e293b', border = '#334155', textColor = '#94a3b8';
-                              let statusText = isFuture && !isWeekend ? 'PENDING' : '';
-                              if (isWeekend) { bg = '#0a0f1a'; border = '#1e293b'; textColor = '#475569'; statusText = 'WKND'; }
-                              if (isPresent) { bg = '#064e3b'; border = '#10b981'; textColor = '#6ee7b7'; statusText = 'PRESENT'; }
-                              if (isAbsent || isAbsentNoRecord)  { bg = '#7f1d1d'; border = '#ef4444'; textColor = '#fca5a5'; statusText = 'ABSENT'; }
-                              if (isLate)    { bg = '#78350f'; border = '#f59e0b'; textColor = '#fcd34d'; statusText = 'LATE'; }
-
-                              return (
-                                <div key={day.date} style={{ backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '4px', minHeight: '72px', padding: '4px' }}>
-                                  <div style={{ color: 'white', fontSize: '0.75rem', fontWeight: 'bold' }}>{day.day}</div>
-                                  <div style={{ color: textColor, fontSize: '0.6rem', fontWeight: 'bold', textAlign: 'center' }}>{statusText}</div>
-                                  {(isPresent || isLate) && day.clockInTime && day.clockOutTime && (
-                                    <div style={{ color: textColor, fontSize: '0.55rem', textAlign: 'center', lineHeight: 1.3, marginTop: '2px' }}>
-                                      {new Date(day.clockInTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
-                                      {' – '}
-                                      {new Date(day.clockOutTime).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
-                                      {day.contactHours > 0 && <div style={{ color: '#93c5fd' }}>{day.contactHours}h</div>}
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ));
-                      })()}
-
-                      {/* Legend - compact */}
-                      <div className="d-flex gap-2 mt-2 flex-wrap" style={{ fontSize: '0.7rem' }}>
-                        {[['#064e3b','#10b981','Present'],['#7f1d1d','#ef4444','Absent'],['#78350f','#f59e0b','Late'],['#1e293b','#475569','Pending'],['#0a0f1a','#1e293b','Weekend']].map(([bg,border,label]) => (
-                          <div key={label} className="d-flex align-items-center gap-1">
-                            <div style={{ width: '12px', height: '12px', backgroundColor: bg, border: `1px solid ${border}`, borderRadius: '2px' }}></div>
-                            <span>{label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* RIGHT COLUMN - Learner Information */}
-                  <div className="col-lg-4">
-                    <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', padding: '10px', fontSize: '0.8rem' }}>
-                      
-                      {/* Learner Name & Photo */}
-                      <div className="text-center mb-2 pb-2" style={{ borderBottom: '1px solid #334155' }}>
-                        {calendarData.profilePhotoPath ? (
-                          <img src={`${API}/${calendarData.profilePhotoPath}`} alt="Profile"
-                            style={{ width: '55px', height: '55px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #3b82f6' }}
-                            onError={(e) => { (e.target as HTMLImageElement).style.display='none'; }} />
-                        ) : (
-                          <div style={{ width: '55px', height: '55px', borderRadius: '50%', backgroundColor: '#0f172a', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #3b82f6', fontSize: '24px' }}>👤</div>
-                        )}
-                        <div className="fw-bold text-white mt-1" style={{ fontSize: '0.85rem' }}>{calendarData.firstName} {calendarData.lastName}</div>
-                      </div>
-
-                      {/* Project Details */}
-                      <div className="mb-2">
-                        <div className="fw-bold text-info mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Project Details</div>
-                        {[['Pathway', calendarData.pathway],['Province', calendarData.province],['Project', calendarData.projectName],['Site', calendarData.siteName]].map(([lbl,val]) => (
-                          <div key={lbl} className="d-flex justify-content-between mb-1">
-                            <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{lbl}:</span>
-                            <span className="text-white text-end" style={{ maxWidth: '60%', fontSize: '0.75rem' }}>{val || 'N/A'}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Class & Teacher Details */}
-                      <div className="mb-2 pt-1" style={{ borderTop: '1px solid #334155' }}>
-                        <div className="fw-bold text-info mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Class & Facilitator</div>
-                        {[['Class', calendarData.className],['Facilitator', calendarData.teacherName],['Email', calendarData.teacherEmail]].map(([lbl,val]) => (
-                          <div key={lbl} className="d-flex justify-content-between mb-1">
-                            <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{lbl}:</span>
-                            <span className="text-white text-end" style={{ maxWidth: '65%', fontSize: '0.75rem', wordBreak: 'break-all' }}>{val || 'N/A'}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Learner Details */}
-                      <div className="mb-2 pt-1" style={{ borderTop: '1px solid #334155' }}>
-                        <div className="fw-bold text-info mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Learner</div>
-                        {[['ID', calendarData.idNumber],['Gender', calendarData.gender],['Phone', calendarData.telephone]].map(([lbl,val]) => (
-                          <div key={lbl} className="d-flex justify-content-between mb-1">
-                            <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>{lbl}:</span>
-                            <span className="text-white" style={{ fontSize: '0.75rem' }}>{val || 'N/A'}</span>
-                          </div>
-                        ))}
-                        <div className="mt-1">
-                          <span style={{ color: '#94a3b8', fontSize: '0.75rem' }}>Address:</span>
-                          <div className="text-white" style={{ fontSize: '0.7rem' }}>{calendarData.address || 'N/A'}</div>
-                        </div>
-                      </div>
-
-                      {/* Attendance Statistics */}
-                      <div className="pt-1" style={{ borderTop: '1px solid #334155' }}>
-                        <div className="fw-bold text-info mb-1" style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Attendance Statistics</div>
-                        <div className="row g-1">
-                          {[
-                            ['Expected', calendarData.expectedAttendance ?? 0, '#06b6d4'],
-                            ['Actual',   calendarData.actualAttendance ?? calendarData.presentDays ?? 0, '#10b981'],
-                            ['Absent',   calendarData.daysAbsent ?? calendarData.absentDays ?? 0, '#ef4444'],
-                            ['Rate',     `${calendarData.attendanceRate ?? 0}%`, '#3b82f6'],
-                            ['Holidays', calendarData.holidays ?? 0, '#8b5cf6'],
-                            ['Sick',     calendarData.approvedSickDays ?? 0, '#f59e0b'],
-                          ].map(([lbl, val, color]) => (
-                            <div key={String(lbl)} className="col-6">
-                              <div className="rounded p-1 text-center" style={{ backgroundColor: '#0f172a', borderLeft: `3px solid ${color}` }}>
-                                <div className="fw-bold text-white" style={{ fontSize: '0.9rem' }}>{val}</div>
-                                <div style={{ fontSize: '0.6rem', color: '#94a3b8' }}>{lbl}</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-5">
-                    <div className="display-1 mb-3">📅</div>
-                    <h5>No Calendar Data</h5>
-                    <p className="text-muted">Unable to load attendance calendar</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="modal-footer py-2" style={{ borderTop: '1px solid #334155', flexShrink: 0 }}>
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={async () => {
-                    if (calendarData) {
-                      try {
-                        const response = await fetchWithAuth(
-                          `/api/AttendanceTracking/learner/${calendarData.learnerId}/calendar/pdf?year=${calendarYear}&month=${calendarMonth}`
-                        );
-                        
-                        if (response && response.ok) {
-                          const blob = await response.blob();
-                          const url = window.URL.createObjectURL(blob);
-                          const a = document.createElement('a');
-                          a.href = url;
-                          a.download = `Attendance_Calendar_${calendarData.firstName}_${calendarData.lastName}_${calendarYear}_${String(calendarMonth).padStart(2, '0')}.pdf`;
-                          document.body.appendChild(a);
-                          a.click();
-                          window.URL.revokeObjectURL(url);
-                          document.body.removeChild(a);
-                        } else {
-                          alert('Failed to generate PDF');
-                        }
-                      } catch (error) {
-                        console.error('Error downloading PDF:', error);
-                        alert('An error occurred while generating PDF');
-                      }
-                    }
-                  }}
-                  disabled={!calendarData}
-                >
-                  <i className="bi bi-file-pdf me-2"></i>
-                  Download PDF
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => {
-                    setShowAttendanceCalendar(false);
-                    setCalendarData(null);
-                  }}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default SDPManagerDashboard;
-
-
-
