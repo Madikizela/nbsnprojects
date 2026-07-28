@@ -8,6 +8,7 @@ import {
 } from './CustomIcons';
 import ForgotPassword from './ForgotPassword';
 import { apiCall } from '../utils/api';
+import PopiaConsentModal, { POPIA_CONSENT_KEY } from './PopiaConsentModal';
 
 const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage }) => {
   const [email, setEmail] = useState('');
@@ -18,6 +19,8 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
   const [passwordError, setPasswordError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showPopiaModal, setShowPopiaModal] = useState(false);
+  const [pendingRoute, setPendingRoute] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const validateEmail = (email: string) => {
@@ -140,18 +143,28 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
         // IT Manager/Support
         const isIT = role === '6' || role === '13' || role === 'SDPIT' || deptName.includes('it');
 
-        // Route to appropriate dashboard
+        // Determine the target route for this user
+        let targetRoute = '/dashboard';
         if (role === '18' || role === 'ExternalUser') {
-          navigate('/external-portal');
+          targetRoute = '/external-portal';
         } else if (isLogistics || isQA || isAdminManager || isFinance || isIT) {
-          navigate('/sdp-manager-dashboard');
+          targetRoute = '/sdp-manager-dashboard';
         } else if (isSDP) {
-          navigate('/sdp-dashboard');
+          targetRoute = '/sdp-dashboard';
         } else if (isClient) {
-          navigate('/client-dashboard');
-        } else {
-          navigate('/dashboard');
+          targetRoute = '/client-dashboard';
         }
+
+        // POPIA: gate the navigation behind consent if not already accepted
+        const popiaRecord = localStorage.getItem(POPIA_CONSENT_KEY);
+        if (!popiaRecord) {
+          setPendingRoute(targetRoute);
+          setShowPopiaModal(true);
+          setIsLoading(false);
+          return;
+        }
+
+        navigate(targetRoute);
       } else {
         const text = await response.text();
         let errorMessage = 'Login failed';
@@ -174,6 +187,20 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
     }
   };
 
+  const handlePopiaAccept = () => {
+    setShowPopiaModal(false);
+    if (pendingRoute) navigate(pendingRoute);
+  };
+
+  const handlePopiaDecline = () => {
+    // Clear token & state — user refused consent
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setShowPopiaModal(false);
+    setPendingRoute(null);
+    setError('You must accept the POPIA Privacy Notice to use this system.');
+  };
+
   // Show forgot password component if requested
   if (showForgotPassword) {
     return <ForgotPassword onBackToLogin={() => setShowForgotPassword(false)} />;
@@ -181,6 +208,10 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
 
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+      {/* POPIA Consent Modal — shown on first login before routing */}
+      {showPopiaModal && (
+        <PopiaConsentModal onAccept={handlePopiaAccept} onDecline={handlePopiaDecline} />
+      )}
       <style>{`
         @keyframes gradientShift {
           0% { background-position: 0% 50%; }
@@ -416,7 +447,15 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
           </button>
 
           <p style={{ textAlign:'center', color:'#94a3b8', fontSize:12, marginTop:32 }}>
-            © {new Date().getFullYear()} National Building Skills Network. All rights reserved.
+            © {new Date().getFullYear()} National Building Skills Network. All rights reserved.{' '}
+            <a
+              href="/popia-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#0d9488', textDecoration: 'underline' }}
+            >
+              POPIA Privacy Policy
+            </a>
           </p>
         </div>
       </div>

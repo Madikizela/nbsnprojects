@@ -9,6 +9,7 @@ import ResetPassword from './components/ResetPassword'
 import LearnerPortal from './components/LearnerPortal'
 import LearnerResetPassword from './components/LearnerResetPassword'
 import ExternalPortal from './components/ExternalPortal'
+import PopiaPolicyPage from './components/PopiaPolicyPage'
 import {
   isTokenExpired,
   forceLogout,
@@ -305,6 +306,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login expiredMessage={expiredMsg} />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/popia-policy" element={<PopiaPolicyPage />} />
           <Route
             path="/learner-reset-password"
             element={<LearnerResetPassword />}
