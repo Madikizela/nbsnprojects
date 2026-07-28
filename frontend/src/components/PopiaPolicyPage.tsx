@@ -11,9 +11,28 @@ const PopiaPolicyPage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: "'Segoe UI', system-ui, sans-serif", overflowY: 'auto' }}>
-      {/* Header */}
-      <div style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', padding: '24px 40px', color: '#fff', display: 'flex', alignItems: 'center', gap: 20 }}>
+    <div style={{ 
+      position: 'fixed',
+      inset: 0,
+      background: '#f8fafc', 
+      fontFamily: "'Segoe UI', system-ui, sans-serif", 
+      overflowY: 'auto',
+      display: 'flex',
+      flexDirection: 'column',
+    }}>
+      {/* Sticky Header */}
+      <div style={{ 
+        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', 
+        padding: '24px 40px', 
+        color: '#fff', 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 20,
+        flexShrink: 0,
+        position: 'sticky',
+        top: 0,
+        zIndex: 10,
+      }}>
         <button
           onClick={() => navigate(-1)}
           style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 10, color: '#fff', padding: '8px 16px', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}
@@ -29,7 +48,7 @@ const PopiaPolicyPage: React.FC = () => {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '48px 32px' }}>
+      <div style={{ maxWidth: 860, margin: '0 auto', padding: '48px 32px', width: '100%', flex: 1 }}>
         <div style={{ background: '#fff', borderRadius: 16, padding: '40px 48px', boxShadow: '0 4px 24px rgba(0,0,0,0.06)', lineHeight: 1.8, color: '#334155' }}>
 
           <div style={{ background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 12, padding: '16px 20px', marginBottom: 36, fontSize: 14 }}>
