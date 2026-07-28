@@ -1645,6 +1645,7 @@ const SDPDashboard: React.FC = () => {
       </div>
     </div>
   );
+  };
 
   const renderUsers = () => (
     <div>
@@ -3161,6 +3162,5 @@ const SDPDashboard: React.FC = () => {
     </div>
   );
 };
-}
 
 export default SDPDashboard;
