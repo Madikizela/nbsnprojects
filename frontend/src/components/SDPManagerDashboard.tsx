@@ -5256,7 +5256,7 @@ const SDPManagerDashboard: React.FC = () => {
               </div>
               <div className="card-body" style={{ height: '300px' }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={enrollmentChartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
+                  <LineChart data={enrollmentChartData} margin={{ top: 8, right: 16, left: -8, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorEnrolled" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#0d9488" stopOpacity={0.75} />
@@ -5330,7 +5330,7 @@ const SDPManagerDashboard: React.FC = () => {
                         fontSize: 10,
                       }}
                     />
-                    <Area
+                    <Line
                       type="monotone"
                       name="Enrolled"
                       dataKey="enrolled"
@@ -5342,7 +5342,6 @@ const SDPManagerDashboard: React.FC = () => {
                           : { fill: '#0d9488', r: 4, strokeWidth: 2, stroke: '#fff' }
                       }
                       activeDot={{ r: 6, stroke: '#fff', strokeWidth: 2 }}
-                      fill="url(#colorEnrolled)"
                     />
                     <Line
                       type="monotone"
@@ -5355,7 +5354,7 @@ const SDPManagerDashboard: React.FC = () => {
                       dot={false}
                       activeDot={false}
                     />
-                  </AreaChart>
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
