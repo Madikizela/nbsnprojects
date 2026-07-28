@@ -1,0 +1,73 @@
+name: Artillery Load Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target API URL'
+        required: true
+        default: 'https://nbsnprojects-production.up.railway.app'
+      duration:
+        description: 'Test duration in seconds'
+        required: true
+        default: '300'
+
+jobs:
+  artillery-test:
+    name: Run Artillery Load Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Artillery
+        run: npm install -g artillery@latest
+
+      - name: Run Artillery Test
+        env:
+          API_URL: ${{ github.event.inputs.target_url }}
+        run: |
+          artillery run \
+            --output report.json \
+            artillery/load-test.yml
+
+      - name: Generate HTML Report
+        run: |
+          artillery report report.json --output report.html
+
+      - name: Upload Artillery Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: artillery-report
+          path: |
+            report.json
+            report.html
+          retention-days: 30
+
+      - name: Check Performance Thresholds
+        run: |
+          # Extract metrics from report
+          ERROR_RATE=$(jq '.aggregate.counters["errors.ETIMEDOUT"] // 0' report.json)
+          P95=$(jq '.aggregate.summaries["http.response_time"].p95' report.json)
+          
+          echo "Error Rate: $ERROR_RATE"
+          echo "P95 Response Time: $P95"
+          
+          # Fail if thresholds exceeded
+          if (( $(echo "$ERROR_RATE > 10" | bc -l) )); then
+            echo "❌ Error rate too high!"
+            exit 1
+          fi
+          
+          if (( $(echo "$P95 > 1000" | bc -l) )); then
+            echo "❌ Response time too slow!"
+            exit 1
+          fi
+          
+          echo "✅ Performance thresholds met!"

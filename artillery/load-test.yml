@@ -1,0 +1,160 @@
+config:
+  target: "{{ $processEnvironment.API_URL }}"
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up phase"
+    - duration: 120
+      arrivalRate: 10
+      rampTo: 50
+      name: "Ramp up load"
+    - duration: 300
+      arrivalRate: 50
+      name: "Sustained load"
+    - duration: 60
+      arrivalRate: 50
+      rampTo: 5
+      name: "Ramp down"
+  
+  # Performance thresholds
+  ensure:
+    maxErrorRate: 1 # Max 1% error rate
+    p95: 800        # 95th percentile response time < 800ms
+    p99: 2000       # 99th percentile response time < 2000ms
+
+  # HTTP settings
+  http:
+    timeout: 10
+    pool: 50
+
+  # Plugins
+  plugins:
+    expect: {}
+    metrics-by-endpoint: {}
+
+  # Variables
+  variables:
+    testUser: "test@example.com"
+    testPassword: "TestPassword123!"
+
+scenarios:
+  - name: "Health Check Flow"
+    weight: 10
+    flow:
+      - get:
+          url: "/api/health"
+          expect:
+            - statusCode: 200
+            - contentType: json
+
+  - name: "Authentication Flow"
+    weight: 20
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            username: "{{ testUser }}"
+            password: "{{ testPassword }}"
+          expect:
+            - statusCode: 
+                - 200
+                - 401
+          capture:
+            - json: "$.token"
+              as: "authToken"
+      
+      - think: 2
+
+      - get:
+          url: "/api/auth/profile"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          ifTrue: "authToken"
+
+  - name: "Projects API Flow"
+    weight: 30
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            username: "{{ testUser }}"
+            password: "{{ testPassword }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+
+      - think: 1
+
+      - get:
+          url: "/api/projects"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          ifTrue: "authToken"
+          expect:
+            - statusCode: 
+                - 200
+                - 401
+
+      - think: 2
+
+      - get:
+          url: "/api/projects/{{ $randomNumber(1, 100) }}"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          ifTrue: "authToken"
+
+  - name: "Learners API Flow"
+    weight: 25
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            username: "{{ testUser }}"
+            password: "{{ testPassword }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+
+      - think: 1
+
+      - get:
+          url: "/api/learners"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          ifTrue: "authToken"
+
+      - think: 2
+
+      - get:
+          url: "/api/learners?page=1&pageSize=20"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          ifTrue: "authToken"
+
+  - name: "Attendance API Flow"
+    weight: 15
+    flow:
+      - post:
+          url: "/api/auth/login"
+          json:
+            username: "{{ testUser }}"
+            password: "{{ testPassword }}"
+          capture:
+            - json: "$.token"
+              as: "authToken"
+
+      - think: 1
+
+      - get:
+          url: "/api/attendance/summary"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          ifTrue: "authToken"
+
+      - think: 2
+
+      - get:
+          url: "/api/attendance/today"
+          headers:
+            Authorization: "Bearer {{ authToken }}"
+          ifTrue: "authToken"

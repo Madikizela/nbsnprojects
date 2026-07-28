@@ -1,0 +1,71 @@
+name: OWASP Dependency-Check
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  dependency-check:
+    name: OWASP Dependency Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Frontend Dependencies
+        run: |
+          cd frontend
+          npm ci
+
+      - name: Restore Backend Dependencies
+        run: |
+          cd backend
+          dotnet restore
+
+      - name: Run OWASP Dependency-Check
+        uses: dependency-check/Dependency-Check_Action@main
+        env:
+          JAVA_HOME: /opt/jdk
+        with:
+          project: 'NBSN-Projects'
+          path: '.'
+          format: 'HTML'
+          args: >
+            --failOnCVSS 7
+            --enableRetired
+            --scan frontend
+            --scan backend
+            --exclude "**/node_modules/**"
+            --exclude "**/bin/**"
+            --exclude "**/obj/**"
+
+      - name: Upload OWASP Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: owasp-dependency-check-report
+          path: reports
+          retention-days: 30
+
+      - name: Upload to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/dependency-check-report.sarif
+        continue-on-error: true
