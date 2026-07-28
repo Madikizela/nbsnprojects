@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import productIcon from '../assets/mobile_icon.png';
+import PopiaConsentModal from './PopiaConsentModal';
 
 const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
 
@@ -233,6 +234,8 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
   const [loading, setLoading] = useState(false);
   const [showPw, setShowPw] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [showPopiaModal, setShowPopiaModal] = useState(false);
+  const [pendingLogin, setPendingLogin] = useState<{ token: string; user: LearnerUser } | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -245,10 +248,34 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
       });
       const data = await res.json();
       if (!res.ok) { setError(data.message || 'Login failed'); return; }
+
+      // POPIA gate — require consent before entering the portal
+      const popiaRecord = localStorage.getItem('popia_consent_v1');
+      if (!popiaRecord) {
+        setPendingLogin({ token: data.token, user: data.user });
+        setShowPopiaModal(true);
+        return;
+      }
       onLogin(data.token, data.user);
     } catch {
       setError('Cannot reach server. Check your connection.');
     } finally { setLoading(false); }
+  }
+
+  function handlePopiaAccept() {
+    localStorage.setItem('popia_consent_v1', JSON.stringify({
+      accepted: true,
+      timestamp: new Date().toISOString(),
+      version: '1.0',
+    }));
+    setShowPopiaModal(false);
+    if (pendingLogin) onLogin(pendingLogin.token, pendingLogin.user);
+  }
+
+  function handlePopiaDecline() {
+    setShowPopiaModal(false);
+    setPendingLogin(null);
+    setError('You must accept the POPIA Privacy Notice to use this portal.');
   }
 
   if (showForgotPassword) {
@@ -257,6 +284,10 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
 
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', overflow: 'hidden', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+      {/* POPIA Consent Modal */}
+      {showPopiaModal && (
+        <PopiaConsentModal onAccept={handlePopiaAccept} onDecline={handlePopiaDecline} />
+      )}
       <style>{`
         @keyframes learnerFloat {
           0%, 100% { transform: translateY(0px); }
@@ -351,7 +382,7 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
             filter: 'drop-shadow(0 12px 32px rgba(16,185,129,0.5))'
           }} />
           <h1 style={{ color:'#fff', fontSize:30, fontWeight:800, margin:'20px 0 6px' }}>Learner Portal</h1>
-          <p style={{ color:'rgba(255,255,255,0.6)', fontSize:15, margin:0 }}>National Building Skills Network</p>
+          <p style={{ color:'rgba(255,255,255,0.6)', fontSize:15, margin:0 }}>NBSN Projects</p>
         </div>
 
         {/* Features */}
@@ -373,7 +404,7 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
         </div>
 
         <p style={{ position:'absolute', bottom:24, color:'rgba(255,255,255,0.3)', fontSize:12 }}>
-          © {new Date().getFullYear()} National Building Skills Network
+          © {new Date().getFullYear()} NBSN Projects
         </p>
       </div>
 
@@ -475,7 +506,15 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
           </a>
 
           <p style={{ textAlign:'center', color:'#94a3b8', fontSize:12, marginTop:32 }}>
-            © {new Date().getFullYear()} National Building Skills Network. All rights reserved.
+            © {new Date().getFullYear()} NBSN Projects. All rights reserved.{' '}
+            <a
+              href="/popia-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#10b981', textDecoration: 'underline' }}
+            >
+              POPIA Privacy Policy
+            </a>
           </p>
         </div>
       </div>
