@@ -123,7 +123,7 @@ const PopiaConsentModal: React.FC<PopiaConsentModalProps> = ({ onAccept, onDecli
         >
           <Section title="1. Introduction and Purpose">
             <p>
-              National Building Skills Network (<strong>"NBSN"</strong>, <strong>"we"</strong>,{' '}
+              NBSN Projects (<strong>"NBSN Projects"</strong>, <strong>"we"</strong>,{' '}
               <strong>"us"</strong>, or <strong>"our"</strong>) is committed to protecting your
               personal information in accordance with the{' '}
               <strong>Protection of Personal Information Act 4 of 2013 (POPIA)</strong> and all
@@ -137,7 +137,7 @@ const PopiaConsentModal: React.FC<PopiaConsentModalProps> = ({ onAccept, onDecli
 
           <Section title="2. Information Officer">
             <InfoRow label="Information Officer" value="NBSN Compliance Officer" />
-            <InfoRow label="Organisation" value="National Building Skills Network (NBSN)" />
+            <InfoRow label="Organisation" value="NBSN Projects" />
             <InfoRow label="Email" value="popia@nbsn.co.za" />
             <InfoRow label="Postal Address" value="NBSN Head Office, South Africa" />
             <p style={{ marginTop: 12 }}>
@@ -467,7 +467,7 @@ const PopiaConsentModal: React.FC<PopiaConsentModalProps> = ({ onAccept, onDecli
           </div>
 
           <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: 12, margin: '12px 0 0' }}>
-            Declining will log you out. This consent is required to use the NBSN Portal.
+            Declining will log you out. This consent is required to use the NBSN Projects Portal.
           </p>
         </div>
       </div>

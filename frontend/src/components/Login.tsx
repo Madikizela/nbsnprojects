@@ -336,7 +336,7 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
 
         {/* Footer */}
         <p style={{ position:'absolute', bottom:24, color:'rgba(255,255,255,0.35)', fontSize:12 }}>
-          © {new Date().getFullYear()} National Building Skills Network
+          © {new Date().getFullYear()} NBSN Projects
         </p>
       </div>
 
@@ -447,7 +447,7 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
           </button>
 
           <p style={{ textAlign:'center', color:'#94a3b8', fontSize:12, marginTop:32 }}>
-            © {new Date().getFullYear()} National Building Skills Network. All rights reserved.{' '}
+            © {new Date().getFullYear()} NBSN Projects. All rights reserved.{' '}
             <a
               href="/popia-policy"
               target="_blank"

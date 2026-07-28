@@ -11,7 +11,7 @@ const PopiaPolicyPage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: "'Segoe UI', system-ui, sans-serif", overflowY: 'auto' }}>
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)', padding: '24px 40px', color: '#fff', display: 'flex', alignItems: 'center', gap: 20 }}>
         <button
@@ -23,7 +23,7 @@ const PopiaPolicyPage: React.FC = () => {
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>🛡️ POPIA Privacy Policy</h1>
           <p style={{ margin: '4px 0 0', opacity: 0.85, fontSize: 14 }}>
-            National Building Skills Network — Protection of Personal Information Act 4 of 2013
+            NBSN Projects — Protection of Personal Information Act 4 of 2013
           </p>
         </div>
       </div>
@@ -40,7 +40,7 @@ const PopiaPolicyPage: React.FC = () => {
 
           <PolicySection title="1. Introduction">
             <p>
-              National Building Skills Network (<strong>"NBSN"</strong>) is a responsible party as
+              NBSN Projects (<strong>"NBSN Projects"</strong>) is a responsible party as
               defined in the Protection of Personal Information Act 4 of 2013 (<strong>POPIA</strong>).
               We are committed to protecting the personal information of all individuals whose data
               we process, including learners, employees, contractors, and system users.
@@ -56,7 +56,7 @@ const PopiaPolicyPage: React.FC = () => {
               <tbody>
                 {[
                   ['Information Officer', 'NBSN Compliance Officer'],
-                  ['Organisation', 'National Building Skills Network (NBSN)'],
+                  ['Organisation', 'NBSN Projects'],
                   ['Email', 'popia@nbsn.co.za'],
                   ['Website', 'www.nbsn.co.za'],
                   ['Jurisdiction', 'Republic of South Africa'],
@@ -197,7 +197,7 @@ const PopiaPolicyPage: React.FC = () => {
 
       {/* Footer */}
       <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: 13 }}>
-        © {new Date().getFullYear()} National Building Skills Network. All rights reserved.
+        © {new Date().getFullYear()} NBSN Projects. All rights reserved.
       </div>
     </div>
   );
