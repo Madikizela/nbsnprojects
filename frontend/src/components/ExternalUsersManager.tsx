@@ -38,6 +38,8 @@ const emptyForm = (): FormState => ({
   projectAccess: []
 });
 
+type Toast = { id:number; type:'success'|'error'|'info'; text:string };
+
 export default function ExternalUsersManager({ fetchWithAuth }: { fetchWithAuth: (url: string, opts?: RequestInit) => Promise<Response | null> }) {
   const [users, setUsers] = useState<ExternalUser[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -47,9 +49,17 @@ export default function ExternalUsersManager({ fetchWithAuth }: { fetchWithAuth:
   const [form, setForm] = useState<FormState>(emptyForm());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [toasts, setToasts] = useState<Toast[]>([]);
   // Per-project document types: { projectId -> string[] }
   const [projectDocTypes, setProjectDocTypes] = useState<Record<number, string[]>>({});
   const [loadingDocTypes, setLoadingDocTypes] = useState<Record<number, boolean>>({});
+
+  const pushToast = (type:Toast['type'], text:string) => {
+    const id = Date.now() + Math.random();
+    setToasts(t => [...t, { id, type, text }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 5000);
+  };
+  const dismissToast = (id:number) => setToasts(t => t.filter(x => x.id !== id));
 
   useEffect(() => { loadData(); }, []);
 
@@ -159,6 +169,7 @@ export default function ExternalUsersManager({ fetchWithAuth }: { fetchWithAuth:
     if (res?.ok) {
       await loadData();
       setShowModal(false);
+      pushToast('success', editUser ? `User "${form.firstName} ${form.lastName}" updated successfully` : `User "${form.firstName} ${form.lastName}" created successfully — credentials sent via email`);
     } else {
       const data = res ? await res.json().catch(() => ({})) : {};
       setError(data.message || 'Failed to save. Please try again.');
@@ -169,14 +180,41 @@ export default function ExternalUsersManager({ fetchWithAuth }: { fetchWithAuth:
   const handleDelete = async (id: number, name: string) => {
     if (!confirm(`Delete external user "${name}"? This cannot be undone.`)) return;
     const res = await fetchWithAuth(`/api/ExternalUsers/${id}`, { method: 'DELETE' });
-    if (res?.ok) await loadData();
-    else alert('Failed to delete user.');
+    if (res?.ok) {
+      await loadData();
+      pushToast('success', `External user "${name}" deleted successfully`);
+    }
+    else pushToast('error', 'Failed to delete user.');
   };
 
   const statusLabel = (s: number) => s === 1 ? 'Active' : s === 2 ? 'Inactive' : 'Suspended';
 
   return (
-    <div className="card border-0 shadow-lg">
+    <div className="card border-0 shadow-lg" style={{ position:'relative' }}>
+      {/* Inline Toast Stack */}
+      <div style={{position:'fixed',top:'16px',right:'16px',zIndex:9999,display:'flex',flexDirection:'column',gap:'8px',maxWidth:'400px'}}>
+        {toasts.map(t => (
+          <div key={t.id} onClick={()=>dismissToast(t.id)}
+            style={{
+              cursor:'pointer',
+              padding:'10px 14px',
+              borderRadius:'10px',
+              border:`1px solid ${t.type==='error'?'#dc2626':t.type==='success'?'#16a34a':'#2563eb'}`,
+              backgroundColor:t.type==='error'?'#fef2f2':t.type==='success'?'#f0fdf4':'#eff6ff',
+              color:t.type==='error'?'#991b1b':t.type==='success'?'#166534':'#1e40af',
+              fontSize:14,
+              fontWeight:500,
+              boxShadow:'0 4px 14px rgba(0,0,0,0.12)',
+              display:'flex',
+              justifyContent:'space-between',
+              alignItems:'center',
+              gap:'12px'
+            }}>
+            <span>{t.type==='error'?'⚠️ ':t.type==='success'?'✅ ':'ℹ️ '}{t.text}</span>
+            <span style={{opacity:0.5,fontSize:12}}>✕</span>
+          </div>
+        ))}
+      </div>
       <div className="card-header border-0 d-flex justify-content-between align-items-center" style={{ backgroundColor: '#1e3a8a' }}>
         <h4 className="mb-0 text-white">🏢 External Users (SETA / Funder Access)</h4>
         <button className="btn btn-light btn-sm fw-bold" onClick={openCreate}>+ Create External User</button>

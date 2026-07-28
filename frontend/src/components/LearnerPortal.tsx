@@ -904,6 +904,8 @@ function LearnerMaterials({ token, user }: { token: string; user: LearnerUser })
   const [materials, setMaterials] = useState<unknown[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [msg, setMsg] = useState('');
+  const setTempMsg = (m:string) => { setMsg(m); setTimeout(()=>setMsg(x=>x===m?'':x), 5000); };
 
   useEffect(() => {
     loadMaterials();
@@ -940,9 +942,12 @@ function LearnerMaterials({ token, user }: { token: string; user: LearnerUser })
         a.download = fileName;
         a.click();
         URL.revokeObjectURL(url);
+        setTempMsg(`✅ Downloaded "${fileName}"`);
+      } else {
+        setTempMsg(`❌ Failed to download file (${res.status})`);
       }
     } catch {
-      alert('Failed to download file');
+      setTempMsg('❌ Failed to download file — connection error');
     }
   }
 
@@ -980,6 +985,19 @@ function LearnerMaterials({ token, user }: { token: string; user: LearnerUser })
       <p style={{ color: '#94a3b8', fontSize: 14, marginBottom: 24 }}>
         Learning materials uploaded by your instructors for your qualification
       </p>
+
+      {msg && (
+        <div onClick={()=>setMsg('')} style={{
+          cursor:'pointer', marginBottom:16, padding:'10px 14px', borderRadius:10,
+          border:`1px solid ${msg.startsWith('✅')?'#166534':'#991b1b'}`,
+          backgroundColor:msg.startsWith('✅')?'#052e16':'#450a0a',
+          color:msg.startsWith('✅')?'#86efac':'#fca5a5',
+          fontSize:14, fontWeight:500, display:'flex', justifyContent:'space-between', alignItems:'center', gap:12
+        }}>
+          <span>{msg}</span>
+          <span style={{opacity:0.5, fontSize:12}}>✕</span>
+        </div>
+      )}
 
       {loading ? (
         <div style={cardStyle}>
@@ -1780,6 +1798,8 @@ function LearnerAttendance({ token, user }: { token: string; user: LearnerUser }
   const [data, setData] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [msg, setMsg] = React.useState('');
+  const setTempMsg = (m:string) => { setMsg(m); setTimeout(()=>setMsg(x=>x===m?'':x), 5000); };
 
   React.useEffect(() => { loadData(); }, [year, month]);
 
@@ -1801,7 +1821,10 @@ function LearnerAttendance({ token, user }: { token: string; user: LearnerUser }
       a.href = URL.createObjectURL(blob);
       a.download = `Attendance_${year}_${String(month).padStart(2,'0')}.pdf`;
       a.click();
-    } else { alert('Failed to generate PDF'); }
+      setTempMsg('✅ Attendance PDF downloaded');
+    } else {
+      setTempMsg('❌ Failed to generate PDF — please try again');
+    }
   }
 
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1830,6 +1853,18 @@ function LearnerAttendance({ token, user }: { token: string; user: LearnerUser }
         </div>
       </div>
 
+      {msg && (
+        <div onClick={()=>setMsg('')} style={{
+          cursor:'pointer', marginBottom:16, padding:'10px 14px', borderRadius:10,
+          border:`1px solid ${msg.startsWith('✅')?'#166534':'#991b1b'}`,
+          backgroundColor:msg.startsWith('✅')?'#052e16':'#450a0a',
+          color:msg.startsWith('✅')?'#86efac':'#fca5a5',
+          fontSize:14, fontWeight:500, display:'flex', justifyContent:'space-between', alignItems:'center', gap:12
+        }}>
+          <span>{msg}</span>
+          <span style={{opacity:0.5, fontSize:12}}>✕</span>
+        </div>
+      )}
       {loading && <div style={{ textAlign:'center', padding:40, color:'#94a3b8' }}><div className="spinner-border text-primary"></div><p>Loading...</p></div>}
       {error && <div style={{ textAlign:'center', padding:40, color:'#ef4444' }}>{error}</div>}
 

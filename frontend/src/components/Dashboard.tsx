@@ -41,17 +41,47 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
 
-  React.useEffect(() => {
-    fetch(`${apiUrl}/api/SkillsDevelopmentProviders`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(r => r.json())
-      .then(data => { setSdps(Array.isArray(data) ? data : []); setLoading(false); })
-      .catch(() => { setError('Failed to load SDPs'); setLoading(false); });
+  const loadSdps = React.useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const r = await fetch(`${apiUrl}/api/SkillsDevelopmentProviders`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) {
+        setError(`Server returned ${r.status}: ${r.statusText}. Please try again.`);
+        return;
+      }
+      const ct = r.headers.get('content-type') || '';
+      let data;
+      if (ct.includes('application/json')) {
+        data = await r.json();
+      } else {
+        setError('Unexpected non-JSON response from server. The SDP service may be unavailable.');
+        return;
+      }
+      setSdps(Array.isArray(data) ? data : []);
+    } catch {
+      setError('Network error — could not reach the server. Please check your connection and retry.');
+    } finally {
+      setLoading(false);
+    }
   }, [token, apiUrl]);
 
+  React.useEffect(() => { loadSdps(); }, [loadSdps]);
+
   if (loading) return <div className="text-center p-4"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>;
-  if (error) return <div className="alert alert-danger">{error}</div>;
+  if (error) return (
+    <div className="alert alert-danger d-flex justify-content-between align-items-start gap-3" style={{borderRadius:12,border:'1.5px solid #dc2626',backgroundColor:'#fef2f2',color:'#991b1b'}}>
+      <div>
+        <div style={{fontWeight:700,marginBottom:4}}>❌ Failed to load SDP list</div>
+        <div style={{fontSize:14}}>{error}</div>
+      </div>
+      <button onClick={loadSdps} className="btn btn-sm" style={{backgroundColor:'#dc2626',color:'#fff',fontWeight:600,whiteSpace:'nowrap'}}>
+        🔄 Retry
+      </button>
+    </div>
+  );
 
   return (
     <div className="dash-card" style={{ overflow:'hidden' }}>
@@ -92,14 +122,25 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
   );
 };
 
+type Toast = { id:number; type:'success'|'error'|'info'; text:string };
+
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeSection, setActiveSection] = useState('clients');
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [clientsLoading, setClientsLoading] = useState(false);
+  const [clientsError, setClientsError] = useState('');
   const [resendingId, setResendingId] = useState<number | null>(null);
   const [resendMessage, setResendMessage] = useState<{ id: number; text: string; type: 'success' | 'error' } | null>(null);
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const navigate = useNavigate();
+
+  const pushToast = (type:Toast['type'], text:string) => {
+    const id = Date.now() + Math.random();
+    setToasts(t => [...t, { id, type, text }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 5000);
+  };
+  const dismissToast = (id:number) => setToasts(t => t.filter(x => x.id !== id));
 
   useEffect(() => {
     // Get user data from localStorage or token
@@ -127,17 +168,25 @@ const Dashboard = () => {
 
   const fetchClients = async () => {
     setClientsLoading(true);
+    setClientsError('');
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API}/api/Clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (response.ok) {
-        const data = await response.json();
-        setClients(data);
+      if (!response.ok) {
+        setClientsError(`Server returned ${response.status}: ${response.statusText}. Please try again.`);
+        return;
       }
+      const ct = response.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        setClientsError('Unexpected non-JSON response from server. The clients service may be unavailable.');
+        return;
+      }
+      const data = await response.json();
+      setClients(Array.isArray(data) ? data : []);
     } catch (err) {
-      console.error('Failed to load clients:', err);
+      setClientsError(`Network error: ${err instanceof Error ? err.message : 'Could not reach the server.'}. Please check your connection and retry.`);
     } finally {
       setClientsLoading(false);
     }
@@ -278,6 +327,17 @@ const Dashboard = () => {
               </div>
             </div>
 
+            {clientsError && (
+              <div className="alert alert-danger d-flex justify-content-between align-items-start gap-3 mb-3" style={{borderRadius:12,border:'1.5px solid #dc2626',backgroundColor:'#fef2f2',color:'#991b1b'}}>
+                <div>
+                  <div style={{fontWeight:700,marginBottom:4}}>❌ Failed to load clients</div>
+                  <div style={{fontSize:14}}>{clientsError}</div>
+                </div>
+                <button onClick={fetchClients} className="btn btn-sm" style={{backgroundColor:'#dc2626',color:'#fff',fontWeight:600,whiteSpace:'nowrap'}}>
+                  🔄 Retry
+                </button>
+              </div>
+            )}
             <div className="dash-card" style={{ overflow:'hidden' }}>
               <div className="table-responsive">
                 {clientsLoading ? (
@@ -379,9 +439,8 @@ const Dashboard = () => {
               industry: ''
             }}
             onSubmit={async (formData) => {
-              // Here you would typically send the data to your backend
               console.log('Saving profile data:', formData);
-              alert('Profile updated successfully!');
+              pushToast('success', 'Profile updated successfully!');
             }}
           />
         );
@@ -434,7 +493,32 @@ const Dashboard = () => {
         @media (max-width: 768px) { .dash-sidebar { display: none !important; } .dash-main { width: 100% !important; } }
       `}} />
 
-      <div style={{ display:'flex', flexDirection:'column', minHeight:'100vh', background:'#f1f5f9', fontFamily:"'Segoe UI', system-ui, sans-serif" }}>
+      <div style={{ display:'flex', flexDirection:'column', minHeight:'100vh', background:'#f1f5f9', fontFamily:"'Segoe UI', system-ui, sans-serif", position:'relative' }}>
+
+        {/* Inline Toast Stack */}
+        <div style={{position:'fixed',top:'16px',right:'16px',zIndex:9999,display:'flex',flexDirection:'column',gap:'8px',maxWidth:'400px'}}>
+          {toasts.map(t => (
+            <div key={t.id} onClick={()=>dismissToast(t.id)}
+              style={{
+                cursor:'pointer',
+                padding:'10px 14px',
+                borderRadius:'10px',
+                border:`1px solid ${t.type==='error'?'#dc2626':t.type==='success'?'#16a34a':'#2563eb'}`,
+                backgroundColor:t.type==='error'?'#fef2f2':t.type==='success'?'#f0fdf4':'#eff6ff',
+                color:t.type==='error'?'#991b1b':t.type==='success'?'#166534':'#1e40af',
+                fontSize:14,
+                fontWeight:500,
+                boxShadow:'0 4px 14px rgba(0,0,0,0.12)',
+                display:'flex',
+                justifyContent:'space-between',
+                alignItems:'center',
+                gap:'12px'
+              }}>
+              <span>{t.type==='error'?'⚠️ ':t.type==='success'?'✅ ':'ℹ️ '}{t.text}</span>
+              <span style={{opacity:0.5,fontSize:12}}>✕</span>
+            </div>
+          ))}
+        </div>
 
         {/* ── NAVBAR ── */}
         <nav style={{ background:'linear-gradient(135deg,#0f172a 0%,#1e293b 100%)', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 24px', height:56, display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>

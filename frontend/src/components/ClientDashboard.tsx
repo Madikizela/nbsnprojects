@@ -18,6 +18,8 @@ interface User {
   departmentName: string | null;
 }
 
+type Toast = { id:number; type:'success'|'error'|'info'; text:string };
+
 const ClientDashboard: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);
   const [activeSection, setActiveSection] = useState('overview');
@@ -27,10 +29,20 @@ const ClientDashboard: React.FC = () => {
   const [sdps, setSdps] = useState<SkillsDevelopmentProvider[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
+  const [dataError, setDataError] = useState('');
 
   // SDP credential resend state
   const [resendingId, setResendingId] = useState<number | null>(null);
   const [resendMsg, setResendMsg] = useState<{ id: number; text: string; ok: boolean } | null>(null);
+
+  // Inline toasts
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const pushToast = (type:Toast['type'], text:string) => {
+    const id = Date.now() + Math.random();
+    setToasts(t => [...t, { id, type, text }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 5000);
+  };
+  const dismissToast = (id:number) => setToasts(t => t.filter(x => x.id !== id));
 
   const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
 
@@ -87,40 +99,32 @@ const ClientDashboard: React.FC = () => {
     const userData = localStorage.getItem('user');
     if (userData) {
       const parsedUser = JSON.parse(userData);
-      // Patch: If clientId is missing or invalid, try to recover from token or force reload
-      if (!parsedUser.clientId || parsedUser.clientId <= 0) {
-        // Try to recover clientId from previous session or show a warning
-        const backupUser = JSON.parse(localStorage.getItem('user') || '{}');
-        if (backupUser && backupUser.clientId && backupUser.clientId > 0) {
-          parsedUser.clientId = backupUser.clientId;
-        }
-      }
       setUser(parsedUser);
     }
     setLoading(false);
   }, []);
 
-  // Fetch SDPs and projects when user data is available
-  useEffect(() => {
-    const fetchData = async () => {
-      if (user?.clientId) {
-        setDataLoading(true);
-        try {
-          const [sdpsData, projectsData] = await Promise.all([
-            getClientSDPs(user.clientId),
-            getClientProjects(user.clientId)
-          ]);
-          setSdps(sdpsData);
-          setProjects(projectsData);
-        } catch (error) {
-          console.error('Error fetching data:', error);
-        } finally {
-          setDataLoading(false);
-        }
-      }
-    };
+  const fetchClientData = async () => {
+    if (!user?.clientId) return;
+    setDataLoading(true);
+    setDataError('');
+    try {
+      const [sdpsData, projectsData] = await Promise.all([
+        getClientSDPs(user.clientId),
+        getClientProjects(user.clientId)
+      ]);
+      setSdps(Array.isArray(sdpsData) ? sdpsData : []);
+      setProjects(Array.isArray(projectsData) ? projectsData : []);
+    } catch (error: unknown) {
+      setDataError(error instanceof Error ? error.message : 'Could not load your SDPs and projects. Please check your connection and retry.');
+    } finally {
+      setDataLoading(false);
+    }
+  };
 
-    fetchData();
+  useEffect(() => {
+    fetchClientData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.clientId]);
 
   // Cascading dropdown handlers
@@ -266,20 +270,8 @@ const ClientDashboard: React.FC = () => {
     if (!validateForm()) {
       return;
     }
-    // Guard: ensure user has a valid clientId
-    // Patch: Try to recover clientId if missing
-    let effectiveClientId = user?.clientId;
-    if (!effectiveClientId || effectiveClientId <= 0) {
-      const userData = localStorage.getItem('user');
-      if (userData) {
-        const parsedUser = JSON.parse(userData);
-        if (parsedUser && parsedUser.clientId && parsedUser.clientId > 0) {
-          effectiveClientId = parsedUser.clientId;
-        }
-      }
-    }
-    if (!effectiveClientId || effectiveClientId <= 0) {
-      alert('Your account is not linked to a client. Please log in with a client account or register a client before adding an SDP.');
+    if (!user?.clientId || user.clientId <= 0) {
+      pushToast('error', 'Your account is not linked to a client. Please log in with a client account or register a client before adding an SDP.');
       return;
     }
     setIsSubmitting(true);
@@ -304,7 +296,7 @@ const ClientDashboard: React.FC = () => {
         phoneNumber: sdpFormData.phoneNumber,
         contactPerson: sdpFormData.contactPerson,
         website: sdpFormData.website,
-        clientId: effectiveClientId
+        clientId: user.clientId
       };
 
       const token = localStorage.getItem('token');
@@ -324,12 +316,11 @@ const ClientDashboard: React.FC = () => {
       } else {
         const text = await response.text();
         console.error('Non-JSON response received for SDP registration:', text);
-        alert('Server returned a non-JSON response while registering the SDP. Please check server logs.\n\nPreview:\n' + text.substring(0, 200));
+        pushToast('error', 'Server returned a non-JSON response while registering the SDP. Please check server logs. Preview: ' + text.substring(0, 150));
         return;
       }
 
-      if (response.ok && result.success) {
-        // Reset form
+      if (response.ok && (result as {success?:boolean}).success) {
         setSdpFormData({
           sdpName: '',
           registrationNumber: '',
@@ -350,15 +341,15 @@ const ClientDashboard: React.FC = () => {
         setAvailableMunicipalities([]);
         setFormErrors({});
         
-        alert(`SDP registered successfully! ${result.message}`);
+        pushToast('success', `SDP registered successfully! ${(result as {message?:string}).message || ''}`);
         setActiveSection('overview');
+        fetchClientData();
       } else {
-        const errorMessage = result.message || 'Failed to register SDP';
-        alert(`Error: ${errorMessage}`);
+        const errorMessage = (result as {message?:string}).message || 'Failed to register SDP';
+        pushToast('error', `Error: ${errorMessage}`);
       }
-    } catch (error) {
-      console.error('Error submitting SDP form:', error);
-      alert('An error occurred while registering the SDP. Please try again.');
+    } catch {
+      pushToast('error', 'An error occurred while registering the SDP. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -383,6 +374,19 @@ const ClientDashboard: React.FC = () => {
         <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>Welcome to {user?.clientName} Dashboard 🏢</h2>
         <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Manage your organisation's skills development and projects</p>
       </div>
+
+      {/* Data fetch error banner */}
+      {dataError && (
+        <div className="alert alert-danger d-flex justify-content-between align-items-start gap-3 mb-4" style={{borderRadius:14,border:'1.5px solid #dc2626',backgroundColor:'#fef2f2',color:'#991b1b'}}>
+          <div>
+            <div style={{fontWeight:700,marginBottom:4}}>❌ Failed to load SDPs and projects</div>
+            <div style={{fontSize:14}}>{dataError}</div>
+          </div>
+          <button onClick={fetchClientData} className="btn btn-sm" style={{backgroundColor:'#dc2626',color:'#fff',fontWeight:600,whiteSpace:'nowrap'}}>
+            🔄 Retry
+          </button>
+        </div>
+      )}
 
       {/* Stat cards */}
       <div className="row g-3 mb-4">
@@ -830,7 +834,7 @@ const ClientDashboard: React.FC = () => {
   }
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', minHeight:'100vh', background:'#f1f5f9', fontFamily:"'Segoe UI', system-ui, sans-serif" }}>
+    <div style={{ display:'flex', flexDirection:'column', minHeight:'100vh', background:'#f1f5f9', fontFamily:"'Segoe UI', system-ui, sans-serif", position:'relative' }}>
       <style>{`
         .cd-nav-btn { color:rgba(255,255,255,0.65); background:transparent; border:none; border-radius:10px; padding:11px 16px; display:flex; align-items:center; gap:10px; font-size:0.92rem; font-weight:500; transition:all 0.18s; width:100%; text-align:left; cursor:pointer; }
         .cd-nav-btn:hover { background:rgba(255,255,255,0.08); color:#fff; }
@@ -838,6 +842,31 @@ const ClientDashboard: React.FC = () => {
         .cd-card { background:#fff; border-radius:14px; border:none; box-shadow:0 2px 8px rgba(0,0,0,0.07); }
         @media (max-width:768px) { .cd-sidebar { display:none !important; } .cd-main { width:100% !important; } }
       `}</style>
+
+      {/* Inline Toast Stack */}
+      <div style={{position:'fixed',top:'16px',right:'16px',zIndex:9999,display:'flex',flexDirection:'column',gap:'8px',maxWidth:'400px'}}>
+        {toasts.map(t => (
+          <div key={t.id} onClick={()=>dismissToast(t.id)}
+            style={{
+              cursor:'pointer',
+              padding:'10px 14px',
+              borderRadius:'10px',
+              border:`1px solid ${t.type==='error'?'#dc2626':t.type==='success'?'#16a34a':'#2563eb'}`,
+              backgroundColor:t.type==='error'?'#fef2f2':t.type==='success'?'#f0fdf4':'#eff6ff',
+              color:t.type==='error'?'#991b1b':t.type==='success'?'#166534':'#1e40af',
+              fontSize:14,
+              fontWeight:500,
+              boxShadow:'0 4px 14px rgba(0,0,0,0.12)',
+              display:'flex',
+              justifyContent:'space-between',
+              alignItems:'center',
+              gap:'12px'
+            }}>
+            <span>{t.type==='error'?'⚠️ ':t.type==='success'?'✅ ':'ℹ️ '}{t.text}</span>
+            <span style={{opacity:0.5,fontSize:12}}>✕</span>
+          </div>
+        ))}
+      </div>
 
       {/* Navbar */}
       <nav style={{ background:'linear-gradient(135deg,#0f172a,#1e293b)', borderBottom:'1px solid rgba(255,255,255,0.08)', padding:'0 24px', height:56, display:'flex', alignItems:'center', justifyContent:'space-between', flexShrink:0 }}>

@@ -31,10 +31,13 @@ const icon = (t:string) => {
   return '📋';
 };
 
+type Toast = { id:number; type:'success'|'error'|'info'; text:string };
+
 export default function ExternalPortal() {
   const navigate = useNavigate();
   const [accessList, setAccessList] = useState<ProjectAccess[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string>('');
   const [sel, setSel] = useState<ProjectAccess|null>(null);
   const [learner, setLearner] = useState<Learner|null>(null);
   const [userName, setUserName] = useState('');
@@ -57,7 +60,52 @@ export default function ExternalPortal() {
   // Summary report state
   const [summaryYear, setSummaryYear] = useState(new Date().getFullYear());
   const [summaryMonth, setSummaryMonth] = useState(new Date().getMonth()+1);
+  // Inline toasts
+  const [toasts, setToasts] = useState<Toast[]>([]);
   const token = localStorage.getItem('token');
+
+  const pushToast = (type:Toast['type'], text:string) => {
+    const id = Date.now() + Math.random();
+    setToasts(t => [...t, { id, type, text }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 5000);
+  };
+  const dismissToast = (id:number) => setToasts(t => t.filter(x => x.id !== id));
+
+  const fetchMyAccess = async () => {
+    if (!token) { navigate('/login'); return; }
+    setLoading(true);
+    setLoadError('');
+    try {
+      const r = await fetch(`${API}/api/ExternalUsers/my-access`, { headers:{ Authorization:`Bearer ${token}` } });
+      if (!r.ok) {
+        setLoadError(`Server returned ${r.status}: ${r.statusText}. Please check your connection and try again.`);
+        return;
+      }
+      const ct = r.headers.get('content-type') || '';
+      if (!ct.includes('application/json')) {
+        const txt = await r.text();
+        setLoadError('Unexpected non-JSON response from server. The service may be temporarily unavailable.\n\nPreview: ' + txt.substring(0, 150));
+        return;
+      }
+      let data;
+      try {
+        data = await r.json();
+      } catch {
+        setLoadError('Failed to parse server response. Please try again.');
+        return;
+      }
+      if (!Array.isArray(data)) {
+        setLoadError('Unexpected response format from server. Expected a list of project access entries.');
+        return;
+      }
+      setAccessList(data);
+      if (data.length) { setSel(data[0]); setOrgName(data[0].organizationName||''); }
+    } catch (e: unknown) {
+      setLoadError(`Network error: ${e instanceof Error ? e.message : 'Could not reach the server.'}. Please check your connection and retry.`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!token) { navigate('/login'); return; }
@@ -66,11 +114,8 @@ export default function ExternalPortal() {
       if (d['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] !== 'ExternalUser') { navigate('/login'); return; }
       setUserName(d['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name'] || '');
     } catch { navigate('/login'); return; }
-    fetch(`${API}/api/ExternalUsers/my-access`, { headers:{ Authorization:`Bearer ${token}` } })
-      .then(r => r.json()).then(data => {
-        setAccessList(data);
-        if (data.length) { setSel(data[0]); setOrgName(data[0].organizationName||''); }
-      }).finally(() => setLoading(false));
+    fetchMyAccess();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadAtt = (lid:number, y:number, m:number) => {
@@ -87,7 +132,7 @@ export default function ExternalPortal() {
       return;
     }
     const res = await fetch(`${API}/api/ExternalUsers/document/${doc.id}/download`, { headers:{ Authorization:`Bearer ${token}` } });
-    if (!res.ok) { alert(`Failed (${res.status})`); return; }
+    if (!res.ok) { pushToast('error', `Failed to load document (${res.status})`); return; }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const ct = res.headers.get('content-type')||blob.type||'';
@@ -106,7 +151,7 @@ export default function ExternalPortal() {
       url = `${API}/api/AttendanceTracking/learner/${lid}/calendar/pdf?year=${y}&month=${m}`;
     }
     const res = await fetch(url, { headers:{ Authorization:`Bearer ${token}` } });
-    if (!res.ok) { alert('Download failed'); return; }
+    if (!res.ok) { pushToast('error', 'Download failed'); return; }
     const blob = await res.blob();
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = doc.fileName; a.click();
   };
@@ -140,15 +185,54 @@ export default function ExternalPortal() {
         a.download = `${sel.project.projectName.replace(/ /g,'_')}_Documents_${new Date().toISOString().slice(0,10)}.zip`;
         a.click();
         setShowBulk(false);
-      } else { alert('Bulk download failed'); }
-    } catch { alert('Bulk download failed'); }
+      } else { pushToast('error', 'Bulk download failed'); }
+    } catch { pushToast('error', 'Bulk download failed'); }
     setBulkDownloading(false);
   };
 
   if (loading) return <div style={{height:'100vh',display:'flex',alignItems:'center',justifyContent:'center',backgroundColor:'#0f172a',color:'white'}}><div className="spinner-border text-primary"></div></div>;
 
   return (
-    <div style={{backgroundColor:'#0f172a',minHeight:'100vh',color:'white'}}>
+    <div style={{backgroundColor:'#0f172a',minHeight:'100vh',color:'white',position:'relative'}}>
+      {/* Inline Toast Stack */}
+      <div style={{position:'fixed',top:'16px',right:'16px',zIndex:9999,display:'flex',flexDirection:'column',gap:'8px',maxWidth:'400px'}}>
+        {toasts.map(t => (
+          <div key={t.id} onClick={()=>dismissToast(t.id)}
+            style={{
+              cursor:'pointer',
+              padding:'10px 14px',
+              borderRadius:'8px',
+              border:`1px solid ${t.type==='error'?'#dc2626':t.type==='success'?'#16a34a':'#2563eb'}`,
+              backgroundColor:t.type==='error'?'#450a0a':t.type==='success'?'#052e16':'#172554',
+              color:t.type==='error'?'#fca5a5':t.type==='success'?'#86efac':'#93c5fd',
+              fontSize:'0.85rem',
+              fontWeight:500,
+              boxShadow:'0 4px 12px rgba(0,0,0,0.4)',
+              display:'flex',
+              justifyContent:'space-between',
+              alignItems:'center',
+              gap:'12px',
+              whiteSpace:'pre-wrap'
+            }}>
+            <span>{t.type==='error'?'⚠️ ':t.type==='success'?'✅ ':'ℹ️ '}{t.text}</span>
+            <span style={{opacity:0.6,fontSize:'0.75rem'}}>✕</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Fetch Error Banner */}
+      {loadError && (
+        <div style={{margin:'12px 14px 0',padding:'14px 18px',borderRadius:'10px',backgroundColor:'#450a0a',border:'1.5px solid #dc2626',color:'#fecaca',display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:'12px'}}>
+          <div>
+            <div style={{fontWeight:'bold',marginBottom:'4px',color:'#fca5a5'}}>❌ Failed to load your project access</div>
+            <div style={{fontSize:'0.85rem',whiteSpace:'pre-wrap'}}>{loadError}</div>
+          </div>
+          <button onClick={fetchMyAccess}
+            style={{flexShrink:0,backgroundColor:'#dc2626',color:'white',border:'none',borderRadius:'6px',padding:'7px 14px',fontWeight:600,fontSize:'0.82rem',cursor:'pointer'}}>
+            🔄 Retry
+          </button>
+        </div>
+      )}
       {/* Header */}
       <div style={{backgroundColor:'#1e3a8a',padding:'10px 20px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <div className="d-flex align-items-center gap-2">
@@ -209,7 +293,7 @@ export default function ExternalPortal() {
                       const url=`${API}/api/ExternalUsers/project/${sel.project.id}/summary-report?year=${summaryYear}&month=${summaryMonth}`;
                       const res=await fetch(url,{headers:{Authorization:`Bearer ${token}`}});
                       if(res.ok){const a=document.createElement('a');a.href=URL.createObjectURL(await res.blob());a.download=`Summary_${sel.project.projectName.replace(/ /g,'_')}_${summaryYear}_${String(summaryMonth).padStart(2,'0')}.pdf`;a.click();}
-                      else alert('Failed to generate summary report');
+                      else pushToast('error', 'Failed to generate summary report');
                     }} style={{backgroundColor:'#0EA5E9',color:'white',border:'none',borderRadius:'6px',padding:'6px 12px',cursor:'pointer',fontSize:'0.78rem',whiteSpace:'nowrap',fontWeight:'bold'}}>
                       📊 Summary Report
                     </button>
