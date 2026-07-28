@@ -544,8 +544,6 @@ interface LearnerProgress {
 }
 
 const SDPManagerDashboard: React.FC = () => {
-  console.log('SDPManagerDashboard: Component rendered/re-rendered');
-  
   // API base URL constant
   const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
   
@@ -695,6 +693,7 @@ const SDPManagerDashboard: React.FC = () => {
 
   const fetchAssessmentStrategyPlans = async () => {
     setLoadingStrategyPlans(true);
+    setStrategyPlansError(null);
     try {
       const response = await fetchWithAuth('/api/assessments/strategy-plans');
       if (response && response.ok) {
@@ -704,8 +703,12 @@ const SDPManagerDashboard: React.FC = () => {
           plansMap[plan.projectQualificationUnitStandardId] = plan;
         });
         setAssessmentStrategyPlans(plansMap);
+      } else {
+        setStrategyPlansError('Assessment strategy plans failed to load. Please retry.');
       }
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      setStrategyPlansError(`Assessment strategy plans failed to load: ${msg}`);
       console.error('Error fetching strategy plans:', error);
     } finally {
       setLoadingStrategyPlans(false);
@@ -786,8 +789,13 @@ const SDPManagerDashboard: React.FC = () => {
   // IT Dashboard state
   const [systemLogs, setSystemLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [logsError, setLogsError] = useState<string | null>(null);
   const [allSdpUsers, setAllSdpUsers] = useState<any[]>([]);
   const [allUsersLoading, setAllUsersLoading] = useState(false);
+  const [allUsersError, setAllUsersError] = useState<string | null>(null);
+
+  // Assessment Strategy Plans error state
+  const [strategyPlansError, setStrategyPlansError] = useState<string | null>(null);
 
   // Helper role flags for conditional rendering
   const role = String(user?.role);
@@ -798,25 +806,24 @@ const SDPManagerDashboard: React.FC = () => {
   
   // Define roles with strict precedence to avoid overlapping
   // Define roles with strict precedence to avoid overlapping
-  // Priority 1: Explicit Role IDs & Known QA Emails
-  const isQAEmail = user?.email === 'maphangosbusiso@gmail.com' || user?.email === 'qa.manager@masakhane.com';
-  const isModeratorEmail = user?.email === 'maphangolwemihla5@gmail.com';
-  
-  const hasQARole = role === '14' || role === '17' || isQAEmail;
+  // Priority 1: Explicit Role IDs.
+  // Note: Previously this used to hardcode specific Gmail addresses as overrides.
+  // That was moved to the backend — the server sets role IDs and userType correctly now.
+  const hasQARole = role === '14' || role === '17';
   const hasAssessorRole = role === 'SDPAssessor' || role === '8';
-  const hasModeratorRole = role === 'SDPModerator' || role === '7' || role === '9' || isModeratorEmail;
+  const hasModeratorRole = role === 'SDPModerator' || role === '7' || role === '9';
 
   // Priority 2: Final Mutually Exclusive Flags
-  // QA Managers are Super Users, have QA roles, specific QA emails, 
+  // QA Managers are Super Users, have QA roles,
   // or are in strictly Quality depts (and not explicitly assigned Assessor or Moderator roles)
-  const isQA = (isSuperUser || hasQARole || 
-    ((deptName === 'quality assurance' || deptName === 'qa' || deptName === 'quality') && !hasAssessorRole && !hasModeratorRole)) && !isModeratorEmail;
+  const isQA = (isSuperUser || hasQARole ||
+    ((deptName === 'quality assurance' || deptName === 'qa' || deptName === 'quality') && !hasAssessorRole && !hasModeratorRole));
   
   // Assessors are those with the role OR in the department, provided they aren't the QA Manager
   const isAssessor = !isQA && (hasAssessorRole || deptName.includes('assessor'));
   
   // Moderators are those with the role OR in the department, provided they aren't QA or Assessor
-  const isModerator = isModeratorEmail || (!isQA && !isAssessor && (hasModeratorRole || deptName.includes('moderator')));
+  const isModerator = !isQA && !isAssessor && (hasModeratorRole || deptName.includes('moderator'));
   
   const isAdmin = (isSuperUser || (role === 'SDPAdministrator' || role === '3' || deptName.includes('admin'))) && !isAssessor && !isModerator && !isQA;
   const isFinance = (isSuperUser || (role === 'SDPFinance' || role === '4' || role === '11' || deptName.includes('finance'))) && !isAssessor && !isModerator && !isQA;
@@ -827,6 +834,7 @@ const SDPManagerDashboard: React.FC = () => {
   // IT Dashboard fetch functions
   const fetchSystemLogs = async () => {
     setLogsLoading(true);
+    setLogsError(null);
     try {
       // In a real system, we'd have a specific endpoint for logs
       // For now, we'll simulate it or use a general endpoint if available
@@ -844,6 +852,8 @@ const SDPManagerDashboard: React.FC = () => {
         ]);
       }
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      setLogsError(`System logs failed to load: ${msg}`);
       console.error('Error fetching logs:', error);
     } finally {
       setLogsLoading(false);
@@ -852,6 +862,7 @@ const SDPManagerDashboard: React.FC = () => {
 
   const fetchAllSdpUsers = async () => {
     setAllUsersLoading(true);
+    setAllUsersError(null);
     try {
       // Fetch all users for this SDP
       const response = await fetchWithAuth(`/api/SkillsDevelopmentProviders/${user?.skillsDevelopmentProviderId}/Users`);
@@ -864,14 +875,23 @@ const SDPManagerDashboard: React.FC = () => {
         if (teamResponse && teamResponse.ok) {
           const data = await teamResponse.json();
           setAllSdpUsers(data);
+        } else {
+          setAllUsersError('Failed to load users. Please retry.');
         }
       }
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      setAllUsersError(`Failed to load users: ${msg}`);
       console.error('Error fetching SDP users:', error);
     } finally {
       setAllUsersLoading(false);
     }
   };
+
+  // Retry helpers — mirror SDPDashboard T0.3 pattern
+  const retryFetchSystemLogs = () => fetchSystemLogs();
+  const retryFetchAllSdpUsers = () => fetchAllSdpUsers();
+  const retryFetchStrategyPlans = () => fetchAssessmentStrategyPlans();
 
   // Load IT data when sections are accessed
   useEffect(() => {
@@ -885,10 +905,8 @@ const SDPManagerDashboard: React.FC = () => {
 
   // Helper function for authenticated fetch with 401 handling
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-    console.log('fetchWithAuth called with url:', url);
     const token = localStorage.getItem('token');
     if (!token) {
-      console.error('No token found, redirecting to login');
       navigate('/login');
       return null;
     }
@@ -900,12 +918,10 @@ const SDPManagerDashboard: React.FC = () => {
 
     // Prepend API base URL if it doesn't already start with http
     const apiUrl = url.startsWith('http') ? url : `${(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}${url}`;
-    console.log('Using apiUrl:', apiUrl);
 
     try {
       const response = await fetch(apiUrl, { ...options, headers });
       if (response.status === 401) {
-        console.error('Unauthorized access (401), redirecting to login');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         navigate('/login');
@@ -4865,11 +4881,16 @@ const SDPManagerDashboard: React.FC = () => {
 
   // Temporary debug display
   if (!user) {
+    // No valid session: the auth hook will redirect to /login shortly.
+    // Render a neutral loading state so users don't see raw debug info.
     return (
-      <div className="container mt-5">
-        <div className="alert alert-warning">
-          <h4>Debug: No User Data</h4>
-          <p>User data not found in localStorage</p>
+      <div className="d-flex justify-content-center align-items-center min-vh-100" style={{ background: '#f8fafc' }}>
+        <div className="card border-0 shadow-sm p-4 d-flex align-items-center gap-3" style={{ borderRadius: 16, minWidth: 280 }}>
+          <div className="spinner-border text-info" role="status"><span className="visually-hidden">Loading...</span></div>
+          <div>
+            <div className="fw-bold" style={{ color: '#0f172a' }}>Checking your session…</div>
+            <small style={{ color: '#64748b' }}>If nothing happens, please sign in again.</small>
+          </div>
         </div>
       </div>
     );
@@ -4878,12 +4899,19 @@ const SDPManagerDashboard: React.FC = () => {
   const managerInfo = getManagerTypeInfo();
 
   const renderSystemLogs = () => (
-    <div className="card border-0 shadow-lg">
-      <div className="card-header border-0 bg-primary text-white d-flex justify-content-between align-items-center">
-        <h4 className="mb-0">📜 System Logs & Audit Trail</h4>
-        <button className="btn btn-light btn-sm" onClick={fetchSystemLogs} disabled={logsLoading}>
-          {logsLoading ? 'Refreshing...' : 'Refresh Logs'}
-        </button>
+    <div className="card border-0 shadow-lg overflow-hidden" style={{ borderRadius: 16 }}>
+      <div style={{
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0e4d8a 100%)',
+        position: 'relative',
+        padding: 0
+      }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'linear-gradient(180deg,#f97316,#ea580c)', borderRadius: '16px 0 0 16px' }}></div>
+        <div className="d-flex justify-content-between align-items-center" style={{ padding: '16px 24px 16px 32px' }}>
+          <h4 className="mb-0 text-white fw-bold">📜 System Logs & Audit Trail</h4>
+          <button className="btn btn-light btn-sm" onClick={fetchSystemLogs} disabled={logsLoading}>
+            {logsLoading ? 'Refreshing...' : 'Refresh Logs'}
+          </button>
+        </div>
       </div>
       <div className="card-body">
         <div className="table-responsive">
@@ -4926,12 +4954,19 @@ const SDPManagerDashboard: React.FC = () => {
   const renderExternalUsers = () => <ExternalUsersManager fetchWithAuth={fetchWithAuth} />;
 
   const renderAllUsers = () => (
-    <div className="card border-0 shadow-lg">
-      <div className="card-header border-0 bg-primary text-white d-flex justify-content-between align-items-center">
-        <h4 className="mb-0">👤 User Management (All SDP Users)</h4>
-        <button className="btn btn-light btn-sm" onClick={() => setShowAddMemberModal(true)}>
-          + Add New User
-        </button>
+    <div className="card border-0 shadow-lg overflow-hidden" style={{ borderRadius: 16 }}>
+      <div style={{
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0e4d8a 100%)',
+        position: 'relative',
+        padding: 0
+      }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'linear-gradient(180deg,#10b981,#059669)', borderRadius: '16px 0 0 16px' }}></div>
+        <div className="d-flex justify-content-between align-items-center" style={{ padding: '16px 24px 16px 32px' }}>
+          <h4 className="mb-0 text-white fw-bold">👤 User Management (All SDP Users)</h4>
+          <button className="btn btn-light btn-sm" onClick={() => setShowAddMemberModal(true)}>
+            + Add New User
+          </button>
+        </div>
       </div>
       <div className="card-body">
         <div className="table-responsive">
@@ -5001,9 +5036,20 @@ const SDPManagerDashboard: React.FC = () => {
       {/* Super User Quick Actions */}
       {isSuperUser && (
         <div className="col-12 mt-4">
-          <div className="card border-0 shadow-lg" style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)', backdropFilter: 'blur(10px)' }}>
-            <div className="card-body p-4">
-              <h5 className="text-white mb-3">🚀 Super User Quick Actions</h5>
+          <div className="card border-0 shadow-lg overflow-hidden" style={{ borderRadius: 16 }}>
+            {/* Left accent strip + dark gradient header — replaces broken backdropFilter pattern */}
+            <div style={{
+              background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0e4d8a 100%)',
+              position: 'relative',
+              padding: 0
+            }}>
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'linear-gradient(180deg,#0ea5e9,#0d9488)', borderRadius: '16px 0 0 16px' }}></div>
+              <div className="d-flex align-items-center justify-content-between flex-wrap gap-3" style={{ padding: '18px 24px 18px 32px' }}>
+                <h5 className="mb-0 text-white fw-bold">🚀 Super User Quick Actions</h5>
+                <small style={{ color: 'rgba(255,255,255,0.55)' }}>Shortcuts to jump straight into work</small>
+              </div>
+            </div>
+            <div className="card-body p-4" style={{ background: '#ffffff' }}>
               <div className="d-flex flex-wrap gap-3">
                 <button 
                   onClick={() => navigate('/sdp-dashboard', { state: { section: 'add-department' } })}
@@ -5842,17 +5888,16 @@ const SDPManagerDashboard: React.FC = () => {
   );
 
   const renderProjects = () => {
-    console.log('SDPManagerDashboard: renderProjects called, projects.length:', filteredProjects.length);
-    console.log('SDPManagerDashboard: projects array:', filteredProjects);
-    
     return (
     <div>
-      <div className="card border-0 shadow-lg mb-4" style={{
-        background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
+      <div className="card border-0 shadow-lg mb-4 overflow-hidden" style={{
+        background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0e4d8a 100%)',
         borderRadius: 16,
-        color: "#ffffff"
+        color: "#ffffff",
+        position: 'relative'
       }}>
-        <div className="card-body text-center text-white py-4">
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'linear-gradient(180deg,#0ea5e9,#0d9488)', borderRadius: '16px 0 0 16px' }}></div>
+        <div className="card-body text-center text-white py-4" style={{ paddingLeft: 32 }}>
           <h2 className="mb-2" style={{ fontWeight: 700, fontSize: '1.8rem' }}>📋 Projects Overview</h2>
           <p className="mb-0 opacity-75" style={{ fontSize: '1rem' }}>Monitor and track project progress</p>
         </div>
@@ -5861,7 +5906,6 @@ const SDPManagerDashboard: React.FC = () => {
       {filteredProjects.length > 0 ? (
         <div className="row g-4">
           {filteredProjects.map((project) => {
-            console.log('SDPManagerDashboard: Rendering project:', project);
             const isExpanded = expandedProjects[project.id];
             const details = projectDetails[project.id];
             
@@ -11393,6 +11437,42 @@ const SDPManagerDashboard: React.FC = () => {
           {/* Main Content */}
           <div className="col-md-9 col-lg-10 d-flex flex-column">
             <div className="p-4 flex-grow-1 overflow-auto" style={{ maxHeight: 'calc(100vh - 76px)', backgroundColor: '#f1f5f9' }}>
+              {/* ── Global fetch error banners (mirror SDPDashboard T0.3) ── */}
+              {(logsError || allUsersError || strategyPlansError) && (
+                <div className="mb-3" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {logsError && (
+                    <div className="alert alert-danger d-flex align-items-center gap-2 mb-0 shadow-sm"
+                      style={{ borderRadius: 12, border: '1px solid #fecaca', background: '#fef2f2' }}>
+                      <span style={{ fontSize: 18 }}>⛔</span>
+                      <span style={{ color: '#991b1b', fontSize: 14, flex: 1 }}>{logsError}</span>
+                      <button type="button" className="btn btn-sm btn-danger"
+                        style={{ borderRadius: 8, padding: '4px 14px', fontWeight: 600, fontSize: 13 }}
+                        onClick={retryFetchSystemLogs}>↻ Retry</button>
+                    </div>
+                  )}
+                  {allUsersError && (
+                    <div className="alert alert-danger d-flex align-items-center gap-2 mb-0 shadow-sm"
+                      style={{ borderRadius: 12, border: '1px solid #fecaca', background: '#fef2f2' }}>
+                      <span style={{ fontSize: 18 }}>⛔</span>
+                      <span style={{ color: '#991b1b', fontSize: 14, flex: 1 }}>{allUsersError}</span>
+                      <button type="button" className="btn btn-sm btn-danger"
+                        style={{ borderRadius: 8, padding: '4px 14px', fontWeight: 600, fontSize: 13 }}
+                        onClick={retryFetchAllSdpUsers}>↻ Retry</button>
+                    </div>
+                  )}
+                  {strategyPlansError && (
+                    <div className="alert alert-danger d-flex align-items-center gap-2 mb-0 shadow-sm"
+                      style={{ borderRadius: 12, border: '1px solid #fecaca', background: '#fef2f2' }}>
+                      <span style={{ fontSize: 18 }}>⛔</span>
+                      <span style={{ color: '#991b1b', fontSize: 14, flex: 1 }}>{strategyPlansError}</span>
+                      <button type="button" className="btn btn-sm btn-danger"
+                        style={{ borderRadius: 8, padding: '4px 14px', fontWeight: 600, fontSize: 13 }}
+                        onClick={retryFetchStrategyPlans}>↻ Retry</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {activeSection === 'overview' && renderOverview()}
               {activeSection === 'projects' && renderProjects()}
               {activeSection === 'team' && renderTeam()}
@@ -13572,8 +13652,12 @@ const SDPManagerDashboard: React.FC = () => {
         <div className="modal show d-block" style={{backgroundColor: 'rgba(0,0,0,0.8)'}}>
           <div className="modal-dialog modal-fullscreen">
             <div className="modal-content">
-              <div className="modal-header bg-primary text-white">
-                <div className="d-flex align-items-center">
+              <div className="modal-header text-white border-0" style={{
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0e4d8a 100%)',
+                position: 'relative'
+              }}>
+                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, background: 'linear-gradient(180deg,#a855f7,#7c3aed)' }}></div>
+                <div className="d-flex align-items-center" style={{ paddingLeft: 8 }}>
                   <i className="fas fa-file-alt me-2"></i>
                   <div>
                     <h5 className="modal-title mb-0">Document Review</h5>
