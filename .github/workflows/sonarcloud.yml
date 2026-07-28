@@ -11,6 +11,9 @@ jobs:
   sonarcloud:
     name: SonarCloud Code Quality & Security
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +28,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '24'
 
       - name: Cache SonarCloud packages
         uses: actions/cache@v4

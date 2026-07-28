@@ -18,6 +18,9 @@ jobs:
   docker-scan:
     name: Scan Docker Images
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
     
     strategy:
       matrix:
@@ -55,7 +58,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Upload Trivy results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
