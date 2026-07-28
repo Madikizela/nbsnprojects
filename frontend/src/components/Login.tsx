@@ -7,7 +7,6 @@ import {
   SignInIcon
 } from './CustomIcons';
 import ForgotPassword from './ForgotPassword';
-import { encryptData } from '../utils/encryption';
 import { apiCall } from '../utils/api';
 
 const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage }) => {
@@ -74,12 +73,9 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
     setIsLoading(true);
 
     try {
-      // Build encrypted payload
-      const encryptedPayload = encryptData({ Email: email, Password: password });
-
       const response = await apiCall('/api/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password, encryptedLoginData: encryptedPayload }),
+        body: JSON.stringify({ email, password }),
       });
 
       if (response.ok) {
@@ -127,7 +123,6 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
 
         // Enhanced logic for specific manager dashboards
         const role = String(normalizedUser.role);
-        console.log('Login: Determining dashboard for role:', role, 'Department:', normalizedUser.departmentName);
         const deptName = (normalizedUser.departmentName || '').toLowerCase();
         
         // Logistics Manager/Support
