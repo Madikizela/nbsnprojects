@@ -225,10 +225,6 @@ const ClientDashboard: React.FC = () => {
       errors.website = 'Please enter a valid URL';
     }
 
-    if (sdpFormData.beneficiaries && parseInt(sdpFormData.beneficiaries) < 0) {
-      errors.beneficiaries = 'Number of beneficiaries must be a positive number';
-    }
-
     // Logo file validation
     if (sdpFormData.logo) {
       const maxSize = 2 * 1024 * 1024; // 2MB
@@ -592,19 +588,6 @@ const ClientDashboard: React.FC = () => {
                   required 
                 />
                 {formErrors.accreditationNumber && <div className="invalid-feedback">{formErrors.accreditationNumber}</div>}
-              </div>
-              
-              <div className="col-md-6">
-                <label htmlFor="beneficiaries" className="form-label">Number of Beneficiaries</label>
-                <input 
-                  type="number" 
-                  className={`form-control ${formErrors.beneficiaries ? 'is-invalid' : ''}`}
-                  id="beneficiaries" 
-                  placeholder="Enter number of beneficiaries" 
-                  value={sdpFormData.beneficiaries}
-                  onChange={(e) => handleInputChange('beneficiaries', e.target.value)}
-                />
-                {formErrors.beneficiaries && <div className="invalid-feedback">{formErrors.beneficiaries}</div>}
               </div>
               
               {/* Physical Address Section */}
