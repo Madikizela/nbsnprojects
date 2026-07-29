@@ -42,7 +42,7 @@ const PopiaPolicyPage: React.FC = () => {
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>🛡️ POPIA Privacy Policy</h1>
           <p style={{ margin: '4px 0 0', opacity: 0.85, fontSize: 14 }}>
-            NBSN — Protection of Personal Information Act 4 of 2013
+            SDP Portal — Protection of Personal Information Act 4 of 2013
           </p>
         </div>
       </div>
@@ -54,12 +54,12 @@ const PopiaPolicyPage: React.FC = () => {
           <div style={{ background: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: 12, padding: '16px 20px', marginBottom: 36, fontSize: 14 }}>
             <strong>Version 1.0</strong> | Effective: January 2025 | Last Reviewed: July 2026
             <br />
-            For queries: <a href="mailto:popia@nbsn.co.za" style={{ color: '#0d9488' }}>popia@nbsn.co.za</a>
+            For queries: <a href="mailto:popia@SDP Portal.co.za" style={{ color: '#0d9488' }}>popia@SDP Portal.co.za</a>
           </div>
 
           <PolicySection title="1. Introduction">
             <p>
-              NBSN (<strong>"NBSN"</strong>) is a responsible party as
+              SDP Portal (<strong>"SDP Portal"</strong>) is a responsible party as
               defined in the Protection of Personal Information Act 4 of 2013 (<strong>POPIA</strong>).
               We are committed to protecting the personal information of all individuals whose data
               we process, including learners, employees, contractors, and system users.
@@ -74,10 +74,10 @@ const PopiaPolicyPage: React.FC = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <tbody>
                 {[
-                  ['Information Officer', 'NBSN Compliance Officer'],
-                  ['Organisation', 'NBSN'],
-                  ['Email', 'popia@nbsn.co.za'],
-                  ['Website', 'www.nbsn.co.za'],
+                  ['Information Officer', 'SDP Portal Compliance Officer'],
+                  ['Organisation', 'SDP Portal'],
+                  ['Email', 'popia@SDP Portal.co.za'],
+                  ['Website', 'www.SDP Portal.co.za'],
                   ['Jurisdiction', 'Republic of South Africa'],
                 ].map(([k, v]) => (
                   <tr key={k} style={{ borderBottom: '1px solid #f1f5f9' }}>
@@ -186,7 +186,7 @@ const PopiaPolicyPage: React.FC = () => {
                 <a href="https://www.inforegulator.org.za" target="_blank" rel="noopener noreferrer" style={{ color: '#0d9488' }}>www.inforegulator.org.za</a> | inforeg@justice.gov.za
               </li>
             </ul>
-            <p>Submit requests to <a href="mailto:popia@nbsn.co.za" style={{ color: '#0d9488' }}>popia@nbsn.co.za</a>. We respond within 30 days.</p>
+            <p>Submit requests to <a href="mailto:popia@SDP Portal.co.za" style={{ color: '#0d9488' }}>popia@SDP Portal.co.za</a>. We respond within 30 days.</p>
           </PolicySection>
 
           <PolicySection title="10. Cross-Border Transfers">
@@ -208,15 +208,15 @@ const PopiaPolicyPage: React.FC = () => {
 
           <div style={{ marginTop: 40, padding: '20px 24px', background: '#f0fdfa', borderRadius: 12, border: '1px solid #99f6e4', fontSize: 13, color: '#475569' }}>
             <strong>Questions or concerns?</strong> Contact our Information Officer at{' '}
-            <a href="mailto:popia@nbsn.co.za" style={{ color: '#0d9488' }}>popia@nbsn.co.za</a>
-            {' '}or write to NBSN Head Office, South Africa.
+            <a href="mailto:popia@SDP Portal.co.za" style={{ color: '#0d9488' }}>popia@SDP Portal.co.za</a>
+            {' '}or write to SDP Portal Head Office, South Africa.
           </div>
         </div>
       </div>
 
       {/* Footer */}
       <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: 13 }}>
-        © {new Date().getFullYear()} NBSN. All rights reserved.
+        © {new Date().getFullYear()} SDP Portal. All rights reserved.
       </div>
     </div>
   );

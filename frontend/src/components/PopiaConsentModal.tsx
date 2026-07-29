@@ -123,7 +123,7 @@ const PopiaConsentModal: React.FC<PopiaConsentModalProps> = ({ onAccept, onDecli
         >
           <Section title="1. Introduction and Purpose">
             <p>
-              NBSN (<strong>"NBSN"</strong>, <strong>"we"</strong>,{' '}
+              SDP Portal (<strong>"SDP Portal"</strong>, <strong>"we"</strong>,{' '}
               <strong>"us"</strong>, or <strong>"our"</strong>) is committed to protecting your
               personal information in accordance with the{' '}
               <strong>Protection of Personal Information Act 4 of 2013 (POPIA)</strong> and all
@@ -136,10 +136,10 @@ const PopiaConsentModal: React.FC<PopiaConsentModalProps> = ({ onAccept, onDecli
           </Section>
 
           <Section title="2. Information Officer">
-            <InfoRow label="Information Officer" value="NBSN Compliance Officer" />
-            <InfoRow label="Organisation" value="NBSN" />
-            <InfoRow label="Email" value="popia@nbsn.co.za" />
-            <InfoRow label="Postal Address" value="NBSN Head Office, South Africa" />
+            <InfoRow label="Information Officer" value="SDP Portal Compliance Officer" />
+            <InfoRow label="Organisation" value="SDP Portal" />
+            <InfoRow label="Email" value="popia@SDP Portal.co.za" />
+            <InfoRow label="Postal Address" value="SDP Portal Head Office, South Africa" />
             <p style={{ marginTop: 12 }}>
               You may direct any POPIA-related enquiries, objections, or access requests to the
               Information Officer above.
@@ -467,7 +467,7 @@ const PopiaConsentModal: React.FC<PopiaConsentModalProps> = ({ onAccept, onDecli
           </div>
 
           <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: 12, margin: '12px 0 0' }}>
-            Declining will log you out. This consent is required to use the NBSN Portal.
+            Declining will log you out. This consent is required to use the SDP Portal Portal.
           </p>
         </div>
       </div>
