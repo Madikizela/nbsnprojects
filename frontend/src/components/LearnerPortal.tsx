@@ -96,7 +96,7 @@ export default function LearnerPortal() {
                 user.name.charAt(0).toUpperCase()
               )}
             </div>
-            <span style={{ fontWeight: 700, fontSize: 18, whiteSpace: 'nowrap' }}>NBSN Projects</span>
+            <span style={{ fontWeight: 700, fontSize: 18, whiteSpace: 'nowrap' }}>NBSN</span>
             <span style={{ color: 'rgba(255,255,255,0.55)', fontSize: 12, whiteSpace: 'nowrap', marginLeft: 4 }}>Skills Development &amp; Training</span>
           </div>
 
@@ -384,7 +384,7 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
           }} />
           <h1 style={{ color:'#fff', fontSize:30, fontWeight:800, margin:'20px 0 4px' }}>Learner Portal</h1>
           <p style={{ color:'rgba(255,255,255,0.85)', fontSize:14, fontWeight:600, margin:'0 0 2px', letterSpacing: 0.3 }}>Skills Development &amp; Training</p>
-          <p style={{ color:'rgba(255,255,255,0.5)', fontSize:13, margin:0 }}>NBSN Projects</p>
+          <p style={{ color:'rgba(255,255,255,0.5)', fontSize:13, margin:0 }}>NBSN</p>
         </div>
 
         {/* Features */}
@@ -406,7 +406,7 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
         </div>
 
         <p style={{ position:'absolute', bottom:24, color:'rgba(255,255,255,0.3)', fontSize:12, textAlign:'center' }}>
-          Skills Development &amp; Training<br />© {new Date().getFullYear()} NBSN Projects
+          Skills Development &amp; Training<br />© {new Date().getFullYear()} NBSN
         </p>
       </div>
 
@@ -508,7 +508,7 @@ function LearnerLogin({ onLogin }: { onLogin: (t: string, u: LearnerUser) => voi
           </a>
 
           <p style={{ textAlign:'center', color:'#94a3b8', fontSize:12, marginTop:32 }}>
-            NBSN Projects · Skills Development &amp; Training<br />
+            NBSN · Skills Development &amp; Training<br />
             © {new Date().getFullYear()} All rights reserved.{' '}
             <a href="/popia-policy" target="_blank" rel="noopener noreferrer" style={{ color: '#10b981', textDecoration: 'underline' }}>
               POPIA Privacy Policy

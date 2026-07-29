@@ -42,7 +42,7 @@ const PopiaPolicyPage: React.FC = () => {
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800 }}>🛡️ POPIA Privacy Policy</h1>
           <p style={{ margin: '4px 0 0', opacity: 0.85, fontSize: 14 }}>
-            NBSN Projects — Protection of Personal Information Act 4 of 2013
+            NBSN — Protection of Personal Information Act 4 of 2013
           </p>
         </div>
       </div>
@@ -59,7 +59,7 @@ const PopiaPolicyPage: React.FC = () => {
 
           <PolicySection title="1. Introduction">
             <p>
-              NBSN Projects (<strong>"NBSN Projects"</strong>) is a responsible party as
+              NBSN (<strong>"NBSN"</strong>) is a responsible party as
               defined in the Protection of Personal Information Act 4 of 2013 (<strong>POPIA</strong>).
               We are committed to protecting the personal information of all individuals whose data
               we process, including learners, employees, contractors, and system users.
@@ -75,7 +75,7 @@ const PopiaPolicyPage: React.FC = () => {
               <tbody>
                 {[
                   ['Information Officer', 'NBSN Compliance Officer'],
-                  ['Organisation', 'NBSN Projects'],
+                  ['Organisation', 'NBSN'],
                   ['Email', 'popia@nbsn.co.za'],
                   ['Website', 'www.nbsn.co.za'],
                   ['Jurisdiction', 'Republic of South Africa'],
@@ -216,7 +216,7 @@ const PopiaPolicyPage: React.FC = () => {
 
       {/* Footer */}
       <div style={{ textAlign: 'center', padding: '24px', color: '#94a3b8', fontSize: 13 }}>
-        © {new Date().getFullYear()} NBSN Projects. All rights reserved.
+        © {new Date().getFullYear()} NBSN. All rights reserved.
       </div>
     </div>
   );
