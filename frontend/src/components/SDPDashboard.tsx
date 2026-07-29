@@ -1677,13 +1677,11 @@ const SDPDashboard: React.FC = () => {
         </div>
       ) : users.length > 0 ? (
         <div className="card border-0 shadow-lg overflow-hidden" style={{
-          background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)',
           borderRadius: 16,
-          backdropFilter: 'blur(10px)'
         }}>
           <div className="table-responsive">
-            <table className="table table-hover mb-0" style={{ color: '#fff' }}>
-              <thead style={{ backgroundColor: 'rgba(255,255,255,0.15)' }}>
+            <table className="table table-hover mb-0">
+              <thead style={{ background: 'linear-gradient(135deg, #0d9488 0%, #06b6d4 100%)' }}>
                 <tr>
                   <th className="border-0 py-3" style={{ color: '#fff', fontWeight: 600 }}>Name</th>
                   <th className="border-0 py-3" style={{ color: '#fff', fontWeight: 600 }}>Email</th>
@@ -1692,15 +1690,15 @@ const SDPDashboard: React.FC = () => {
                   <th className="border-0 py-3" style={{ color: '#fff', fontWeight: 600 }}>Status</th>
                 </tr>
               </thead>
-              <tbody style={{ backgroundColor: 'transparent' }}>
-                {users.map((u) => (
-                  <tr key={u.id} style={{ backgroundColor: 'rgba(255,255,255,0.05)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                    <td className="border-0 py-3" style={{ color: '#fff' }}>
+              <tbody>
+                {users.map((u, idx) => (
+                  <tr key={u.id} style={{ backgroundColor: idx % 2 === 0 ? '#f8fafc' : '#fff' }}>
+                    <td className="border-0 py-3" style={{ color: '#1e293b', fontWeight: 500 }}>
                       {u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : (u.name || 'Unknown')}
                     </td>
-                    <td className="border-0 py-3" style={{ color: '#fff' }}>{u.email}</td>
-                    <td className="border-0 py-3" style={{ color: '#fff' }}>
-                      <span className="badge bg-light text-dark" style={{ fontWeight: 500 }}>
+                    <td className="border-0 py-3" style={{ color: '#475569' }}>{u.email}</td>
+                    <td className="border-0 py-3">
+                      <span className="badge" style={{ background: 'linear-gradient(135deg, #0d9488, #06b6d4)', color: '#fff', fontWeight: 500 }}>
                         {u.role === 3 || u.role === '3' ? 'SDP Administrator' : 
                          u.role === 4 || u.role === '4' ? 'SDP Finance' : 
                          u.role === 5 || u.role === '5' ? 'SDP Logistics' : 
@@ -1711,10 +1709,10 @@ const SDPDashboard: React.FC = () => {
                          u.role === 16 || u.role === '16' ? 'Teacher' : u.role}
                       </span>
                     </td>
-                    <td className="border-0 py-3" style={{ color: '#fff' }}>
+                    <td className="border-0 py-3" style={{ color: '#475569' }}>
                       {u.departmentName || u.department?.name || 'Not assigned'}
                     </td>
-                    <td className="border-0 py-3" style={{ color: '#fff' }}>
+                    <td className="border-0 py-3">
                       <span className={`badge ${u.status === 1 || u.status === '1' || u.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}>
                         {u.status === 1 || u.status === '1' || u.status === 'Active' ? 'Active' : 'Inactive'}
                       </span>
