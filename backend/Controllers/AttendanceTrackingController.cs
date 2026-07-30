@@ -899,35 +899,99 @@ namespace backend.Controllers
                                 });
                                 headerRow.RelativeItem().AlignRight().Column(rightCol =>
                                 {
-                                    // Show SDP logo if available, otherwise SDP name
-                                    if (!string.IsNullOrEmpty(calendarData.SdpLogoPath))
+                                    // System logo (circular) — always shown top-right
+                                    var sysLogoPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "frontend", "src", "assets", "nbsn-logo.png");
+                                    // Try wwwroot fallback
+                                    if (!System.IO.File.Exists(sysLogoPath))
+                                        sysLogoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "nbsn-logo.png");
+
+                                    byte[]? sysLogoCircular = null;
+                                    if (System.IO.File.Exists(sysLogoPath))
                                     {
                                         try
                                         {
-                                            var cleanLogoPath = calendarData.SdpLogoPath
-                                                .TrimStart('/', '\\')
-                                                .Replace('/', Path.DirectorySeparatorChar)
-                                                .Replace('\\', Path.DirectorySeparatorChar);
-                                            var logoFullPath = Path.Combine(Directory.GetCurrentDirectory(), cleanLogoPath);
-                                            if (System.IO.File.Exists(logoFullPath))
+                                            var raw = System.IO.File.ReadAllBytes(sysLogoPath);
+                                            using var bmp = SkiaSharp.SKBitmap.Decode(raw);
+                                            if (bmp != null)
                                             {
-                                                var logoBytes = System.IO.File.ReadAllBytes(logoFullPath);
-                                                rightCol.Item().AlignRight().Width(60).Image(logoBytes).FitArea();
+                                                const int sz = 44;
+                                                using var surf = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(sz, sz, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul));
+                                                var c = surf.Canvas;
+                                                c.Clear(SkiaSharp.SKColors.Transparent);
+                                                using var clip = new SkiaSharp.SKPath();
+                                                clip.AddCircle(sz / 2f, sz / 2f, sz / 2f);
+                                                c.ClipPath(clip, SkiaSharp.SKClipOperation.Intersect, true);
+                                                c.DrawBitmap(bmp, SkiaSharp.SKRect.Create(0, 0, sz, sz));
+                                                c.Flush();
+                                                using var snap = surf.Snapshot();
+                                                using var png = snap.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+                                                sysLogoCircular = png.ToArray();
+                                            }
+                                        }
+                                        catch { /* skip */ }
+                                    }
+
+                                    // Row: SDP name/logo on left, system logo circle on right
+                                    rightCol.Item().AlignRight().Row(r =>
+                                    {
+                                        // SDP logo or name
+                                        r.RelativeItem().AlignRight().Column(sdpCol =>
+                                        {
+                                            if (!string.IsNullOrEmpty(calendarData.SdpLogoPath))
+                                            {
+                                                try
+                                                {
+                                                    var cleanLogoPath = calendarData.SdpLogoPath
+                                                        .TrimStart('/', '\\')
+                                                        .Replace('/', Path.DirectorySeparatorChar)
+                                                        .Replace('\\', Path.DirectorySeparatorChar);
+                                                    var logoFullPath = Path.Combine(Directory.GetCurrentDirectory(), cleanLogoPath);
+                                                    if (System.IO.File.Exists(logoFullPath))
+                                                    {
+                                                        // Render SDP logo as circle
+                                                        var rawSdp = System.IO.File.ReadAllBytes(logoFullPath);
+                                                        byte[] sdpCircle = rawSdp;
+                                                        try
+                                                        {
+                                                            using var sdpBmp = SkiaSharp.SKBitmap.Decode(rawSdp);
+                                                            if (sdpBmp != null)
+                                                            {
+                                                                const int ssz = 44;
+                                                                using var ssurf = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(ssz, ssz, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul));
+                                                                var sc = ssurf.Canvas;
+                                                                sc.Clear(SkiaSharp.SKColors.Transparent);
+                                                                using var sclip = new SkiaSharp.SKPath();
+                                                                sclip.AddCircle(ssz / 2f, ssz / 2f, ssz / 2f);
+                                                                sc.ClipPath(sclip, SkiaSharp.SKClipOperation.Intersect, true);
+                                                                sc.DrawBitmap(sdpBmp, SkiaSharp.SKRect.Create(0, 0, ssz, ssz));
+                                                                sc.Flush();
+                                                                using var ssnap = ssurf.Snapshot();
+                                                                using var spng = ssnap.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
+                                                                sdpCircle = spng.ToArray();
+                                                            }
+                                                        }
+                                                        catch { /* use raw */ }
+                                                        sdpCol.Item().AlignRight().Width(44).Height(44).Image(sdpCircle).FitArea();
+                                                    }
+                                                    else
+                                                        sdpCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(9).Bold().FontColor(Colors.White);
+                                                }
+                                                catch
+                                                {
+                                                    sdpCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(9).Bold().FontColor(Colors.White);
+                                                }
                                             }
                                             else
-                                            {
-                                                rightCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(11).Bold().FontColor(Colors.White);
-                                            }
-                                        }
-                                        catch
+                                                sdpCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(9).Bold().FontColor(Colors.White);
+                                        });
+
+                                        // System logo circle
+                                        if (sysLogoCircular != null)
                                         {
-                                            rightCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(11).Bold().FontColor(Colors.White);
+                                            r.ConstantItem(6);
+                                            r.ConstantItem(44).Height(44).Image(sysLogoCircular).FitArea();
                                         }
-                                    }
-                                    else
-                                    {
-                                        rightCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(11).Bold().FontColor(Colors.White);
-                                    }
+                                    });
                                     rightCol.Item().AlignRight().Text("Attendance Management System").FontSize(6).FontColor(Colors.White);
                                 });
                             });
