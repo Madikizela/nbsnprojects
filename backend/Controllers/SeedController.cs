@@ -44,8 +44,55 @@ namespace backend.Controllers
         }
 
         /// <summary>
-        /// POST /api/seed/migrate — applies pending schema migrations (idempotent).
+        /// GET /api/seed/debug-paths — check what paths are available on the server
         /// </summary>
+        [HttpGet("debug-paths")]
+        public IActionResult DebugPaths()
+        {
+            var root = Directory.GetCurrentDirectory();
+            var results = new Dictionary<string, object>();
+
+            // Check common paths
+            var pathsToCheck = new[]
+            {
+                Path.Combine(root, "wwwroot", "nbsn-logo.png"),
+                Path.Combine(root, "uploads"),
+                Path.Combine(root, "uploads", "profile-photos"),
+                Path.Combine(root, "uploads", "sdp-logos"),
+                Path.Combine(root, "..", "frontend", "src", "assets", "nbsn-logo.png"),
+            };
+
+            foreach (var p in pathsToCheck)
+                results[p] = System.IO.File.Exists(p) ? "FILE EXISTS" : (Directory.Exists(p) ? "DIR EXISTS" : "NOT FOUND");
+
+            // List wwwroot contents
+            var wwwroot = Path.Combine(root, "wwwroot");
+            if (Directory.Exists(wwwroot))
+                results["wwwroot_files"] = Directory.GetFiles(wwwroot).Select(f => Path.GetFileName(f)).ToArray();
+
+            // List uploads contents
+            var uploads = Path.Combine(root, "uploads");
+            if (Directory.Exists(uploads))
+                results["uploads_dirs"] = Directory.GetDirectories(uploads).Select(d => Path.GetFileName(d)).ToArray();
+
+            // Show a sample profile photo path from DB
+            var sampleLearner = _context.Set<backend.Models.Learner>()
+                .Where(l => l.ProfilePhotoPath != null)
+                .Select(l => new { l.Id, l.ProfilePhotoPath })
+                .FirstOrDefault();
+            if (sampleLearner != null)
+            {
+                results["sample_photo_stored"] = sampleLearner.ProfilePhotoPath ?? "null";
+                var resolved = Path.Combine(root, (sampleLearner.ProfilePhotoPath ?? "").TrimStart('/', '\\'));
+                results["sample_photo_resolved"] = resolved;
+                results["sample_photo_exists"] = System.IO.File.Exists(resolved) ? "YES" : "NO";
+            }
+
+            results["cwd"] = root;
+
+            return Ok(results);
+        }
+
         [HttpPost("migrate")]
         public async Task<IActionResult> Migrate()
         {
