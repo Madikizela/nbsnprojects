@@ -317,6 +317,17 @@ const ClientDashboard: React.FC = () => {
       }
 
       if (response.ok && (result as {success?:boolean}).success) {
+        // Upload logo if one was selected
+        const newSdpId = (result as any).sdpId || (result as any).SdpId || (result as any).id;
+        if (sdpFormData.logo && newSdpId) {
+          const logoForm = new FormData();
+          logoForm.append('logo', sdpFormData.logo);
+          await fetch(`/api/SkillsDevelopmentProviders/${newSdpId}/logo`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: logoForm,
+          });
+        }
         setSdpFormData({
           sdpName: '',
           registrationNumber: '',
