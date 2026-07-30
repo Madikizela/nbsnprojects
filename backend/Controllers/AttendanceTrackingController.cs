@@ -891,7 +891,31 @@ namespace backend.Controllers
                         {
                             column.Item().Background("#1e3a8a").Padding(4).Row(headerRow =>
                             {
-                                headerRow.RelativeItem().Column(leftCol =>
+                                // LEFT — SDP logo or SDP name
+                                var sysLogoPath = Path.Combine(_env.ContentRootPath, "wwwroot", "nbsn-logo.png");
+                                headerRow.AutoItem().AlignMiddle().Column(leftLogo =>
+                                {
+                                    if (!string.IsNullOrEmpty(calendarData.SdpLogoPath))
+                                    {
+                                        var sdpPath = Path.Combine(_env.ContentRootPath,
+                                            calendarData.SdpLogoPath.TrimStart('/', '\\')
+                                                .Replace('/', Path.DirectorySeparatorChar));
+                                        if (System.IO.File.Exists(sdpPath))
+                                        {
+                                            try { leftLogo.Item().Width(50).Height(36).Image(System.IO.File.ReadAllBytes(sdpPath)).FitArea(); }
+                                            catch { leftLogo.Item().Text(calendarData.SdpName ?? "").FontSize(9).Bold().FontColor(Colors.White); }
+                                        }
+                                        else
+                                            leftLogo.Item().Text(calendarData.SdpName ?? "").FontSize(9).Bold().FontColor(Colors.White);
+                                    }
+                                    else if (!string.IsNullOrEmpty(calendarData.SdpName))
+                                        leftLogo.Item().AlignMiddle().Text(calendarData.SdpName).FontSize(9).Bold().FontColor(Colors.White);
+                                });
+
+                                headerRow.ConstantItem(8);
+
+                                // CENTER — Title and period
+                                headerRow.RelativeItem().AlignMiddle().Column(leftCol =>
                                 {
                                     leftCol.Item().Text("Attendance Calendar").FontSize(12).Bold().FontColor(Colors.White);
                                     var startDate = new DateTime(year, month, 1);
@@ -899,47 +923,20 @@ namespace backend.Controllers
                                     leftCol.Item().Text($"{calendarData.MonthName} {calendarData.Year}  ·  Period {startDate:yyyy.MM.dd} – {endDate:yyyy.MM.dd}")
                                         .FontSize(7).FontColor(Colors.White);
                                 });
-                                headerRow.RelativeItem().AlignRight().Column(rightCol =>
+
+                                headerRow.ConstantItem(8);
+
+                                // RIGHT — System logo
+                                headerRow.AutoItem().AlignMiddle().Column(rightLogo =>
                                 {
-                                    // Simple square logos — no SkiaSharp processing to avoid failures
-                                    var sysLogoPath = Path.Combine(_env.ContentRootPath, "wwwroot", "nbsn-logo.png");
-
-                                    rightCol.Item().AlignRight().Row(r =>
+                                    if (System.IO.File.Exists(sysLogoPath))
                                     {
-                                        // SDP name or logo (square)
-                                        if (!string.IsNullOrEmpty(calendarData.SdpLogoPath))
-                                        {
-                                            var sdpPath = Path.Combine(_env.ContentRootPath,
-                                                calendarData.SdpLogoPath.TrimStart('/', '\\')
-                                                    .Replace('/', Path.DirectorySeparatorChar));
-                                            if (System.IO.File.Exists(sdpPath))
-                                            {
-                                                try
-                                                {
-                                                    r.ConstantItem(50).Height(36).Image(System.IO.File.ReadAllBytes(sdpPath)).FitArea();
-                                                    r.ConstantItem(6);
-                                                }
-                                                catch { }
-                                            }
-                                        }
-                                        else if (!string.IsNullOrEmpty(calendarData.SdpName))
-                                        {
-                                            r.RelativeItem().AlignRight().AlignMiddle()
-                                                .Text(calendarData.SdpName).FontSize(9).Bold().FontColor(Colors.White);
-                                            r.ConstantItem(6);
-                                        }
-
-                                        // System logo (square, from wwwroot)
-                                        if (System.IO.File.Exists(sysLogoPath))
-                                        {
-                                            try
-                                            {
-                                                r.ConstantItem(36).Height(36).Image(System.IO.File.ReadAllBytes(sysLogoPath)).FitArea();
-                                            }
-                                            catch { }
-                                        }
-                                    });
-                                    rightCol.Item().AlignRight().Text("Attendance Management System").FontSize(6).FontColor(Colors.White);
+                                        try { rightLogo.Item().Width(36).Height(36).Image(System.IO.File.ReadAllBytes(sysLogoPath)).FitArea(); }
+                                        catch { rightLogo.Item().Text("NBSN").FontSize(9).Bold().FontColor(Colors.White); }
+                                    }
+                                    else
+                                        rightLogo.Item().Text("NBSN").FontSize(9).Bold().FontColor(Colors.White);
+                                    rightLogo.Item().AlignRight().Text("Attendance Management System").FontSize(5).FontColor(Colors.White);
                                 });
                             });
                         });
