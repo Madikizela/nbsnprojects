@@ -1037,12 +1037,28 @@ namespace backend.Controllers
                                 // Signatures below legend
                                 column.Item().PaddingTop(6).Row(sigRow =>
                                 {
-                                    string? ResolvePath(string? storedPath)
+                                    var baseUrlForFiles = $"{Request.Scheme}://{Request.Host}";
+
+                                    byte[]? FetchFileBytes(string? storedPath)
                                     {
                                         if (string.IsNullOrEmpty(storedPath)) return null;
+                                        // Try filesystem first
                                         var clean = storedPath.TrimStart('/', '\\').Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
                                         var full = Path.Combine(_env.ContentRootPath, clean);
-                                        return System.IO.File.Exists(full) ? full : null;
+                                        if (System.IO.File.Exists(full))
+                                        {
+                                            try { return System.IO.File.ReadAllBytes(full); } catch { }
+                                        }
+                                        // Fallback: HTTP fetch (for ephemeral Railway filesystem)
+                                        try
+                                        {
+                                            var url = $"{baseUrlForFiles}/{storedPath.TrimStart('/', '\\')}";
+                                            using var hc = new System.Net.Http.HttpClient();
+                                            hc.Timeout = TimeSpan.FromSeconds(5);
+                                            var bytes = hc.GetByteArrayAsync(url).GetAwaiter().GetResult();
+                                            return bytes.Length > 0 ? bytes : null;
+                                        }
+                                        catch { return null; }
                                     }
 
                                     void RenderSig(ColumnDescriptor sig, string label, string? storedPath, string signerName)
@@ -1064,13 +1080,8 @@ namespace backend.Controllers
                                         }
                                         else
                                         {
-                                            // Handle file path
-                                            var resolved = ResolvePath(storedPath);
-                                            if (resolved != null)
-                                            {
-                                                try { sigBytes = System.IO.File.ReadAllBytes(resolved); }
-                                                catch { sigBytes = null; }
-                                            }
+                                            // Use FetchFileBytes which tries filesystem then HTTP
+                                            sigBytes = FetchFileBytes(storedPath);
                                         }
 
                                         if (sigBytes != null)
@@ -1104,6 +1115,28 @@ namespace backend.Controllers
 
                             row.ConstantItem(6);
 
+                            // Shared helper: try filesystem then HTTP for any uploaded file
+                            var baseUrlForFiles2 = $"{Request.Scheme}://{Request.Host}";
+                            byte[]? FetchFileBytes2(string? storedPath)
+                            {
+                                if (string.IsNullOrEmpty(storedPath)) return null;
+                                var clean = storedPath.TrimStart('/', '\\').Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+                                var full = Path.Combine(_env.ContentRootPath, clean);
+                                if (System.IO.File.Exists(full))
+                                {
+                                    try { return System.IO.File.ReadAllBytes(full); } catch { }
+                                }
+                                try
+                                {
+                                    var url = $"{baseUrlForFiles2}/{storedPath.TrimStart('/', '\\')}";
+                                    using var hc = new System.Net.Http.HttpClient();
+                                    hc.Timeout = TimeSpan.FromSeconds(5);
+                                    var bytes = hc.GetByteArrayAsync(url).GetAwaiter().GetResult();
+                                    return bytes.Length > 0 ? bytes : null;
+                                }
+                                catch { return null; }
+                            }
+
                             // RIGHT SIDE - Info Panel (30% width) - matches modal exactly
                             row.RelativeItem(30).Column(column =>
                             {
@@ -1114,14 +1147,9 @@ namespace backend.Controllers
                                     {
                                         try
                                         {
-                                            // Fetch via HTTP — filesystem is ephemeral on Railway
-                                            var baseUrl = $"{Request.Scheme}://{Request.Host}";
-                                            var photoUrl = $"{baseUrl}/{calendarData.ProfilePhotoPath.TrimStart('/', '\\')}";
-                                            using var http = new System.Net.Http.HttpClient();
-                                            http.Timeout = TimeSpan.FromSeconds(5);
-                                            var rawBytes = http.GetByteArrayAsync(photoUrl).GetAwaiter().GetResult();
-                                            if (rawBytes != null && rawBytes.Length > 0)
-                                                header.Item().AlignCenter().Width(54).Height(54).Image(rawBytes).FitArea();
+                                            var photoBytes = FetchFileBytes2(calendarData.ProfilePhotoPath);
+                                            if (photoBytes != null && photoBytes.Length > 0)
+                                                header.Item().AlignCenter().Width(54).Height(54).Image(photoBytes).FitArea();
                                         }
                                         catch { /* skip photo */ }
                                     }
