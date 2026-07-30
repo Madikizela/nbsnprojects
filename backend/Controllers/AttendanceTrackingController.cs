@@ -1169,20 +1169,18 @@ namespace backend.Controllers
                                     {
                                         try
                                         {
-                                            var cleanPath = calendarData.ProfilePhotoPath
-                                                .TrimStart('/', '\\')
-                                                .Replace('\\', Path.DirectorySeparatorChar)
-                                                .Replace('/', Path.DirectorySeparatorChar);
-                                            var fullPath = Path.Combine(_env.ContentRootPath, cleanPath);
-                                            
-                                            if (System.IO.File.Exists(fullPath))
-                                            {
-                                                var rawBytes = System.IO.File.ReadAllBytes(fullPath);
-                                                byte[] circularBytes = rawBytes; // fallback
+                                            // Fetch photo via HTTP (works even with ephemeral filesystem on Railway)
+                                            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                                            var photoUrl = $"{baseUrl}/{calendarData.ProfilePhotoPath.TrimStart('/', '\\')}";
+                                            using var http = new System.Net.Http.HttpClient();
+                                            http.Timeout = TimeSpan.FromSeconds(5);
+                                            var rawBytes = http.GetByteArrayAsync(photoUrl).GetAwaiter().GetResult();
 
+                                            if (rawBytes != null && rawBytes.Length > 0)
+                                            {
+                                                byte[] circularBytes = rawBytes;
                                                 try
                                                 {
-                                                    // Draw circular image using SkiaSharp - output as PNG
                                                     using var srcBitmap = SkiaSharp.SKBitmap.Decode(rawBytes);
                                                     if (srcBitmap != null)
                                                     {
@@ -1191,24 +1189,17 @@ namespace backend.Controllers
                                                             new SkiaSharp.SKImageInfo(size, size, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul));
                                                         var canvas = surface.Canvas;
                                                         canvas.Clear(SkiaSharp.SKColors.Transparent);
-
-                                                        // Clip to circle
                                                         using var circlePath = new SkiaSharp.SKPath();
                                                         circlePath.AddCircle(size / 2f, size / 2f, size / 2f);
                                                         canvas.ClipPath(circlePath, SkiaSharp.SKClipOperation.Intersect, true);
-
-                                                        // Draw image scaled to fill
-                                                        var destRect = SkiaSharp.SKRect.Create(0, 0, size, size);
-                                                        canvas.DrawBitmap(srcBitmap, destRect);
+                                                        canvas.DrawBitmap(srcBitmap, SkiaSharp.SKRect.Create(0, 0, size, size));
                                                         canvas.Flush();
-
                                                         using var snapImage = surface.Snapshot();
                                                         using var pngData = snapImage.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
                                                         circularBytes = pngData.ToArray();
                                                     }
                                                 }
                                                 catch { /* use raw bytes */ }
-
                                                 header.Item().AlignCenter().Width(54).Height(54).Image(circularBytes).FitArea();
                                             }
                                         }
