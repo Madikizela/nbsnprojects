@@ -901,97 +901,42 @@ namespace backend.Controllers
                                 });
                                 headerRow.RelativeItem().AlignRight().Column(rightCol =>
                                 {
-                                    // System logo (circular) — always shown top-right
-                                    // wwwroot is always available on Railway; frontend assets may not be
+                                    // Simple square logos — no SkiaSharp processing to avoid failures
                                     var sysLogoPath = Path.Combine(_env.ContentRootPath, "wwwroot", "nbsn-logo.png");
-                                    if (!System.IO.File.Exists(sysLogoPath))
-                                        sysLogoPath = Path.Combine(_env.ContentRootPath, "..", "frontend", "src", "assets", "nbsn-logo.png");
 
-                                    byte[]? sysLogoCircular = null;
-                                    if (System.IO.File.Exists(sysLogoPath))
-                                    {
-                                        try
-                                        {
-                                            var raw = System.IO.File.ReadAllBytes(sysLogoPath);
-                                            using var bmp = SkiaSharp.SKBitmap.Decode(raw);
-                                            if (bmp != null)
-                                            {
-                                                const int sz = 44;
-                                                using var surf = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(sz, sz, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul));
-                                                var c = surf.Canvas;
-                                                c.Clear(SkiaSharp.SKColors.Transparent);
-                                                using var clip = new SkiaSharp.SKPath();
-                                                clip.AddCircle(sz / 2f, sz / 2f, sz / 2f);
-                                                c.ClipPath(clip, SkiaSharp.SKClipOperation.Intersect, true);
-                                                c.DrawBitmap(bmp, SkiaSharp.SKRect.Create(0, 0, sz, sz));
-                                                c.Flush();
-                                                using var snap = surf.Snapshot();
-                                                using var png = snap.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
-                                                sysLogoCircular = png.ToArray();
-                                            }
-                                        }
-                                        catch { /* skip */ }
-                                    }
-
-                                    // Row: SDP name/logo on left, system logo circle on right
                                     rightCol.Item().AlignRight().Row(r =>
                                     {
-                                        // SDP logo or name
-                                        r.RelativeItem().AlignRight().Column(sdpCol =>
+                                        // SDP name or logo (square)
+                                        if (!string.IsNullOrEmpty(calendarData.SdpLogoPath))
                                         {
-                                            if (!string.IsNullOrEmpty(calendarData.SdpLogoPath))
+                                            var sdpPath = Path.Combine(_env.ContentRootPath,
+                                                calendarData.SdpLogoPath.TrimStart('/', '\\')
+                                                    .Replace('/', Path.DirectorySeparatorChar));
+                                            if (System.IO.File.Exists(sdpPath))
                                             {
                                                 try
                                                 {
-                                                    var cleanLogoPath = calendarData.SdpLogoPath
-                                                        .TrimStart('/', '\\')
-                                                        .Replace('/', Path.DirectorySeparatorChar)
-                                                        .Replace('\\', Path.DirectorySeparatorChar);
-                                                    var logoFullPath = Path.Combine(_env.ContentRootPath, cleanLogoPath);
-                                                    if (System.IO.File.Exists(logoFullPath))
-                                                    {
-                                                        // Render SDP logo as circle
-                                                        var rawSdp = System.IO.File.ReadAllBytes(logoFullPath);
-                                                        byte[] sdpCircle = rawSdp;
-                                                        try
-                                                        {
-                                                            using var sdpBmp = SkiaSharp.SKBitmap.Decode(rawSdp);
-                                                            if (sdpBmp != null)
-                                                            {
-                                                                const int ssz = 44;
-                                                                using var ssurf = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(ssz, ssz, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul));
-                                                                var sc = ssurf.Canvas;
-                                                                sc.Clear(SkiaSharp.SKColors.Transparent);
-                                                                using var sclip = new SkiaSharp.SKPath();
-                                                                sclip.AddCircle(ssz / 2f, ssz / 2f, ssz / 2f);
-                                                                sc.ClipPath(sclip, SkiaSharp.SKClipOperation.Intersect, true);
-                                                                sc.DrawBitmap(sdpBmp, SkiaSharp.SKRect.Create(0, 0, ssz, ssz));
-                                                                sc.Flush();
-                                                                using var ssnap = ssurf.Snapshot();
-                                                                using var spng = ssnap.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
-                                                                sdpCircle = spng.ToArray();
-                                                            }
-                                                        }
-                                                        catch { /* use raw */ }
-                                                        sdpCol.Item().AlignRight().Width(44).Height(44).Image(sdpCircle).FitArea();
-                                                    }
-                                                    else
-                                                        sdpCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(9).Bold().FontColor(Colors.White);
+                                                    r.ConstantItem(50).Height(36).Image(System.IO.File.ReadAllBytes(sdpPath)).FitArea();
+                                                    r.ConstantItem(6);
                                                 }
-                                                catch
-                                                {
-                                                    sdpCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(9).Bold().FontColor(Colors.White);
-                                                }
+                                                catch { }
                                             }
-                                            else
-                                                sdpCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(9).Bold().FontColor(Colors.White);
-                                        });
-
-                                        // System logo circle
-                                        if (sysLogoCircular != null)
+                                        }
+                                        else if (!string.IsNullOrEmpty(calendarData.SdpName))
                                         {
+                                            r.RelativeItem().AlignRight().AlignMiddle()
+                                                .Text(calendarData.SdpName).FontSize(9).Bold().FontColor(Colors.White);
                                             r.ConstantItem(6);
-                                            r.ConstantItem(44).Height(44).Image(sysLogoCircular).FitArea();
+                                        }
+
+                                        // System logo (square, from wwwroot)
+                                        if (System.IO.File.Exists(sysLogoPath))
+                                        {
+                                            try
+                                            {
+                                                r.ConstantItem(36).Height(36).Image(System.IO.File.ReadAllBytes(sysLogoPath)).FitArea();
+                                            }
+                                            catch { }
                                         }
                                     });
                                     rightCol.Item().AlignRight().Text("Attendance Management System").FontSize(6).FontColor(Colors.White);
@@ -1169,39 +1114,14 @@ namespace backend.Controllers
                                     {
                                         try
                                         {
-                                            // Fetch photo via HTTP (works even with ephemeral filesystem on Railway)
+                                            // Fetch via HTTP — filesystem is ephemeral on Railway
                                             var baseUrl = $"{Request.Scheme}://{Request.Host}";
                                             var photoUrl = $"{baseUrl}/{calendarData.ProfilePhotoPath.TrimStart('/', '\\')}";
                                             using var http = new System.Net.Http.HttpClient();
                                             http.Timeout = TimeSpan.FromSeconds(5);
                                             var rawBytes = http.GetByteArrayAsync(photoUrl).GetAwaiter().GetResult();
-
                                             if (rawBytes != null && rawBytes.Length > 0)
-                                            {
-                                                byte[] circularBytes = rawBytes;
-                                                try
-                                                {
-                                                    using var srcBitmap = SkiaSharp.SKBitmap.Decode(rawBytes);
-                                                    if (srcBitmap != null)
-                                                    {
-                                                        const int size = 54;
-                                                        using var surface = SkiaSharp.SKSurface.Create(
-                                                            new SkiaSharp.SKImageInfo(size, size, SkiaSharp.SKColorType.Rgba8888, SkiaSharp.SKAlphaType.Premul));
-                                                        var canvas = surface.Canvas;
-                                                        canvas.Clear(SkiaSharp.SKColors.Transparent);
-                                                        using var circlePath = new SkiaSharp.SKPath();
-                                                        circlePath.AddCircle(size / 2f, size / 2f, size / 2f);
-                                                        canvas.ClipPath(circlePath, SkiaSharp.SKClipOperation.Intersect, true);
-                                                        canvas.DrawBitmap(srcBitmap, SkiaSharp.SKRect.Create(0, 0, size, size));
-                                                        canvas.Flush();
-                                                        using var snapImage = surface.Snapshot();
-                                                        using var pngData = snapImage.Encode(SkiaSharp.SKEncodedImageFormat.Png, 100);
-                                                        circularBytes = pngData.ToArray();
-                                                    }
-                                                }
-                                                catch { /* use raw bytes */ }
-                                                header.Item().AlignCenter().Width(54).Height(54).Image(circularBytes).FitArea();
-                                            }
+                                                header.Item().AlignCenter().Width(54).Height(54).Image(rawBytes).FitArea();
                                         }
                                         catch { /* skip photo */ }
                                     }
