@@ -35,6 +35,9 @@ namespace backend.Models
         [StringLength(100)]
         public string? ContactPerson { get; set; }
 
+        [StringLength(500)]
+        public string? LogoPath { get; set; }
+
         [Required]
         public SDPStatus Status { get; set; } = SDPStatus.Active;
 

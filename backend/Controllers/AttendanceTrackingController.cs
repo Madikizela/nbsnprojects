@@ -664,6 +664,11 @@ namespace backend.Controllers
                                         .ThenInclude(plp => plp.LearningPathway)
                     .Include(l => l.ClassEnrollments!)
                         .ThenInclude(ce => ce.SiteClass!)
+                            .ThenInclude(sc => sc.ProjectSite!)
+                                .ThenInclude(ps => ps.Project)
+                                    .ThenInclude(p => p!.SkillsDevelopmentProvider)
+                    .Include(l => l.ClassEnrollments!)
+                        .ThenInclude(ce => ce.SiteClass!)
                             .ThenInclude(sc => sc.CreatedByUser)
                     .FirstOrDefaultAsync(l => l.Id == learnerId);
 
@@ -786,6 +791,10 @@ namespace backend.Controllers
                         ? projectSite!.Province
                         : project?.Province,
                     SiteName = projectSite?.SiteName,
+                    
+                    // SDP Details
+                    SdpName = project?.SkillsDevelopmentProvider?.Name,
+                    SdpLogoPath = project?.SkillsDevelopmentProvider?.LogoPath,
                     
                     // Class Details — prefer the assigned teacher from ClassTeachers over the class creator
                     ClassName = activeEnrollment.SiteClass.ClassName,

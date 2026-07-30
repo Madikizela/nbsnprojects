@@ -14082,6 +14082,23 @@ const SDPManagerDashboard: React.FC = () => {
                   <div className="col-lg-4">
                     <div style={{ backgroundColor: '#1e293b', borderRadius: '8px', padding: '10px', fontSize: '0.8rem' }}>
                       
+                      {/* SDP Logo / Name header */}
+                      <div className="text-center mb-2 pb-2" style={{ borderBottom: '1px solid #334155' }}>
+                        {calendarData.sdpLogoPath ? (
+                          <img
+                            src={`${fetchWithAuth ? '' : ''}${calendarData.sdpLogoPath.startsWith('http') ? calendarData.sdpLogoPath : `${import.meta.env.VITE_API_URL || ''}/${calendarData.sdpLogoPath}`}`}
+                            alt="SDP Logo"
+                            style={{ maxWidth: '120px', maxHeight: '50px', objectFit: 'contain', marginBottom: 4 }}
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                        ) : (
+                          <div style={{ fontSize: 11, fontWeight: 700, color: '#06b6d4', letterSpacing: 0.5, marginBottom: 4 }}>
+                            {calendarData.sdpName || 'Skills Development Provider'}
+                          </div>
+                        )}
+                        <div style={{ fontSize: 9, color: '#475569', textTransform: 'uppercase', letterSpacing: 1 }}>Attendance Calendar</div>
+                      </div>
+
                       {/* Learner Name & Photo */}
                       <div className="text-center mb-2 pb-2" style={{ borderBottom: '1px solid #334155' }}>
                         {calendarData.profilePhotoPath ? (

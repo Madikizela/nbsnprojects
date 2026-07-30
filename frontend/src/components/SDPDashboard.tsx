@@ -10,6 +10,7 @@ interface SkillsDevelopmentProvider {
   description?: string;
   address?: string;
   contactPerson?: string;
+  logoPath?: string;
   status: number;
   clientId: number;
   createdAt: string;
@@ -1123,16 +1124,68 @@ const SDPDashboard: React.FC = () => {
             SDP Information
           </div>
           <div className="card-body">
-            <div className="row">
-              <div className="col-md-6">
-                <p className="mb-2"><strong>SDP Name:</strong> {user?.skillsDevelopmentProviderName}</p>
-                <p className="mb-2"><strong>User Name:</strong> {user?.name}</p>
-                <p className="mb-0"><strong>Email:</strong> {user?.email}</p>
+            <div className="row g-4 align-items-start">
+              {/* Logo upload column */}
+              <div className="col-md-3 text-center">
+                <div style={{ marginBottom: 12 }}>
+                  {selectedSdp?.logoPath ? (
+                    <img
+                      src={`${import.meta.env.VITE_API_URL || ''}/${selectedSdp.logoPath}`}
+                      alt="SDP Logo"
+                      style={{ maxWidth: 140, maxHeight: 100, objectFit: 'contain', borderRadius: 10, border: '1px solid #e2e8f0' }}
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  ) : (
+                    <div style={{ width: 120, height: 80, background: '#f1f5f9', borderRadius: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #cbd5e1', color: '#94a3b8', fontSize: 13 }}>
+                      No Logo
+                    </div>
+                  )}
+                </div>
+                <label
+                  htmlFor="sdp-logo-upload"
+                  style={{ display: 'inline-block', padding: '7px 16px', background: 'linear-gradient(135deg,#0d9488,#06b6d4)', color: '#fff', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600 }}
+                >
+                  📷 {selectedSdp?.logoPath ? 'Change Logo' : 'Upload Logo'}
+                </label>
+                <input
+                  id="sdp-logo-upload"
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.svg,.webp"
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const sdpId = selectedSdp?.id ?? user?.skillsDevelopmentProviderId;
+                    if (!sdpId) return;
+                    const formData = new FormData();
+                    formData.append('logo', file);
+                    const token = localStorage.getItem('token');
+                    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/SkillsDevelopmentProviders/${sdpId}/logo`, {
+                      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
+                    });
+                    if (res.ok) { window.location.reload(); }
+                    else { alert('Logo upload failed. Max 2MB, JPG/PNG/SVG only.'); }
+                  }}
+                />
+                <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 6, marginBottom: 0 }}>
+                  JPG, PNG, SVG · Max 2MB
+                </p>
               </div>
-              <div className="col-md-6">
-                <p className="mb-2"><strong>Role:</strong> <span className="badge bg-primary">{user?.role}</span></p>
-                <p className="mb-2"><strong>Status:</strong> <span className={`badge ${user?.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}>{user?.status}</span></p>
-                <p className="mb-0"><strong>Department:</strong> {user?.departmentName || 'Not assigned'}</p>
+
+              {/* Info columns */}
+              <div className="col-md-9">
+                <div className="row">
+                  <div className="col-md-6">
+                    <p className="mb-2"><strong>SDP Name:</strong> {user?.skillsDevelopmentProviderName}</p>
+                    <p className="mb-2"><strong>User Name:</strong> {user?.name}</p>
+                    <p className="mb-0"><strong>Email:</strong> {user?.email}</p>
+                  </div>
+                  <div className="col-md-6">
+                    <p className="mb-2"><strong>Role:</strong> <span className="badge bg-primary">{user?.role}</span></p>
+                    <p className="mb-2"><strong>Status:</strong> <span className={`badge ${user?.status === 'Active' ? 'bg-success' : 'bg-secondary'}`}>{user?.status}</span></p>
+                    <p className="mb-0"><strong>Department:</strong> {user?.departmentName || 'Not assigned'}</p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

@@ -44,6 +44,24 @@ namespace backend.Controllers
         }
 
         /// <summary>
+        /// POST /api/seed/migrate — applies pending schema migrations (idempotent).
+        /// </summary>
+        [HttpPost("migrate")]
+        public async Task<IActionResult> Migrate()
+        {
+            var results = new List<string>();
+            try
+            {
+                await _context.Database.ExecuteSqlRawAsync(
+                    @"ALTER TABLE ""SkillsDevelopmentProviders"" ADD COLUMN IF NOT EXISTS ""LogoPath"" VARCHAR(500) NULL;");
+                results.Add("SkillsDevelopmentProviders.LogoPath: OK");
+            }
+            catch (Exception ex) { results.Add($"LogoPath: SKIPPED ({ex.Message})"); }
+
+            return Ok(new { success = true, migrations = results });
+        }
+
+        /// <summary>
         /// POST /api/seed/occupational — seeds occupational qualifications and unit standards.
         /// Executes pre-generated PostgreSQL INSERT ... ON CONFLICT DO NOTHING statements.
         /// Safe to run multiple times.

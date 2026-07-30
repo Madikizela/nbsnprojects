@@ -367,6 +367,77 @@ namespace backend.Controllers
                 return StatusCode(500, new { message = "An error occurred while resending credentials" });
             }
         }
+
+        // POST: api/SkillsDevelopmentProviders/{id}/logo
+        [HttpPost("{id}/logo")]
+        public async Task<IActionResult> UploadLogo(int id, IFormFile logo)
+        {
+            try
+            {
+                var sdp = await _context.SkillsDevelopmentProviders.FindAsync(id);
+                if (sdp == null) return NotFound(new { message = "SDP not found" });
+
+                if (logo == null || logo.Length == 0)
+                    return BadRequest(new { message = "No file provided" });
+
+                // Validate file type
+                var allowed = new[] { ".jpg", ".jpeg", ".png", ".svg", ".webp" };
+                var ext = Path.GetExtension(logo.FileName).ToLowerInvariant();
+                if (!allowed.Contains(ext))
+                    return BadRequest(new { message = "Only JPG, PNG, SVG, WEBP files are allowed" });
+
+                // Max 2MB
+                if (logo.Length > 2 * 1024 * 1024)
+                    return BadRequest(new { message = "File size must not exceed 2MB" });
+
+                // Save to uploads/sdp-logos/
+                var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "uploads", "sdp-logos");
+                Directory.CreateDirectory(uploadsDir);
+
+                // Delete old logo if exists
+                if (!string.IsNullOrEmpty(sdp.LogoPath))
+                {
+                    var oldPath = Path.Combine(Directory.GetCurrentDirectory(), sdp.LogoPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                    if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+                }
+
+                var fileName = $"sdp_{id}_{Guid.NewGuid():N}{ext}";
+                var filePath = Path.Combine(uploadsDir, fileName);
+
+                using (var stream = new FileStream(filePath, FileMode.Create))
+                    await logo.CopyToAsync(stream);
+
+                sdp.LogoPath = $"uploads/sdp-logos/{fileName}";
+                sdp.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { success = true, logoPath = sdp.LogoPath });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error uploading logo for SDP {SdpId}", id);
+                return StatusCode(500, new { message = "Error uploading logo" });
+            }
+        }
+
+        // DELETE: api/SkillsDevelopmentProviders/{id}/logo
+        [HttpDelete("{id}/logo")]
+        public async Task<IActionResult> DeleteLogo(int id)
+        {
+            var sdp = await _context.SkillsDevelopmentProviders.FindAsync(id);
+            if (sdp == null) return NotFound();
+
+            if (!string.IsNullOrEmpty(sdp.LogoPath))
+            {
+                var fullPath = Path.Combine(Directory.GetCurrentDirectory(), sdp.LogoPath.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(fullPath)) System.IO.File.Delete(fullPath);
+                sdp.LogoPath = null;
+                sdp.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { success = true });
+        }
     }
 
     // DTOs for SDP Registration

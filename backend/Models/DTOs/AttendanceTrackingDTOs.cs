@@ -163,6 +163,10 @@ namespace backend.Models.DTOs
         public string? Province { get; set; }
         public string? SiteName { get; set; }
         
+        // SDP Details
+        public string? SdpName { get; set; }
+        public string? SdpLogoPath { get; set; }
+        
         // Class Details
         public string? ClassName { get; set; }
         public string? TeacherName { get; set; }
