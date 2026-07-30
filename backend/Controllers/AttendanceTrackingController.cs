@@ -891,8 +891,8 @@ namespace backend.Controllers
                         {
                             column.Item().Background("#1e3a8a").Padding(4).Row(headerRow =>
                             {
-                                // LEFT — SDP logo or SDP name
-                                var sysLogoPath = Path.Combine(_env.ContentRootPath, "wwwroot", "nbsn-logo.png");
+                                // LEFT — SDP logo (only if uploaded, otherwise nothing)
+                                var sysLogoPath = Path.Combine(_env.ContentRootPath, "wwwroot", "mobile_icon.png");
                                 headerRow.AutoItem().AlignMiddle().Column(leftLogo =>
                                 {
                                     if (!string.IsNullOrEmpty(calendarData.SdpLogoPath))
@@ -905,11 +905,8 @@ namespace backend.Controllers
                                             try { leftLogo.Item().Width(50).Height(36).Image(System.IO.File.ReadAllBytes(sdpPath)).FitArea(); }
                                             catch { leftLogo.Item().Text(calendarData.SdpName ?? "").FontSize(9).Bold().FontColor(Colors.White); }
                                         }
-                                        else
-                                            leftLogo.Item().Text(calendarData.SdpName ?? "").FontSize(9).Bold().FontColor(Colors.White);
                                     }
-                                    else if (!string.IsNullOrEmpty(calendarData.SdpName))
-                                        leftLogo.Item().AlignMiddle().Text(calendarData.SdpName).FontSize(9).Bold().FontColor(Colors.White);
+                                    // No logo and no name — show nothing, title will be centred naturally
                                 });
 
                                 headerRow.ConstantItem(8);
