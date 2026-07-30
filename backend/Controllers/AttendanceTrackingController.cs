@@ -16,12 +16,14 @@ namespace backend.Controllers
         private readonly ApplicationDbContext _context;
         private readonly ILogger<AttendanceTrackingController> _logger;
         private readonly IMemoryCache _cache;
+        private readonly IWebHostEnvironment _env;
 
-        public AttendanceTrackingController(ApplicationDbContext context, ILogger<AttendanceTrackingController> logger, IMemoryCache cache)
+        public AttendanceTrackingController(ApplicationDbContext context, ILogger<AttendanceTrackingController> logger, IMemoryCache cache, IWebHostEnvironment env)
         {
             _context = context;
             _logger = logger;
             _cache = cache;
+            _env = env;
         }
 
         // GET: api/AttendanceTracking/projects
@@ -900,10 +902,10 @@ namespace backend.Controllers
                                 headerRow.RelativeItem().AlignRight().Column(rightCol =>
                                 {
                                     // System logo (circular) — always shown top-right
-                                    var sysLogoPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "frontend", "src", "assets", "nbsn-logo.png");
-                                    // Try wwwroot fallback
+                                    // wwwroot is always available on Railway; frontend assets may not be
+                                    var sysLogoPath = Path.Combine(_env.ContentRootPath, "wwwroot", "nbsn-logo.png");
                                     if (!System.IO.File.Exists(sysLogoPath))
-                                        sysLogoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "nbsn-logo.png");
+                                        sysLogoPath = Path.Combine(_env.ContentRootPath, "..", "frontend", "src", "assets", "nbsn-logo.png");
 
                                     byte[]? sysLogoCircular = null;
                                     if (System.IO.File.Exists(sysLogoPath))
@@ -945,7 +947,7 @@ namespace backend.Controllers
                                                         .TrimStart('/', '\\')
                                                         .Replace('/', Path.DirectorySeparatorChar)
                                                         .Replace('\\', Path.DirectorySeparatorChar);
-                                                    var logoFullPath = Path.Combine(Directory.GetCurrentDirectory(), cleanLogoPath);
+                                                    var logoFullPath = Path.Combine(_env.ContentRootPath, cleanLogoPath);
                                                     if (System.IO.File.Exists(logoFullPath))
                                                     {
                                                         // Render SDP logo as circle
@@ -1093,8 +1095,8 @@ namespace backend.Controllers
                                     string? ResolvePath(string? storedPath)
                                     {
                                         if (string.IsNullOrEmpty(storedPath)) return null;
-                                        var clean = storedPath.TrimStart('/', '\\').Replace('\\', Path.DirectorySeparatorChar);
-                                        var full = Path.Combine(Directory.GetCurrentDirectory(), clean);
+                                        var clean = storedPath.TrimStart('/', '\\').Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+                                        var full = Path.Combine(_env.ContentRootPath, clean);
                                         return System.IO.File.Exists(full) ? full : null;
                                     }
 
@@ -1171,7 +1173,7 @@ namespace backend.Controllers
                                                 .TrimStart('/', '\\')
                                                 .Replace('\\', Path.DirectorySeparatorChar)
                                                 .Replace('/', Path.DirectorySeparatorChar);
-                                            var fullPath = Path.Combine(Directory.GetCurrentDirectory(), cleanPath);
+                                            var fullPath = Path.Combine(_env.ContentRootPath, cleanPath);
                                             
                                             if (System.IO.File.Exists(fullPath))
                                             {
