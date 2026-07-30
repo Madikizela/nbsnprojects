@@ -44,51 +44,51 @@ namespace backend.Controllers
         }
 
         /// <summary>
-        /// GET /api/seed/debug-paths — check what paths are available on the server
+        /// GET /api/seed/storage-check — verify uploads volume is mounted and writable
         /// </summary>
-        [HttpGet("debug-paths")]
-        public IActionResult DebugPaths()
+        [HttpGet("storage-check")]
+        public IActionResult StorageCheck()
         {
-            var root = Directory.GetCurrentDirectory();
-            var results = new Dictionary<string, object>();
-
-            // Check common paths
-            var pathsToCheck = new[]
+            var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "uploads");
+            var results = new Dictionary<string, object>
             {
-                Path.Combine(root, "wwwroot", "nbsn-logo.png"),
-                Path.Combine(root, "uploads"),
-                Path.Combine(root, "uploads", "profile-photos"),
-                Path.Combine(root, "uploads", "sdp-logos"),
-                Path.Combine(root, "..", "frontend", "src", "assets", "nbsn-logo.png"),
+                ["uploadsPath"] = uploadsPath,
+                ["uploadsExists"] = Directory.Exists(uploadsPath),
+                ["cwd"] = Directory.GetCurrentDirectory(),
+                ["wwwrootLogoExists"] = System.IO.File.Exists(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "nbsn-logo.png")),
             };
 
-            foreach (var p in pathsToCheck)
-                results[p] = System.IO.File.Exists(p) ? "FILE EXISTS" : (Directory.Exists(p) ? "DIR EXISTS" : "NOT FOUND");
+            // Count files in each subdirectory
+            if (Directory.Exists(uploadsPath))
+            {
+                foreach (var dir in Directory.GetDirectories(uploadsPath))
+                {
+                    var name = Path.GetFileName(dir);
+                    results[$"uploads/{name}"] = Directory.GetFiles(dir).Length + " files";
+                }
 
-            // List wwwroot contents
-            var wwwroot = Path.Combine(root, "wwwroot");
-            if (Directory.Exists(wwwroot))
-                results["wwwroot_files"] = Directory.GetFiles(wwwroot).Select(f => Path.GetFileName(f)).ToArray();
+                // Test write access
+                try
+                {
+                    var testFile = Path.Combine(uploadsPath, ".write-test");
+                    System.IO.File.WriteAllText(testFile, "ok");
+                    System.IO.File.Delete(testFile);
+                    results["writable"] = true;
+                }
+                catch { results["writable"] = false; }
+            }
 
-            // List uploads contents
-            var uploads = Path.Combine(root, "uploads");
-            if (Directory.Exists(uploads))
-                results["uploads_dirs"] = Directory.GetDirectories(uploads).Select(d => Path.GetFileName(d)).ToArray();
-
-            // Show a sample profile photo path from DB
+            // Sample stored path
             var sampleLearner = _context.Set<backend.Models.Learner>()
                 .Where(l => l.ProfilePhotoPath != null)
                 .Select(l => new { l.Id, l.ProfilePhotoPath })
                 .FirstOrDefault();
             if (sampleLearner != null)
             {
-                results["sample_photo_stored"] = sampleLearner.ProfilePhotoPath ?? "null";
-                var resolved = Path.Combine(root, (sampleLearner.ProfilePhotoPath ?? "").TrimStart('/', '\\'));
-                results["sample_photo_resolved"] = resolved;
-                results["sample_photo_exists"] = System.IO.File.Exists(resolved) ? "YES" : "NO";
+                var fp = Path.Combine(Directory.GetCurrentDirectory(), (sampleLearner.ProfilePhotoPath ?? "").TrimStart('/','\\'));
+                results["samplePhotoPath"] = sampleLearner.ProfilePhotoPath ?? "";
+                results["samplePhotoExists"] = System.IO.File.Exists(fp) ? "YES ✅" : "NO ❌";
             }
-
-            results["cwd"] = root;
 
             return Ok(results);
         }
