@@ -899,7 +899,35 @@ namespace backend.Controllers
                                 });
                                 headerRow.RelativeItem().AlignRight().Column(rightCol =>
                                 {
-                                    rightCol.Item().AlignRight().Text("NBSN Project").FontSize(11).Bold().FontColor(Colors.White);
+                                    // Show SDP logo if available, otherwise SDP name
+                                    if (!string.IsNullOrEmpty(calendarData.SdpLogoPath))
+                                    {
+                                        try
+                                        {
+                                            var cleanLogoPath = calendarData.SdpLogoPath
+                                                .TrimStart('/', '\\')
+                                                .Replace('/', Path.DirectorySeparatorChar)
+                                                .Replace('\\', Path.DirectorySeparatorChar);
+                                            var logoFullPath = Path.Combine(Directory.GetCurrentDirectory(), cleanLogoPath);
+                                            if (System.IO.File.Exists(logoFullPath))
+                                            {
+                                                var logoBytes = System.IO.File.ReadAllBytes(logoFullPath);
+                                                rightCol.Item().AlignRight().Width(60).Image(logoBytes).FitArea();
+                                            }
+                                            else
+                                            {
+                                                rightCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(11).Bold().FontColor(Colors.White);
+                                            }
+                                        }
+                                        catch
+                                        {
+                                            rightCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(11).Bold().FontColor(Colors.White);
+                                        }
+                                    }
+                                    else
+                                    {
+                                        rightCol.Item().AlignRight().Text(calendarData.SdpName ?? "SDP Portal").FontSize(11).Bold().FontColor(Colors.White);
+                                    }
                                     rightCol.Item().AlignRight().Text("Attendance Management System").FontSize(6).FontColor(Colors.White);
                                 });
                             });
@@ -1233,7 +1261,7 @@ namespace backend.Controllers
                         page.Footer().BorderTop(1).BorderColor("#334155").PaddingTop(3).Row(f =>
                         {
                             f.RelativeItem().AlignLeft().Text($"Facilitator: {calendarData.TeacherName ?? "N/A"}").FontSize(6).Italic().FontColor("#94a3b8");
-                            f.RelativeItem().AlignCenter().Text("NBSN Project · Attendance Management").FontSize(6).SemiBold().FontColor("#3b82f6");
+                            f.RelativeItem().AlignCenter().Text("SDP Portal · Attendance Management").FontSize(6).SemiBold().FontColor("#3b82f6");
                             f.RelativeItem().AlignRight().Text($"Generated: {DateTime.Now:yyyy-MM-dd HH:mm}").FontSize(6).Italic().FontColor("#94a3b8");
                         });
                     });

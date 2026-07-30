@@ -716,7 +716,24 @@ namespace backend.Controllers
                             lc.Item().Text("Attendance Calendar").FontSize(12).Bold().FontColor(QuestPDF.Helpers.Colors.White);
                             lc.Item().Text($"{cal.MonthName} {cal.Year}").FontSize(7).FontColor(QuestPDF.Helpers.Colors.White);
                         });
-                        h.RelativeItem().AlignRight().Text("NBSN Project").FontSize(11).Bold().FontColor(QuestPDF.Helpers.Colors.White);
+                        h.RelativeItem().AlignRight().Column(rightCol =>
+                        {
+                            if (!string.IsNullOrEmpty(cal.SdpLogoPath))
+                            {
+                                try
+                                {
+                                    var lp = cal.SdpLogoPath.TrimStart('/', '\\').Replace('/', Path.DirectorySeparatorChar);
+                                    var lFull = Path.Combine(Directory.GetCurrentDirectory(), lp);
+                                    if (System.IO.File.Exists(lFull))
+                                        rightCol.Item().AlignRight().Width(60).Image(System.IO.File.ReadAllBytes(lFull)).FitArea();
+                                    else
+                                        rightCol.Item().AlignRight().Text(cal.SdpName ?? "SDP Portal").FontSize(11).Bold().FontColor(QuestPDF.Helpers.Colors.White);
+                                }
+                                catch { rightCol.Item().AlignRight().Text(cal.SdpName ?? "SDP Portal").FontSize(11).Bold().FontColor(QuestPDF.Helpers.Colors.White); }
+                            }
+                            else
+                                rightCol.Item().AlignRight().Text(cal.SdpName ?? "SDP Portal").FontSize(11).Bold().FontColor(QuestPDF.Helpers.Colors.White);
+                        });
                     });
                     page.Content().PaddingTop(3).Row(row =>
                     {
@@ -853,7 +870,7 @@ namespace backend.Controllers
                     });
                     page.Footer().BorderTop(1).BorderColor("#334155").PaddingTop(3).Row(f =>
                     {
-                        f.RelativeItem().AlignCenter().Text("NBSN Project · Attendance Management").FontSize(6).FontColor("#3b82f6");
+                        f.RelativeItem().AlignCenter().Text("SDP Portal · Attendance Management").FontSize(6).FontColor("#3b82f6");
                         f.RelativeItem().AlignRight().Text($"Generated: {DateTime.Now:yyyy-MM-dd}").FontSize(6).FontColor("#94a3b8");
                     });
                 });
@@ -940,7 +957,7 @@ namespace backend.Controllers
                         h.ConstantItem(8);
                         h.AutoItem().AlignRight().Column(c =>
                         {
-                            c.Item().AlignRight().Text("NBSN Project").FontSize(13).Bold().FontColor(QuestPDF.Helpers.Colors.White);
+                            c.Item().AlignRight().Text(project.SkillsDevelopmentProvider?.Name ?? "SDP Portal").FontSize(13).Bold().FontColor(QuestPDF.Helpers.Colors.White);
                             c.Item().AlignRight().Text($"Generated: {DateTime.Now:yyyy-MM-dd}").FontSize(8).FontColor("#94a3b8");
                         });
                     });
@@ -1051,7 +1068,7 @@ namespace backend.Controllers
                     page.Footer().BorderTop(1).BorderColor("#334155").PaddingTop(4).Row(f =>
                     {
                         f.RelativeItem().AlignLeft().Text($"Project: {project.ProjectName}").FontSize(7).FontColor("#94a3b8");
-                        f.RelativeItem().AlignCenter().Text("NBSN Project · Attendance Management").FontSize(7).FontColor("#3b82f6");
+                        f.RelativeItem().AlignCenter().Text("SDP Portal · Attendance Management").FontSize(7).FontColor("#3b82f6");
                         f.RelativeItem().AlignRight().Text($"Page 1  |  Generated: {DateTime.Now:yyyy-MM-dd HH:mm}").FontSize(7).FontColor("#94a3b8");
                     });
                 });
