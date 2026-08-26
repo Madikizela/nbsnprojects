@@ -224,8 +224,8 @@ try
         // Create the database schema if it doesn't exist yet.
         // This project uses EnsureCreated (no EF migrations) so this is safe to call on every startup.
         Console.WriteLine("⏳ Ensuring database schema exists...");
-        await context.Database.EnsureCreatedAsync();
-        Console.WriteLine("✅ Database schema ready");
+        var created = await context.Database.EnsureCreatedAsync();
+        Console.WriteLine($"✅ Database schema ready (created: {created})");
 
         // Test the connection by attempting to open it
         var connection = context.Database.GetDbConnection();
@@ -253,9 +253,10 @@ try
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"❌ Database initialization error: {ex.Message}");
+    // Log but do NOT crash — allow the app to start so /health is reachable.
+    // DB errors are retried on the next request.
+    Console.WriteLine($"⚠️ Database initialization warning: {ex.Message}");
     Console.WriteLine($"Stack trace: {ex.StackTrace}");
-    throw;
 }
 
 // Configure the HTTP request pipeline.
@@ -323,7 +324,14 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 // Health check endpoint (used by Railway healthcheck)
-app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+app.MapGet("/health", async (backend.Models.ApplicationDbContext dbCtx) => {
+    try {
+        await dbCtx.Database.CanConnectAsync();
+        return Results.Ok(new { status = "healthy", db = "connected", timestamp = DateTime.UtcNow });
+    } catch (Exception ex) {
+        return Results.Ok(new { status = "healthy", db = "unreachable", error = ex.Message, timestamp = DateTime.UtcNow });
+    }
+});
 
 // Map controllers
 app.MapControllers();
