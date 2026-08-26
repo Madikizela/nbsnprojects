@@ -281,7 +281,7 @@ namespace backend.Controllers
                     ClientName = client.Name,
                     Message = emailSent
                         ? "Client registered successfully. Login credentials have been sent to the provided email."
-                        : "Client registered successfully. Email could not be sent — SMTP not configured. Credentials are shown below.",
+                        : "Client registered successfully. Email delivery is pending domain verification on Resend. Credentials are shown below — please share them manually.",
                     EmailSent = emailSent,
                     CreatedAt = client.CreatedAt,
                     AdminUsername = !emailSent ? username : null,

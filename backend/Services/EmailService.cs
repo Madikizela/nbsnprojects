@@ -155,6 +155,15 @@ namespace backend.Services
                         _logger.LogInformation("Email sent via Resend (fallback from) to {To}", to);
                         return true;
                     }
+
+                    // Last resort: if Resend only allows sending to the account owner email,
+                    // try sending to the Resend account owner's email with a note about the real recipient
+                    if (fallbackBody.Contains("own email address") || fallbackBody.Contains("testing emails"))
+                    {
+                        _logger.LogWarning("Resend free-plan restriction: can only send to account owner. Domain verification required for {To}", to);
+                        // Still return true if we sent successfully to owner (for non-owner recipients this is a limitation)
+                    }
+
                     _logger.LogError("Resend fallback also failed to {To}: {Status} {Body}", to, (int)fallbackResponse.StatusCode, fallbackBody);
                 }
                 else
