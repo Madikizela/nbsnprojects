@@ -222,10 +222,40 @@ try
         var context = scope.ServiceProvider.GetRequiredService<backend.Models.ApplicationDbContext>();
 
         // Create the database schema if it doesn't exist yet.
-        // This project uses EnsureCreated (no EF migrations) so this is safe to call on every startup.
+        // Use raw SQL from init_postgres.sql to ensure tables are created reliably.
         Console.WriteLine("⏳ Ensuring database schema exists...");
-        var created = await context.Database.EnsureCreatedAsync();
-        Console.WriteLine($"✅ Database schema ready (created: {created})");
+        
+        // Check if SystemAdmins table exists
+        var tableCheckSql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'SystemAdmins'";
+        var tableExists = (long)(await context.Database.SqlQueryRaw<long>(tableCheckSql).FirstOrDefaultAsync()) > 0;
+        Console.WriteLine($"  SystemAdmins table exists: {tableExists}");
+        
+        if (!tableExists)
+        {
+            Console.WriteLine("  Creating schema from init_postgres.sql...");
+            // Read and execute the SQL init script
+            var sqlPath = Path.Combine(AppContext.BaseDirectory, "init_postgres.sql");
+            if (!File.Exists(sqlPath))
+                sqlPath = Path.Combine(Directory.GetCurrentDirectory(), "init_postgres.sql");
+            
+            if (File.Exists(sqlPath))
+            {
+                var sql = await File.ReadAllTextAsync(sqlPath);
+                await context.Database.ExecuteSqlRawAsync(sql);
+                Console.WriteLine("✅ Schema created from init_postgres.sql");
+            }
+            else
+            {
+                // Fall back to EF EnsureCreated
+                Console.WriteLine("  init_postgres.sql not found, using EnsureCreated...");
+                var created = await context.Database.EnsureCreatedAsync();
+                Console.WriteLine($"  EnsureCreated result: {created}");
+            }
+        }
+        else
+        {
+            Console.WriteLine("✅ Database schema already exists");
+        }
 
         // Test the connection by attempting to open it
         var connection = context.Database.GetDbConnection();

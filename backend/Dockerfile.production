@@ -23,6 +23,9 @@ RUN apk add --no-cache \
 
 COPY --from=build /app/publish .
 
+# Copy the SQL init script for first-run schema creation
+COPY init_postgres.sql .
+
 # Railway injects $PORT at runtime — we read it via ASPNETCORE_URLS
 ENV ASPNETCORE_ENVIRONMENT=Production
 ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false
