@@ -262,29 +262,33 @@ try
         
         if (!tablesExist)
         {
-            // EnsureCreated creates the full EF schema
-            try 
+            // EnsureCreated + EF retry wrappers don't work reliably on fresh Railway DBs.
+            // Use raw ADO.NET to run the full CREATE TABLE statements directly.
+            Console.WriteLine("  Creating full schema via raw SQL...");
+            var conn3 = context.Database.GetDbConnection();
+            if (conn3.State != System.Data.ConnectionState.Open)
+                await conn3.OpenAsync();
+
+            // Generate the CREATE TABLE SQL from EF model
+            var createScript = context.Database.GenerateCreateScript();
+            Console.WriteLine($"  Generated SQL script length: {createScript.Length} chars");
+            
+            using (var cmd = conn3.CreateCommand())
             {
-                var created = await context.Database.EnsureCreatedAsync();
-                Console.WriteLine($"✅ EnsureCreated completed (created={created})");
-                
-                // Verify it worked
-                var conn2 = context.Database.GetDbConnection();
-                await conn2.OpenAsync();
-                using (var cmd2 = conn2.CreateCommand())
-                {
-                    cmd2.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'";
-                    var count = await cmd2.ExecuteScalarAsync();
-                    Console.WriteLine($"✅ Total tables now in database: {count}");
-                }
-                await conn2.CloseAsync();
+                cmd.CommandText = createScript;
+                cmd.CommandTimeout = 120;
+                await cmd.ExecuteNonQueryAsync();
             }
-            catch (Exception ensureEx)
+            Console.WriteLine("✅ Schema created via GenerateCreateScript");
+            
+            // Verify
+            using (var cmd = conn3.CreateCommand())
             {
-                Console.WriteLine($"❌ EnsureCreated failed: {ensureEx.Message}");
-                Console.WriteLine($"   Inner: {ensureEx.InnerException?.Message}");
-                throw;
+                cmd.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'";
+                var count = await cmd.ExecuteScalarAsync();
+                Console.WriteLine($"✅ Total tables now: {count}");
             }
+            await conn3.CloseAsync();
         }
         else
         {
