@@ -87,6 +87,9 @@ builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
         try
         {
             var userInfo = databaseUri.UserInfo.Split(':', 2);
+            // Use SslMode.Prefer so it works on both Railway internal (.railway.internal, no SSL)
+            // and external connections that may have SSL enabled.
+            var isInternalHost = databaseUri.Host.EndsWith(".railway.internal");
             var railwayConnection = new NpgsqlConnectionStringBuilder
             {
                 Host = databaseUri.Host,
@@ -94,7 +97,7 @@ builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
                 Database = databaseUri.AbsolutePath.TrimStart('/'),
                 Username = userInfo.Length > 0 ? Uri.UnescapeDataString(userInfo[0]) : string.Empty,
                 Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
-                SslMode = SslMode.Require
+                SslMode = isInternalHost ? SslMode.Disable : SslMode.Prefer
             };
             connectionString = railwayConnection.ConnectionString;
             Console.WriteLine("✅ Using DATABASE_URL connection string");
