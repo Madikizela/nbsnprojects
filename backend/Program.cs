@@ -222,40 +222,54 @@ try
         var context = scope.ServiceProvider.GetRequiredService<backend.Models.ApplicationDbContext>();
 
         // Create the database schema if it doesn't exist yet.
-        // Use raw SQL from init_postgres.sql to ensure tables are created reliably.
-        Console.WriteLine("⏳ Ensuring database schema exists...");
+        // Use raw ADO.NET to check and create tables — bypasses EF retry logic.
+        Console.WriteLine("⏳ Checking database schema...");
         
-        // Check if SystemAdmins table exists
-        var tableCheckSql = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'SystemAdmins'";
-        var tableExists = (long)(await context.Database.SqlQueryRaw<long>(tableCheckSql).FirstOrDefaultAsync()) > 0;
-        Console.WriteLine($"  SystemAdmins table exists: {tableExists}");
+        var conn = context.Database.GetDbConnection();
+        await conn.OpenAsync();
         
-        if (!tableExists)
+        bool tablesExist = false;
+        using (var cmd = conn.CreateCommand())
         {
-            Console.WriteLine("  Creating schema from init_postgres.sql...");
-            // Read and execute the SQL init script
-            var sqlPath = Path.Combine(AppContext.BaseDirectory, "init_postgres.sql");
-            if (!File.Exists(sqlPath))
-                sqlPath = Path.Combine(Directory.GetCurrentDirectory(), "init_postgres.sql");
+            cmd.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'SystemAdmins'";
+            var result = await cmd.ExecuteScalarAsync();
+            tablesExist = Convert.ToInt64(result) > 0;
+        }
+        Console.WriteLine($"  Tables exist: {tablesExist}");
+        
+        if (!tablesExist)
+        {
+            Console.WriteLine("  Tables missing — creating schema from init_postgres.sql...");
+            var sqlPaths = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, "init_postgres.sql"),
+                Path.Combine(Directory.GetCurrentDirectory(), "init_postgres.sql")
+            };
+            var sqlPath = sqlPaths.FirstOrDefault(File.Exists);
             
-            if (File.Exists(sqlPath))
+            if (sqlPath != null)
             {
                 var sql = await File.ReadAllTextAsync(sqlPath);
-                await context.Database.ExecuteSqlRawAsync(sql);
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = sql;
+                    cmd.CommandTimeout = 120;
+                    await cmd.ExecuteNonQueryAsync();
+                }
                 Console.WriteLine("✅ Schema created from init_postgres.sql");
             }
             else
             {
-                // Fall back to EF EnsureCreated
-                Console.WriteLine("  init_postgres.sql not found, using EnsureCreated...");
-                var created = await context.Database.EnsureCreatedAsync();
-                Console.WriteLine($"  EnsureCreated result: {created}");
+                Console.WriteLine("⚠️  init_postgres.sql not found at any expected path, falling back to EnsureCreated");
+                await context.Database.EnsureCreatedAsync();
             }
         }
         else
         {
             Console.WriteLine("✅ Database schema already exists");
         }
+        
+        await conn.CloseAsync();
 
         // Test the connection by attempting to open it
         var connection = context.Database.GetDbConnection();
