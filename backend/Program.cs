@@ -263,8 +263,28 @@ try
         if (!tablesExist)
         {
             // EnsureCreated creates the full EF schema
-            var created = await context.Database.EnsureCreatedAsync();
-            Console.WriteLine($"✅ EnsureCreated completed (created={created})");
+            try 
+            {
+                var created = await context.Database.EnsureCreatedAsync();
+                Console.WriteLine($"✅ EnsureCreated completed (created={created})");
+                
+                // Verify it worked
+                var conn2 = context.Database.GetDbConnection();
+                await conn2.OpenAsync();
+                using (var cmd2 = conn2.CreateCommand())
+                {
+                    cmd2.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'";
+                    var count = await cmd2.ExecuteScalarAsync();
+                    Console.WriteLine($"✅ Total tables now in database: {count}");
+                }
+                await conn2.CloseAsync();
+            }
+            catch (Exception ensureEx)
+            {
+                Console.WriteLine($"❌ EnsureCreated failed: {ensureEx.Message}");
+                Console.WriteLine($"   Inner: {ensureEx.InnerException?.Message}");
+                throw;
+            }
         }
         else
         {
