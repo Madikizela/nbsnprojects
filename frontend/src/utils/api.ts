@@ -84,9 +84,10 @@ export function getUserRoleInfo(user: NormalizedUser | null | undefined): RoleIn
   const deptName = (user?.departmentName || '').toLowerCase();
   const deptId = typeof user?.departmentId === 'number' ? user.departmentId : null;
 
-  // SysAdmin = role 1 or SuperAdmin
+  // SysAdmin = role 1 or any system admin role string
   const isSysAdmin =
     role === '1' ||
+    role === 'SystemAdmin' ||
     role === 'SuperAdmin' ||
     role === 'Administrator' ||
     role === 'Admin';
