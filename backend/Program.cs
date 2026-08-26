@@ -319,6 +319,9 @@ app.Use(async (context, next) =>
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Health check endpoint (used by Railway healthcheck)
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", timestamp = DateTime.UtcNow }));
+
 // Map controllers
 app.MapControllers();
 
