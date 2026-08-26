@@ -44,6 +44,25 @@ namespace backend.Controllers
         }
 
         /// <summary>
+        /// GET /api/seed/env-check — show email-related env vars (redacted) for debugging
+        /// </summary>
+        [HttpGet("env-check")]
+        public IActionResult EnvCheck()
+        {
+            var resendKey = Environment.GetEnvironmentVariable("RESEND_API_KEY");
+            var smtpUser  = Environment.GetEnvironmentVariable("SMTP_USER");
+            var smtpPass  = Environment.GetEnvironmentVariable("SMTP_PASS");
+            var fromEmail = Environment.GetEnvironmentVariable("FROM_EMAIL");
+            return Ok(new
+            {
+                RESEND_API_KEY = string.IsNullOrEmpty(resendKey) ? "(not set)" : $"(set: {resendKey[..Math.Min(10, resendKey.Length)]}...)",
+                SMTP_USER      = string.IsNullOrEmpty(smtpUser)  ? "(not set)" : $"(set: {smtpUser})",
+                SMTP_PASS      = string.IsNullOrEmpty(smtpPass)  ? "(not set)" : "(set)",
+                FROM_EMAIL     = string.IsNullOrEmpty(fromEmail) ? "(not set)" : $"(set: {fromEmail})",
+            });
+        }
+
+        /// <summary>
         /// GET /api/seed/storage-check — verify uploads volume is mounted and writable
         /// </summary>
         [HttpGet("storage-check")]
