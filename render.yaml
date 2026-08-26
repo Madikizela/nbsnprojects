@@ -1,0 +1,117 @@
+# Render Blueprint — NBSN Projects
+# Docs: https://render.com/docs/blueprint-spec
+#
+# This file provisions all three Render resources in one shot:
+#   1. PostgreSQL database
+#   2. Backend  (.NET 9 ASP.NET Core API)
+#   3. Frontend (React / Vite / Nginx)
+#
+# Deploy via: Render Dashboard → New → Blueprint → point to this repo
+
+services:
+  # ─── Backend API ─────────────────────────────────────────────────────────────
+  - type: web
+    name: nbsn-backend
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile.production
+    plan: starter          # change to "standard" or higher for production
+    region: oregon         # us-west-2; change to "frankfurt" / "singapore" etc. as needed
+    branch: main
+    healthCheckPath: /health   # update to a real health endpoint if you add one
+    envVars:
+      # Render auto-injects PORT; the Dockerfile CMD already reads it:
+      #   CMD ASPNETCORE_URLS="http://0.0.0.0:${PORT:-5213}" dotnet backend.dll
+
+      # ── Database ──────────────────────────────────────────────────────────
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nbsn-postgres
+          property: connectionString
+
+      # ── ASP.NET Core ──────────────────────────────────────────────────────
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: DOTNET_SYSTEM_GLOBALIZATION_INVARIANT
+        value: "false"
+
+      # ── JWT ───────────────────────────────────────────────────────────────
+      - key: JWT_SECRET
+        generateValue: true   # Render generates a random secret on first deploy
+      - key: JWT_ISSUER
+        value: DocumentManagementSystem
+      - key: JWT_AUDIENCE
+        value: DocumentManagementUsers
+      - key: JWT_EXPIRY_MINUTES
+        value: "60"
+
+      # ── Encryption ────────────────────────────────────────────────────────
+      - key: ENCRYPTION_DATA_KEY
+        generateValue: true
+
+      # ── Admin seed credentials ────────────────────────────────────────────
+      - key: DEFAULT_ADMIN_EMAIL
+        value: admin@system.local
+      - key: DEFAULT_ADMIN_PASSWORD
+        sync: false   # set manually in the Render dashboard — do not commit
+
+      # ── Email (SMTP) ──────────────────────────────────────────────────────
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false   # set in Render dashboard
+      - key: SMTP_PASS
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      - key: FROM_NAME
+        value: NBSN Team
+
+      # ── WhatsApp (Meta Cloud API) ─────────────────────────────────────────
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_ACCESS_TOKEN
+        sync: false
+      - key: WHATSAPP_BUSINESS_ACCOUNT_ID
+        sync: false
+
+      # ── Learner Portal URL ────────────────────────────────────────────────
+      # Set this after the frontend is deployed; update to the Render frontend URL.
+      - key: LEARNER_PORTAL_URL
+        sync: false
+
+  # ─── Frontend SPA ────────────────────────────────────────────────────────────
+  - type: web
+    name: nbsn-frontend
+    runtime: docker
+    rootDir: frontend
+    dockerfilePath: ./Dockerfile.production
+    plan: starter
+    region: oregon
+    branch: main
+    envVars:
+      # Build-time: baked into the Vite bundle during `docker build`
+      - key: VITE_API_URL
+        # After the backend is deployed, replace this with your backend's
+        # Render URL, e.g. https://nbsn-backend.onrender.com
+        sync: false
+
+      # Runtime: used by docker-entrypoint.sh to configure nginx port
+      # Render injects PORT automatically — no need to set it here.
+
+      # nginx reverse-proxy target (if you use the proxy block in nginx.conf)
+      - key: BACKEND_URL
+        fromService:
+          name: nbsn-backend
+          type: web
+          property: host   # resolves to the internal hostname on Render's network
+
+databases:
+  # ─── PostgreSQL ───────────────────────────────────────────────────────────────
+  - name: nbsn-postgres
+    databaseName: nbsn_db
+    user: nbsn_user
+    plan: starter          # free tier; change to "standard" for production
+    region: oregon

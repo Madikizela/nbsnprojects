@@ -211,16 +211,19 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Database should already be created and migrated, so we don't need EnsureCreated()
-// This prevents conflicts with existing PostgreSQL database
-
-// Add explicit database initialization
+// Add explicit database initialization and auto-migration (works on Railway, Render, and local)
 try
 {
     using (var scope = app.Services.CreateScope())
     {
         var context = scope.ServiceProvider.GetRequiredService<backend.Models.ApplicationDbContext>();
-        
+
+        // Apply any pending EF Core migrations automatically on startup.
+        // This is safe to call even when the schema is already up to date.
+        Console.WriteLine("⏳ Applying pending EF Core migrations...");
+        await context.Database.MigrateAsync();
+        Console.WriteLine("✅ EF Core migrations applied successfully");
+
         // Test the connection by attempting to open it
         var connection = context.Database.GetDbConnection();
         Console.WriteLine($"🔍 Database Connection Type: {connection.GetType().Name}");
