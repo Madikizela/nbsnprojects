@@ -54,9 +54,6 @@ namespace backend.Services
             {
                 _logger.LogInformation("Starting database seeding process...");
 
-                // Ensure database is created
-                await _context.Database.EnsureCreatedAsync();
-
                 // Create default system admin if it doesn't exist
                 if (!await DefaultSystemAdminExistsAsync())
                 {

@@ -218,11 +218,11 @@ try
     {
         var context = scope.ServiceProvider.GetRequiredService<backend.Models.ApplicationDbContext>();
 
-        // Apply any pending EF Core migrations automatically on startup.
-        // Safe to call even when the schema is already up to date.
-        Console.WriteLine("⏳ Applying pending EF Core migrations...");
-        await context.Database.MigrateAsync();
-        Console.WriteLine("✅ EF Core migrations applied successfully");
+        // Create the database schema if it doesn't exist yet.
+        // This project uses EnsureCreated (no EF migrations) so this is safe to call on every startup.
+        Console.WriteLine("⏳ Ensuring database schema exists...");
+        await context.Database.EnsureCreatedAsync();
+        Console.WriteLine("✅ Database schema ready");
 
         // Test the connection by attempting to open it
         var connection = context.Database.GetDbConnection();
