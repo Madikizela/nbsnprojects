@@ -222,7 +222,7 @@ try
         var context = scope.ServiceProvider.GetRequiredService<backend.Models.ApplicationDbContext>();
 
         // Create the database schema if it doesn't exist yet.
-        // Use raw ADO.NET to check and create tables — bypasses EF retry logic.
+        // Use raw ADO.NET for the connection, then EnsureCreated for the full EF schema.
         Console.WriteLine("⏳ Checking database schema...");
         
         var conn = context.Database.GetDbConnection();
@@ -231,45 +231,45 @@ try
         bool tablesExist = false;
         using (var cmd = conn.CreateCommand())
         {
-            cmd.CommandText = "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'SystemAdmins'";
+            cmd.CommandText = "SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'SystemAdmins' AND column_name = 'AccessLevel'";
             var result = await cmd.ExecuteScalarAsync();
             tablesExist = Convert.ToInt64(result) > 0;
         }
-        Console.WriteLine($"  Tables exist: {tablesExist}");
+        Console.WriteLine($"  Schema is complete: {tablesExist}");
         
         if (!tablesExist)
         {
-            Console.WriteLine("  Tables missing — creating schema from init_postgres.sql...");
-            var sqlPaths = new[]
+            Console.WriteLine("  Schema incomplete or missing — dropping partial tables and running EnsureCreated...");
+            // Drop any partially-created tables so EnsureCreated starts fresh
+            var dropTables = new[]
             {
-                Path.Combine(AppContext.BaseDirectory, "init_postgres.sql"),
-                Path.Combine(Directory.GetCurrentDirectory(), "init_postgres.sql")
+                "SystemAdmins", "Users", "Clients", "SkillsDevelopmentProviders", "Departments",
+                "OccupationalQualifications", "LegacyQualifications",
+                "OccupationalUnitStandards", "LegacyUnitStandards"
             };
-            var sqlPath = sqlPaths.FirstOrDefault(File.Exists);
-            
-            if (sqlPath != null)
+            foreach (var tbl in dropTables)
             {
-                var sql = await File.ReadAllTextAsync(sqlPath);
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = sql;
-                    cmd.CommandTimeout = 120;
+                    cmd.CommandText = $"DROP TABLE IF EXISTS \"{tbl}\" CASCADE";
                     await cmd.ExecuteNonQueryAsync();
                 }
-                Console.WriteLine("✅ Schema created from init_postgres.sql");
             }
-            else
-            {
-                Console.WriteLine("⚠️  init_postgres.sql not found at any expected path, falling back to EnsureCreated");
-                await context.Database.EnsureCreatedAsync();
-            }
-        }
-        else
-        {
-            Console.WriteLine("✅ Database schema already exists");
+            Console.WriteLine("  Dropped partial tables, running EnsureCreated...");
         }
         
         await conn.CloseAsync();
+        
+        if (!tablesExist)
+        {
+            // EnsureCreated creates the full EF schema
+            var created = await context.Database.EnsureCreatedAsync();
+            Console.WriteLine($"✅ EnsureCreated completed (created={created})");
+        }
+        else
+        {
+            Console.WriteLine("✅ Database schema already complete");
+        }
 
         // Test the connection by attempting to open it
         var connection = context.Database.GetDbConnection();
