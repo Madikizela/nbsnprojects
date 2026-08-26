@@ -211,7 +211,7 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Add explicit database initialization and auto-migration (works on Railway, Render, and local)
+// Add explicit database initialization and auto-migration (works on Railway and local)
 try
 {
     using (var scope = app.Services.CreateScope())
@@ -219,7 +219,7 @@ try
         var context = scope.ServiceProvider.GetRequiredService<backend.Models.ApplicationDbContext>();
 
         // Apply any pending EF Core migrations automatically on startup.
-        // This is safe to call even when the schema is already up to date.
+        // Safe to call even when the schema is already up to date.
         Console.WriteLine("⏳ Applying pending EF Core migrations...");
         await context.Database.MigrateAsync();
         Console.WriteLine("✅ EF Core migrations applied successfully");
