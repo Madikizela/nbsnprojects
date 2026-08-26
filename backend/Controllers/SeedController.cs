@@ -198,6 +198,55 @@ namespace backend.Controllers
         }
 
         /// <summary>
+        /// POST /api/seed/run-sql — executes raw SQL sent in the request body.
+        /// Used for bulk seeding from local SQL files. Admin only — no auth guard here
+        /// since this is a one-time setup endpoint; restrict by removing after seeding.
+        /// </summary>
+        [HttpPost("run-sql")]
+        public async Task<IActionResult> RunSql()
+        {
+            try
+            {
+                using var reader = new StreamReader(Request.Body);
+                var sql = await reader.ReadToEndAsync();
+
+                if (string.IsNullOrWhiteSpace(sql))
+                    return BadRequest(new { success = false, message = "No SQL provided in request body." });
+
+                _logger.LogInformation("run-sql: received {Len} chars of SQL", sql.Length);
+
+                // Split on semicolons + newline to get individual statements
+                var statements = sql
+                    .Split(new[] { ";\n", ";\r\n" }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .Where(s => !string.IsNullOrWhiteSpace(s) && !s.StartsWith("--"))
+                    .ToList();
+
+                int ok = 0, skipped = 0;
+                foreach (var stmt in statements)
+                {
+                    try
+                    {
+                        await _context.Database.ExecuteSqlRawAsync(stmt + ";");
+                        ok++;
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug("Skipped stmt: {Err}", ex.Message);
+                        skipped++;
+                    }
+                }
+
+                return Ok(new { success = true, statementsOk = ok, statementsSkipped = skipped, total = statements.Count });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "run-sql failed");
+                return StatusCode(500, new { success = false, message = ex.Message });
+            }
+        }
+
+        /// <summary>
         /// POST /api/seed/qualifications — seeds all qualification and unit standard data.
         /// Safe to run multiple times (uses INSERT ... ON CONFLICT DO NOTHING).
         /// </summary>
