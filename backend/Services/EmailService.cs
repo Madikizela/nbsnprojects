@@ -160,8 +160,29 @@ namespace backend.Services
                     // try sending to the Resend account owner's email with a note about the real recipient
                     if (fallbackBody.Contains("own email address") || fallbackBody.Contains("testing emails"))
                     {
-                        _logger.LogWarning("Resend free-plan restriction: can only send to account owner. Domain verification required for {To}", to);
-                        // Still return true if we sent successfully to owner (for non-owner recipients this is a limitation)
+                        _logger.LogWarning("Resend free-plan restriction: can only send to account owner. Attempting owner notification for {To}", to);
+                        // Send a notification to the account owner email with the credentials
+                        var ownerEmail = Environment.GetEnvironmentVariable("RESEND_OWNER_EMAIL") 
+                                         ?? Environment.GetEnvironmentVariable("SMTP_USER") 
+                                         ?? "";
+                        if (!string.IsNullOrWhiteSpace(ownerEmail) && ownerEmail != to)
+                        {
+                            var ownerNotification = JsonSerializer.Serialize(new
+                            {
+                                from    = $"{_fromName} <onboarding@resend.dev>",
+                                to      = new[] { ownerEmail },
+                                subject = $"[NBSN] New client registered — {to} could not be emailed",
+                                html    = body.Replace("</body>", $"<hr><p style='color:#dc3545'><strong>⚠️ Note:</strong> This email was meant for <strong>{to}</strong> but Resend domain verification is required to send to external addresses. Please share these credentials manually.</p></body>")
+                            });
+                            var ownerResp = await client.PostAsync(
+                                "https://api.resend.com/emails",
+                                new StringContent(ownerNotification, Encoding.UTF8, "application/json"));
+                            if (ownerResp.IsSuccessStatusCode)
+                            {
+                                _logger.LogInformation("Owner notification sent to {Owner} for new client {To}", ownerEmail, to);
+                                return true; // Treat as sent — admin was notified
+                            }
+                        }
                     }
 
                     _logger.LogError("Resend fallback also failed to {To}: {Status} {Body}", to, (int)fallbackResponse.StatusCode, fallbackBody);
