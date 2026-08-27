@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Services.Interfaces;
+using backend.Services;
 using System.Security.Claims;
 using System.ComponentModel.DataAnnotations;
 
@@ -16,17 +17,20 @@ namespace backend.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IPasswordHashingService _passwordHashingService;
         private readonly IEmailService _emailService;
+        private readonly IDataEncryptionService _dataEncryptionService;
         private readonly ILogger<DepartmentMembersController> _logger;
 
         public DepartmentMembersController(
             ApplicationDbContext context,
             IPasswordHashingService passwordHashingService,
             IEmailService emailService,
+            IDataEncryptionService dataEncryptionService,
             ILogger<DepartmentMembersController> logger)
         {
             _context = context;
             _passwordHashingService = passwordHashingService;
             _emailService = emailService;
+            _dataEncryptionService = dataEncryptionService;
             _logger = logger;
         }
 
@@ -211,8 +215,8 @@ namespace backend.Controllers
                     return BadRequest(new { message = "A user with this email already exists" });
                 }
 
-                // Generate random password
-                var password = GenerateRandomPassword();
+                // Generate secure random password using the encryption service
+                var password = _dataEncryptionService.GenerateSecurePassword(12, true);
                 var hashedPassword = _passwordHashingService.HashPassword(password);
 
                 // Create new user
@@ -250,7 +254,7 @@ namespace backend.Controllers
                 }
 
                 // Send welcome email with login credentials
-                await SendWelcomeEmail(newUser, password, currentUser, department);
+                var emailSent = await SendWelcomeEmail(newUser, password, currentUser, department);
 
                 var result = new TeamMemberDto
                 {
@@ -261,7 +265,10 @@ namespace backend.Controllers
                     Role = newUser.Role.ToString(),
                     Status = newUser.Status.ToString(),
                     CreatedAt = newUser.CreatedAt,
-                    PhoneNumber = newUser.PhoneNumber
+                    PhoneNumber = newUser.PhoneNumber,
+                    EmailSent = emailSent,
+                    // Show credentials in response if email could not be sent
+                    TemporaryPassword = emailSent ? null : password
                 };
 
                 _logger.LogInformation("Team member {Email} added to department {DepartmentName} by manager {ManagerEmail}", 
@@ -372,86 +379,78 @@ namespace backend.Controllers
 
         private string GenerateRandomPassword()
         {
+            // Kept for backward compatibility — prefer _dataEncryptionService.GenerateSecurePassword
             const string chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
             var random = new Random();
             return new string(Enumerable.Repeat(chars, 12)
                 .Select(s => s[random.Next(s.Length)]).ToArray());
         }
 
-        private async Task SendWelcomeEmail(User newUser, string password, User manager, Department department)
+        private async Task<bool> SendWelcomeEmail(User newUser, string password, User manager, Department department)
         {
             try
             {
-                var subject = $"Welcome to {manager.SkillsDevelopmentProvider?.Name} - Your Account Details";
-                
+                var portalUrl = Environment.GetEnvironmentVariable("FRONTEND_URL")
+                                ?? "https://nbsn-frontend-production.up.railway.app";
+
+                var subject = $"Welcome to {manager.SkillsDevelopmentProvider?.Name ?? "NBSN"} - Your Account Details";
+
                 var body = $@"
                     <html>
                     <body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>
                         <div style='max-width: 600px; margin: 0 auto; padding: 20px;'>
                             <div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>
-                                <h1 style='margin: 0; font-size: 28px;'>🎉 Welcome to the Team!</h1>
+                                <h1 style='margin: 0; font-size: 28px;'>Welcome to the Team!</h1>
                                 <p style='margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;'>Your account has been created successfully</p>
                             </div>
-                            
                             <div style='background: #f8f9fa; padding: 30px; border-radius: 0 0 10px 10px; border: 1px solid #e9ecef;'>
                                 <h2 style='color: #495057; margin-top: 0;'>Hello {newUser.FirstName} {newUser.LastName},</h2>
-                                
-                                <p>Welcome to <strong>{manager.SkillsDevelopmentProvider?.Name}</strong>! You have been added to the <strong>{department.Name}</strong> department by your manager <strong>{manager.FirstName} {manager.LastName}</strong>.</p>
-                                
+                                <p>Welcome to <strong>{manager.SkillsDevelopmentProvider?.Name ?? "NBSN"}</strong>! You have been added to the <strong>{department.Name}</strong> department by <strong>{manager.FirstName} {manager.LastName}</strong>.</p>
                                 <div style='background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #667eea; margin: 20px 0;'>
-                                    <h3 style='margin-top: 0; color: #667eea;'>🔐 Your Login Credentials</h3>
-                                    <p><strong>Email/Username:</strong> {newUser.Email}</p>
-                                    <p><strong>Temporary Password:</strong> <code style='background: #f1f3f4; padding: 4px 8px; border-radius: 4px; font-family: monospace;'>{password}</code></p>
+                                    <h3 style='margin-top: 0; color: #667eea;'>Your Login Credentials</h3>
+                                    <p><strong>Login URL:</strong> <a href='{portalUrl}'>{portalUrl}</a></p>
+                                    <p><strong>Email / Username:</strong> {newUser.Email}</p>
+                                    <p><strong>Temporary Password:</strong> <code style='background: #f1f3f4; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 15px;'>{password}</code></p>
                                     <p><strong>Role:</strong> {newUser.Role}</p>
                                 </div>
-                                
                                 <div style='background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin: 20px 0;'>
-                                    <h4 style='margin-top: 0; color: #856404;'>🔒 Important Security Information</h4>
+                                    <h4 style='margin-top: 0; color: #856404;'>Important</h4>
                                     <ul style='margin-bottom: 0; color: #856404;'>
-                                        <li>Please change your password after your first login</li>
-                                        <li>Keep your login credentials secure and confidential</li>
-                                        <li>Contact your manager if you have any issues accessing your account</li>
+                                        <li>Change your password after first login</li>
+                                        <li>Keep your credentials secure and confidential</li>
+                                        <li>Contact your manager if you have any issues</li>
                                     </ul>
                                 </div>
-                                
                                 <div style='text-align: center; margin: 30px 0;'>
-                                    <a href='https://frontend-production-91f1.up.railway.app/login' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;'>
-                                        🚀 Login to Your Account
+                                    <a href='{portalUrl}/login' style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;'>
+                                        Login to Your Account
                                     </a>
                                 </div>
-                                
                                 <hr style='border: none; border-top: 1px solid #dee2e6; margin: 30px 0;'>
-                                
                                 <div style='background: white; padding: 20px; border-radius: 8px;'>
-                                    <h4 style='margin-top: 0; color: #495057;'>📋 Department Information</h4>
+                                    <h4 style='margin-top: 0; color: #495057;'>Department Information</h4>
                                     <p><strong>Department:</strong> {department.Name}</p>
-                                    <p><strong>Manager:</strong> {manager.FirstName} {manager.LastName}</p>
-                                    <p><strong>Manager Email:</strong> {manager.Email}</p>
+                                    <p><strong>Manager:</strong> {manager.FirstName} {manager.LastName} ({manager.Email})</p>
                                 </div>
-                                
-                                <p style='margin-top: 30px; color: #6c757d; font-size: 14px;'>
-                                    If you have any questions or need assistance, please don't hesitate to contact your manager or the IT support team.
+                                <p style='margin-top: 20px; color: #6c757d; font-size: 12px; text-align: center;'>
+                                    This email was sent automatically by the NBSN system. Please do not reply.
                                 </p>
-                                
-                                <div style='text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6;'>
-                                    <p style='color: #6c757d; font-size: 12px; margin: 0;'>
-                                        This email was sent automatically by the NBSN system.<br>
-                                        Please do not reply to this email.
-                                    </p>
-                                </div>
                             </div>
                         </div>
                     </body>
                     </html>";
 
-                await _emailService.SendEmailAsync(newUser.Email, subject, body);
-                
-                _logger.LogInformation("Welcome email sent to {Email}", newUser.Email);
+                var sent = await _emailService.SendEmailAsync(newUser.Email, subject, body);
+                if (sent)
+                    _logger.LogInformation("Welcome email sent to {Email}", newUser.Email);
+                else
+                    _logger.LogWarning("Welcome email could not be delivered to {Email}", newUser.Email);
+                return sent;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to send welcome email to {Email}", newUser.Email);
-                // Don't throw - user creation should still succeed even if email fails
+                return false;
             }
         }
     }
@@ -467,6 +466,8 @@ namespace backend.Controllers
         public string Status { get; set; } = string.Empty;
         public string? PhoneNumber { get; set; }
         public DateTime CreatedAt { get; set; }
+        public bool EmailSent { get; set; }
+        public string? TemporaryPassword { get; set; }
     }
 
     public class AddTeamMemberDto
