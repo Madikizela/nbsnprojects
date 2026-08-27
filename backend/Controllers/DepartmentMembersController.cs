@@ -453,6 +453,67 @@ namespace backend.Controllers
                 return false;
             }
         }
+
+        // POST: api/DepartmentMembers/{id}/resend-credentials
+        [HttpPost("{id}/resend-credentials")]
+        public async Task<IActionResult> ResendCredentials(int id)
+        {
+            try
+            {
+                var member = await _context.Users
+                    .Include(u => u.Department)
+                    .Include(u => u.SkillsDevelopmentProvider)
+                    .FirstOrDefaultAsync(u => u.Id == id);
+
+                if (member == null)
+                    return NotFound(new { message = "User not found" });
+
+                var newPassword = _dataEncryptionService.GenerateSecurePassword(12, true);
+                member.PasswordHash = _passwordHashingService.HashPassword(newPassword);
+                member.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+                await _context.SaveChangesAsync();
+
+                var portalUrl = Environment.GetEnvironmentVariable("FRONTEND_URL")
+                                ?? "https://nbsn-frontend-production.up.railway.app";
+                var deptInfo = member.Department != null ? $"<p><strong>Department:</strong> {member.Department.Name}</p>" : "";
+                var subject = "Welcome to NBSN - Your Account Credentials";
+                var body = $@"<html><body style='font-family:Arial,sans-serif'>
+                  <div style='max-width:600px;margin:auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.1)'>
+                    <div style='background:linear-gradient(135deg,#667eea,#764ba2);padding:30px;text-align:center;color:#fff'>
+                      <h1 style='margin:0'>Welcome to NBSN</h1>
+                    </div>
+                    <div style='padding:30px'>
+                      <h2>Hello {member.FirstName} {member.LastName},</h2>
+                      <p>Your account has been created. Use the credentials below to log in.</p>
+                      <div style='background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:20px;margin:20px 0'>
+                        <p><strong>Login URL:</strong> <a href='{portalUrl}'>{portalUrl}</a></p>
+                        <p><strong>Email / Username:</strong> {member.Email}</p>
+                        <p><strong>Password:</strong> <code style='background:#fff;padding:4px 8px;border:1px dashed #667eea;font-size:16px;color:#667eea'>{newPassword}</code></p>
+                        <p><strong>Role:</strong> {member.Role}</p>
+                        {deptInfo}
+                      </div>
+                      <p style='color:#dc3545'><strong>Please change your password after first login.</strong></p>
+                      <div style='text-align:center;margin:20px 0'>
+                        <a href='{portalUrl}/login' style='background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:12px 30px;text-decoration:none;border-radius:25px;font-weight:bold'>Login Now</a>
+                      </div>
+                      <p>Best regards,<br><strong>NBSN Team</strong></p>
+                    </div>
+                  </div></body></html>";
+
+                var emailSent = await _emailService.SendEmailAsync(member.Email!, subject, body);
+                if (emailSent)
+                {
+                    _logger.LogInformation("Credentials resent to {Email}", member.Email);
+                    return Ok(new { message = $"Credentials sent to {member.Email}", emailSent = true });
+                }
+                return Ok(new { message = "Password reset but email could not be delivered. Share credentials manually.", emailSent = false, username = member.Email, temporaryPassword = newPassword });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error resending credentials for user {UserId}", id);
+                return StatusCode(500, new { message = "An error occurred" });
+            }
+        }
     }
 
     // DTOs
