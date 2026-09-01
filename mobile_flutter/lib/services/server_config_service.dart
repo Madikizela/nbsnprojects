@@ -3,7 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ServerConfigService {
   static const String _keyServerUrl = 'server_url';
   static const String defaultServerUrl =
-      'https://nbsnprojects-production.up.railway.app';
+      'https://api.nbsnprojects.co.za';
 
   /// Returns the saved server URL, or the default if none is saved.
   static Future<String> getServerUrl() async {
