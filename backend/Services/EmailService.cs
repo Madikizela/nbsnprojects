@@ -46,7 +46,7 @@ namespace backend.Services
         public async Task<bool> SendWelcomeEmailAsync(string clientEmail, string clientName, string username, string password)
         {
             if (!IsValidEmail(clientEmail)) return false;
-            var portalUrl = Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "https://frontend-production-91f1.up.railway.app";
+            var portalUrl = Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "https://portal.nbsnprojects.co.za";
             var body = $@"<!DOCTYPE html><html><body style='font-family:Arial,sans-serif;background:#f4f4f4;margin:0;padding:20px'>
   <div style='max-width:600px;margin:auto;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,.1)'>
     <div style='background:#007bff;padding:30px;text-align:center;color:#fff'><h1 style='margin:0'>Welcome to NBSN</h1></div>

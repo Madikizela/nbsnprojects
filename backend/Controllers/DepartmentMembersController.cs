@@ -391,7 +391,7 @@ namespace backend.Controllers
             try
             {
                 var portalUrl = Environment.GetEnvironmentVariable("FRONTEND_URL")
-                                ?? "https://nbsn-frontend-production.up.railway.app";
+                                ?? "https://portal.nbsnprojects.co.za";
 
                 var subject = $"Welcome to {manager.SkillsDevelopmentProvider?.Name ?? "NBSN"} - Your Account Details";
 
@@ -474,7 +474,7 @@ namespace backend.Controllers
                 await _context.SaveChangesAsync();
 
                 var portalUrl = Environment.GetEnvironmentVariable("FRONTEND_URL")
-                                ?? "https://nbsn-frontend-production.up.railway.app";
+                                ?? "https://portal.nbsnprojects.co.za";
                 var deptInfo = member.Department != null ? $"<p><strong>Department:</strong> {member.Department.Name}</p>" : "";
                 var subject = "Welcome to NBSN - Your Account Credentials";
                 var body = $@"<html><body style='font-family:Arial,sans-serif'>

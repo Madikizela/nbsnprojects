@@ -364,8 +364,8 @@ namespace backend.Controllers
                         await _context.SaveChangesAsync();
 
                         var portalUrl = Environment.GetEnvironmentVariable("LEARNER_PORTAL_URL")
-                            ?? _configuration["LearnerPortal:Url"]
-                            ?? "http://localhost:5174/learner";
+                            ?? Environment.GetEnvironmentVariable("FRONTEND_URL")
+                            ?? "https://portal.nbsnprojects.co.za";
 
                         var learnerFullName = $"{learner.FirstName} {learner.LastName}";
 
