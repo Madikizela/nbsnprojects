@@ -208,8 +208,9 @@ namespace backend.Controllers
                         DepartmentType.AdministratorManager => UserRole.SDPAdministrator,
                         DepartmentType.LogisticManager => UserRole.SDPLogistics,
                         DepartmentType.FinancialManager => UserRole.SDPFinance,
-                        DepartmentType.QualityAssuranceManager => UserRole.SDPAssessor,
+                        DepartmentType.QualityAssuranceManager => UserRole.TrainingManager,
                         DepartmentType.ITManager => UserRole.SDPIT,
+                        DepartmentType.TrainingManager => UserRole.TrainingManager,
                         _ => UserRole.SDPAdministrator
                     };
 
