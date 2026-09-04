@@ -188,7 +188,7 @@ namespace backend.Controllers
 <tr><td><strong>Username:</strong></td><td>{user.Username}</td></tr>
 <tr><td><strong>Temporary Password:</strong></td><td>{tempPassword}</td></tr>
 </table>
-<p>Login at: <a href='http://192.168.0.53:5174/login'>http://192.168.0.53:5174/login</a></p>
+<p>Login at: <a href='https://portal.nbsnprojects.co.za/login'>https://portal.nbsnprojects.co.za/login</a></p>
 <p>Please change your password after first login.</p>
 <p>Regards,<br/>NBSN Project Team</p>";
                 await _emailService.SendEmailAsync(user.Email, subject, body);

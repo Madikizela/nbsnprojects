@@ -344,8 +344,10 @@ namespace backend.Controllers
 
                 // Generate reset token
                 var resetToken = Guid.NewGuid().ToString();
-                // Use the correct frontend port (5173 is standard for Vite)
-                var resetLink = $"http://localhost:5173/reset-password?token={resetToken}"; 
+                // Build reset link using FRONTEND_URL env var
+                var frontendUrl = Environment.GetEnvironmentVariable("FRONTEND_URL")?.TrimEnd('/')
+                                  ?? "https://portal.nbsnprojects.co.za";
+                var resetLink = $"{frontendUrl}/reset-password?token={resetToken}";
                 _logger.LogInformation("Generated reset token for {Email}. Link: {ResetLink}", email, resetLink);
 
                 // Send password reset email
@@ -636,7 +638,9 @@ namespace backend.Controllers
                 await _context.SaveChangesAsync();
 
                 // Send reset email
-                var resetUrl = $"{Request.Scheme}://{Request.Host}/learner-reset-password?token={resetToken}";
+                var learnerFrontendUrl = Environment.GetEnvironmentVariable("FRONTEND_URL")?.TrimEnd('/')
+                                         ?? "https://portal.nbsnprojects.co.za";
+                var resetUrl = $"{learnerFrontendUrl}/learner-reset-password?token={resetToken}";
                 var emailBody = $@"
                     <h2>Reset Your Learner Portal Password</h2>
                     <p>Hello {learner.FirstName},</p>

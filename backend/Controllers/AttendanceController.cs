@@ -124,7 +124,7 @@ namespace backend.Controllers
                             <p>You can access the system using the following credentials:</p>
                             <div style='background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0;'>
                                 <p><strong>Email:</strong> {teacher.Email}</p>
-                                <p><strong>Login URL:</strong> <a href='http://192.168.209.166:5173'>http://192.168.209.166:5173</a></p>
+                                <p><strong>Login URL:</strong> <a href='https://portal.nbsnprojects.co.za'>https://portal.nbsnprojects.co.za</a></p>
                             </div>
                             <p><em>Note: If you haven't set up your password yet, please use the 'Forgot Password' feature on the login page.</em></p>
                             <p>You can now:</p>
@@ -272,7 +272,7 @@ namespace backend.Controllers
                                 <h3>Your Login Credentials</h3>
                                 <p><strong>Email:</strong> {teacher.Email}</p>
                                 <p><strong>Password:</strong> {password}</p>
-                                <p><strong>Login URL:</strong> <a href='http://192.168.209.166:5173'>http://192.168.209.166:5173</a></p>
+                                <p><strong>Login URL:</strong> <a href='https://portal.nbsnprojects.co.za'>https://portal.nbsnprojects.co.za</a></p>
                             </div>
                             
                             <p><strong style='color: #d32f2f;'>⚠️ Important Security Notice:</strong></p>
