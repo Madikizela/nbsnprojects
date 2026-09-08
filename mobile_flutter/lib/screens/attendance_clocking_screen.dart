@@ -245,13 +245,32 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
         return false;
       }
 
-      // Get current position
-      Position position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.best,
-          timeLimit: Duration(seconds: 15),
-        ),
-      );
+      // Get current position — try last known first (instant, works offline)
+      // then fall back to live GPS
+      Position? position;
+      try {
+        position = await Geolocator.getLastKnownPosition();
+      } catch (_) {}
+
+      if (position == null) {
+        // No cached position — get a live fix with reasonable settings
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy:
+                LocationAccuracy.medium, // faster than 'best', still accurate
+            timeLimit: Duration(seconds: 30),
+          ),
+        );
+      } else {
+        // Got last known position — also try to get a fresh one in background
+        // but don't block the user
+        Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.medium,
+            timeLimit: Duration(seconds: 20),
+          ),
+        ).then((_) {}).catchError((_) {});
+      }
 
       // Calculate distance
       double distanceInMeters = Geolocator.distanceBetween(
@@ -302,9 +321,33 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
 
       return true;
     } catch (e) {
+      // On timeout or GPS error — if we're offline, allow clocking to proceed
+      // (the record will be queued and server will verify location on sync)
+      final isTimeout = e.toString().contains('TimeoutException') ||
+          e.toString().contains('timeout') ||
+          e.toString().contains('Future not completed');
+
+      if (_isOfflineMode && isTimeout) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                  '📵 GPS timeout — offline clocking allowed. Location verified on sync.'),
+              backgroundColor: Color(0xFFF59E0B),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return true; // Allow clocking offline without GPS
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error getting location: $e')),
+          SnackBar(
+            content: Text(isTimeout
+                ? 'GPS timed out. Move to an open area and try again.'
+                : 'Error getting location: $e'),
+          ),
         );
       }
       return false;
