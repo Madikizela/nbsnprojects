@@ -321,15 +321,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       style: TextStyle(color: Color(0xFF10b981), fontSize: 14),
                     ),
                   ),
-
-                  // ── Settings Link ────────────────────────────
-                  TextButton(
-                    onPressed: () => context.go('/settings/server'),
-                    child: const Text(
-                      '⚙️  Server Settings',
-                      style: TextStyle(color: Color(0xFF64748b), fontSize: 13),
-                    ),
-                  ),
                 ],
               ),
             ),
