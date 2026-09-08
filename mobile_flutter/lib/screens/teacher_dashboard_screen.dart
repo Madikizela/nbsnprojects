@@ -58,21 +58,29 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         r == ConnectivityResult.ethernet);
 
     if (!isOnline) {
-      // Offline — load from local cache
+      // Offline — load from local cache with actual learner counts
       debugPrint('📵 Offline — loading classes from local cache');
       final cached = await LocalDatabaseService.instance.getCachedClasses();
+
+      // Populate learner counts from local DB
+      final classesWithCounts = <Map<String, dynamic>>[];
+      for (final c in cached) {
+        final classId = (c['classId'] ?? c['id']) as int? ?? 0;
+        final learners =
+            await LocalDatabaseService.instance.getClassLearners(classId);
+        classesWithCounts.add({
+          ...c,
+          'totalLearners': learners.length,
+          'presentToday': 0,
+          'absentToday': 0,
+          'completedAttendance': 0,
+          'averageContactTime': '0h 0m',
+          'attendanceRate': 0.0,
+        });
+      }
+
       setState(() {
-        classes = cached
-            .map((c) => {
-                  ...c,
-                  'totalLearners': 0,
-                  'presentToday': 0,
-                  'absentToday': 0,
-                  'completedAttendance': 0,
-                  'averageContactTime': '0h 0m',
-                  'attendanceRate': 0.0,
-                })
-            .toList();
+        classes = classesWithCounts;
         isLoading = false;
       });
       if (mounted && cached.isEmpty) {
@@ -150,21 +158,26 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         isLoading = false;
       });
     } catch (e) {
-      // Network error — try cache as fallback
+      // Network error — try cache as fallback with learner counts
       debugPrint('⚠️ Online fetch failed, trying cache: $e');
       final cached = await LocalDatabaseService.instance.getCachedClasses();
+      final classesWithCounts = <Map<String, dynamic>>[];
+      for (final c in cached) {
+        final classId = (c['classId'] ?? c['id']) as int? ?? 0;
+        final learners =
+            await LocalDatabaseService.instance.getClassLearners(classId);
+        classesWithCounts.add({
+          ...c,
+          'totalLearners': learners.length,
+          'presentToday': 0,
+          'absentToday': 0,
+          'completedAttendance': 0,
+          'averageContactTime': '0h 0m',
+          'attendanceRate': 0.0,
+        });
+      }
       setState(() {
-        classes = cached
-            .map((c) => {
-                  ...c,
-                  'totalLearners': 0,
-                  'presentToday': 0,
-                  'absentToday': 0,
-                  'completedAttendance': 0,
-                  'averageContactTime': '0h 0m',
-                  'attendanceRate': 0.0,
-                })
-            .toList();
+        classes = classesWithCounts;
         isLoading = false;
       });
       if (mounted) {

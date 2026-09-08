@@ -75,8 +75,10 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
     final queue = OfflineAttendanceQueue.instance;
     await queue.init();
     if (!mounted) return;
-    // Attempt to drain any records queued while offline
+    // Give the queue a reference to ApiService for auto-sync on network restore
     final apiService = context.read<ApiService>();
+    queue.setApiService(apiService);
+    // Attempt to drain any records queued while offline
     final synced = await queue.trySyncAll(apiService);
     if (synced > 0 && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -646,13 +648,14 @@ class _AttendanceClockingScreenState extends State<AttendanceClockingScreen> {
                 clockToggleError.response == null;
 
         if (isNetworkError) {
-          // Queue the record for later sync
-          await OfflineAttendanceQueue.instance.enqueue(
+          // Queue the fingerprint record for later sync with full template
+          await OfflineAttendanceQueue.instance.enqueueFingerprint(
             classId: widget.classId,
             teacherId: teacherId is int
                 ? teacherId
                 : int.tryParse(teacherId.toString()) ?? 0,
-            embedding: [], // fingerprint-based flow stores template, not embedding; queue for manual sync
+            fingerprintTemplate: fingerprintTemplate,
+            scannerType: scannerType,
             latitude: widget.latitude,
             longitude: widget.longitude,
           );
