@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:dio/dio.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/auth_service.dart';
-import '../services/api_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +17,30 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _isOnline = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkConnectivity();
+    // Listen for connectivity changes so the banner updates in real time
+    Connectivity().onConnectivityChanged.listen((results) {
+      final online = results.any((r) =>
+          r == ConnectivityResult.mobile ||
+          r == ConnectivityResult.wifi ||
+          r == ConnectivityResult.ethernet);
+      if (mounted) setState(() => _isOnline = online);
+    });
+  }
+
+  Future<void> _checkConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+    final online = result.any((r) =>
+        r == ConnectivityResult.mobile ||
+        r == ConnectivityResult.wifi ||
+        r == ConnectivityResult.ethernet);
+    if (mounted) setState(() => _isOnline = online);
+  }
 
   @override
   void dispose() {
@@ -28,7 +51,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
-
     setState(() => _isLoading = true);
 
     try {
@@ -38,46 +60,60 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
+      if (!mounted) return;
+
       if (success) {
-        if (!mounted) return;
+        final user = authService.user;
+        final isOffline = authService.isOfflineMode;
 
-        final user = context.read<AuthService>().user;
-        debugPrint('DEBUG: Login successful. User role: ${user?['role']}');
+        // Show offline mode notice
+        if (isOffline) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(children: [
+                Icon(Icons.wifi_off, color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Text('Offline mode — limited features available'),
+              ]),
+              backgroundColor: Color(0xFFF59E0B),
+              duration: Duration(seconds: 4),
+            ),
+          );
+        }
 
-        if (user != null &&
-            (user['role'] == 'Teacher' || user['role'] == '16')) {
+        final role = user?['role']?.toString() ?? '';
+        if (role == 'Teacher' || role == '16') {
           context.go('/teacher-dashboard');
-        } else if (user != null &&
-            (user['role'] == 'LogisticsSupport' ||
-                user['role'] == '12' ||
-                user['role'] == 'SDPLogistics' ||
-                user['role'] == '5')) {
+        } else if (role == 'LogisticsSupport' ||
+            role == '12' ||
+            role == 'SDPLogistics' ||
+            role == '5') {
           context.go('/logistics-dashboard');
         } else {
           context.go('/projects');
         }
       } else {
-        _showError(
-            'Invalid credentials. Please check your email and password.');
+        // Distinguish no-internet vs wrong password
+        if (!_isOnline) {
+          _showError(
+            'No internet connection. '
+            'To use offline mode, you must have logged in at least once while online.',
+          );
+        } else {
+          _showError('Invalid email or password. Please try again.');
+        }
       }
     } catch (e) {
       if (!mounted) return;
-      String errorMessage;
-      if (e is DioException) {
-        if (e.response?.statusCode == 401) {
-          errorMessage = 'Invalid email or password.';
-        } else if (e.response?.statusCode != null) {
-          final msg = e.response?.data?['message'];
-          errorMessage = msg != null
-              ? msg.toString()
-              : 'Server error: ${e.response?.statusCode}';
-        } else {
-          errorMessage = ApiService.getErrorMessage(e);
-        }
+      // Any network error — try offline fallback message
+      if (!_isOnline) {
+        _showError(
+          'No internet connection. '
+          'Offline login requires a previous online session on this device.',
+        );
       } else {
-        errorMessage = 'An unexpected error occurred.';
+        _showError('Connection error. Please check your server settings.');
       }
-      _showError(errorMessage);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -85,7 +121,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 5),
+      ),
     );
   }
 
@@ -134,7 +174,42 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: Color(0xFF94a3b8),
                     ),
                   ),
-                  const SizedBox(height: 44),
+                  const SizedBox(height: 16),
+
+                  // ── Connectivity Banner ───────────────────────
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 300),
+                    child: _isOnline
+                        ? const SizedBox.shrink()
+                        : Container(
+                            key: const ValueKey('offline-banner'),
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF78350F),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                  color: const Color(0xFFF59E0B), width: 1),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.wifi_off,
+                                    color: Color(0xFFFCD34D), size: 18),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    'No internet — offline mode available if '
+                                    'you have logged in before on this device.',
+                                    style: TextStyle(
+                                        color: Color(0xFFFCD34D), fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                  ),
+                  const SizedBox(height: 28),
 
                   // ── Email Field ──────────────────────────────
                   TextFormField(
@@ -187,9 +262,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _handleLogin,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0EA5E9),
-                        disabledBackgroundColor:
-                            const Color(0xFF0EA5E9).withValues(alpha: 0.6),
+                        backgroundColor: _isOnline
+                            ? const Color(0xFF0EA5E9)
+                            : const Color(0xFFF59E0B),
+                        disabledBackgroundColor: _isOnline
+                            ? const Color(0xFF0EA5E9).withValues(alpha: 0.6)
+                            : const Color(0xFFF59E0B).withValues(alpha: 0.6),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
@@ -205,13 +283,24 @@ class _LoginScreenState extends State<LoginScreen> {
                                     AlwaysStoppedAnimation<Color>(Colors.white),
                               ),
                             )
-                          : const Text(
-                              'Sign In',
-                              style: TextStyle(
-                                fontSize: 17,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                          : Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  _isOnline ? Icons.login : Icons.offline_bolt,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _isOnline ? 'Sign In' : 'Sign In Offline',
+                                  style: const TextStyle(
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
                             ),
                     ),
                   ),
@@ -230,6 +319,15 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: const Text(
                       '🎓  Learner? Login here',
                       style: TextStyle(color: Color(0xFF10b981), fontSize: 14),
+                    ),
+                  ),
+
+                  // ── Settings Link ────────────────────────────
+                  TextButton(
+                    onPressed: () => context.go('/settings/server'),
+                    child: const Text(
+                      '⚙️  Server Settings',
+                      style: TextStyle(color: Color(0xFF64748b), fontSize: 13),
                     ),
                   ),
                 ],

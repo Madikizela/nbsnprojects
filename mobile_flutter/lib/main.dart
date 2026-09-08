@@ -84,6 +84,33 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _router = GoRouter(
       initialLocation: '/login',
+      // Auto-redirect authenticated users away from /login on cold start.
+      // Uses Provider.of rather than context.read so it works inside the router.
+      redirect: (BuildContext ctx, GoRouterState state) {
+        // Safely access providers — they are always in scope via the MultiProvider above.
+        final auth = Provider.of<AuthService>(ctx, listen: false);
+        final learnerAuth = Provider.of<LearnerAuthService>(ctx, listen: false);
+
+        final loc = state.matchedLocation;
+
+        // Staff already authenticated → skip login screen
+        if (auth.isAuthenticated && loc == '/login') {
+          final role = auth.user?['role']?.toString() ?? '';
+          if (role == 'Teacher' || role == '16') return '/teacher-dashboard';
+          if (role == 'LogisticsSupport' ||
+              role == '12' ||
+              role == 'SDPLogistics' ||
+              role == '5') return '/logistics-dashboard';
+          return '/projects';
+        }
+
+        // Learner already authenticated → skip learner login screen
+        if (learnerAuth.isAuthenticated && loc == '/learner/login') {
+          return '/learner/dashboard';
+        }
+
+        return null; // no redirect needed
+      },
       routes: [
         GoRoute(
           path: '/login',

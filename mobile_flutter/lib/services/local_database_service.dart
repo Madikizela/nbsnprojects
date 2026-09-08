@@ -23,7 +23,7 @@ class LocalDatabaseService {
 
     return await openDatabase(
       dbPath,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         // Learner profile cache
         await db.execute('''
@@ -190,9 +190,32 @@ class LocalDatabaseService {
         await db.execute(
             'CREATE INDEX idx_sync_queue_type ON sync_queue(operation_type, entity_type)');
 
+        // Staff credentials for offline login
+        await _createStaffCredentialsTable(db);
+
         debugPrint('✅ Local database created successfully');
       },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await _createStaffCredentialsTable(db);
+          debugPrint('✅ DB upgraded to v2: staff_credentials table added');
+        }
+      },
     );
+  }
+
+  Future<void> _createStaffCredentialsTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS staff_credentials (
+        user_id   INTEGER PRIMARY KEY,
+        email     TEXT NOT NULL UNIQUE,
+        password_hash TEXT NOT NULL,
+        token     TEXT,
+        user_json TEXT NOT NULL,
+        last_login_at TEXT NOT NULL,
+        expires_at    TEXT NOT NULL
+      )
+    ''');
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -640,5 +663,75 @@ class LocalDatabaseService {
   Future<void> close() async {
     final db = await database;
     await db.close();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // STAFF OFFLINE AUTHENTICATION
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Cache staff credentials after a successful online login.
+  Future<void> cacheStaffCredentials({
+    required int userId,
+    required String email,
+    required String password,
+    String? token,
+    required String userJson,
+  }) async {
+    final db = await database;
+    final passwordHash = _hashPassword(password);
+    final now = DateTime.now().toIso8601String();
+    final expiresAt =
+        DateTime.now().add(const Duration(days: 30)).toIso8601String();
+
+    await db.insert(
+      'staff_credentials',
+      {
+        'user_id': userId,
+        'email': email.toLowerCase().trim(),
+        'password_hash': passwordHash,
+        'token': token,
+        'user_json': userJson,
+        'last_login_at': now,
+        'expires_at': expiresAt,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    debugPrint('🔐 Staff credentials cached for: $email');
+  }
+
+  /// Verify staff credentials offline. Returns {token, user} map or null.
+  Future<Map<String, dynamic>?> verifyStaffCredentials(
+      String email, String password) async {
+    final db = await database;
+    final passwordHash = _hashPassword(password);
+
+    final results = await db.query(
+      'staff_credentials',
+      where: 'email = ? AND password_hash = ?',
+      whereArgs: [email.toLowerCase().trim(), passwordHash],
+      limit: 1,
+    );
+
+    if (results.isEmpty) {
+      debugPrint('❌ No cached staff credentials for: $email');
+      return null;
+    }
+
+    final row = results.first;
+    final expiresAt = DateTime.parse(row['expires_at'] as String);
+
+    if (DateTime.now().isAfter(expiresAt)) {
+      debugPrint('⚠️ Cached staff credentials expired for: $email');
+      await db.delete('staff_credentials',
+          where: 'email = ?', whereArgs: [email.toLowerCase().trim()]);
+      return null;
+    }
+
+    final userJson = row['user_json'] as String;
+    final user = jsonDecode(userJson) as Map<String, dynamic>;
+    final token = row['token'] as String?;
+
+    debugPrint('✅ Staff offline credentials verified for: $email');
+    return {'token': token, 'user': user};
   }
 }
