@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/local_database_service.dart';
 import 'attendance_details_screen.dart';
 import 'sick_note_upload_screen.dart';
 import 'face_recognition_screen.dart';
@@ -48,6 +50,44 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
   Future<void> fetchTeacherClasses() async {
     setState(() => isLoading = true);
 
+    // Check connectivity first
+    final connectivity = await Connectivity().checkConnectivity();
+    final isOnline = connectivity.any((r) =>
+        r == ConnectivityResult.mobile ||
+        r == ConnectivityResult.wifi ||
+        r == ConnectivityResult.ethernet);
+
+    if (!isOnline) {
+      // Offline — load from local cache
+      debugPrint('📵 Offline — loading classes from local cache');
+      final cached = await LocalDatabaseService.instance.getCachedClasses();
+      setState(() {
+        classes = cached
+            .map((c) => {
+                  ...c,
+                  'totalLearners': 0,
+                  'presentToday': 0,
+                  'absentToday': 0,
+                  'completedAttendance': 0,
+                  'averageContactTime': '0h 0m',
+                  'attendanceRate': 0.0,
+                })
+            .toList();
+        isLoading = false;
+      });
+      if (mounted && cached.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                '📵 Offline — no cached classes found. Connect to internet to load classes.'),
+            backgroundColor: Color(0xFFF59E0B),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return;
+    }
+
     try {
       final apiService = context.read<ApiService>();
       final response =
@@ -78,7 +118,7 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
           });
         } catch (e) {
           // If stats fail, use default values
-          print('Failed to fetch stats for class $classId: $e');
+          debugPrint('Failed to fetch stats for class $classId: $e');
           classesWithStats.add({
             ...classItem,
             'totalLearners': 0,
@@ -91,15 +131,52 @@ class _TeacherDashboardScreenState extends State<TeacherDashboardScreen> {
         }
       }
 
+      // Cache classes locally for offline use — remap classId → id for storage
+      if (classesWithStats.isNotEmpty) {
+        await LocalDatabaseService.instance.saveClasses(
+          classesWithStats.map((c) {
+            final m = Map<String, dynamic>.from(c);
+            // saveClasses expects 'id' key, API returns 'classId'
+            if (!m.containsKey('id') && m.containsKey('classId')) {
+              m['id'] = m['classId'];
+            }
+            return m;
+          }).toList(),
+        );
+      }
+
       setState(() {
         classes = classesWithStats;
         isLoading = false;
       });
     } catch (e) {
-      setState(() => isLoading = false);
+      // Network error — try cache as fallback
+      debugPrint('⚠️ Online fetch failed, trying cache: $e');
+      final cached = await LocalDatabaseService.instance.getCachedClasses();
+      setState(() {
+        classes = cached
+            .map((c) => {
+                  ...c,
+                  'totalLearners': 0,
+                  'presentToday': 0,
+                  'absentToday': 0,
+                  'completedAttendance': 0,
+                  'averageContactTime': '0h 0m',
+                  'attendanceRate': 0.0,
+                })
+            .toList();
+        isLoading = false;
+      });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load classes: $e')),
+          SnackBar(
+            content: Text(cached.isNotEmpty
+                ? '📵 Showing cached classes — connect to sync latest data'
+                : 'Failed to load classes: $e'),
+            backgroundColor:
+                cached.isNotEmpty ? const Color(0xFFF59E0B) : Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
         );
       }
     }

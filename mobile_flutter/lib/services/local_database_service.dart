@@ -375,6 +375,21 @@ class LocalDatabaseService {
     debugPrint('💾 Saved ${classes.length} classes locally');
   }
 
+  /// Get all cached classes (for offline teacher dashboard).
+  Future<List<Map<String, dynamic>>> getCachedClasses() async {
+    final db = await database;
+    final results = await db.query('classes', orderBy: 'class_name ASC');
+    return results.map((row) {
+      final data =
+          jsonDecode(row['data_json'] as String) as Map<String, dynamic>;
+      // Ensure classId is present (may have been stored as 'id')
+      if (!data.containsKey('classId') && data.containsKey('id')) {
+        data['classId'] = data['id'];
+      }
+      return data;
+    }).toList();
+  }
+
   Future<List<Map<String, dynamic>>> getClassesWithVideoConference() async {
     final db = await database;
     final results = await db.query(
