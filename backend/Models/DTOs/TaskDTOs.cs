@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 
 namespace backend.Models.DTOs
 {
@@ -15,6 +16,7 @@ namespace backend.Models.DTOs
         public DateTime DueDate { get; set; }
 
         [Required]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public TaskPriority Priority { get; set; }
 
         [Required]
@@ -34,6 +36,7 @@ namespace backend.Models.DTOs
         public DateTime ReminderDateTime { get; set; }
 
         [Required]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public ReminderType Type { get; set; }
 
         [StringLength(500)]
@@ -56,9 +59,11 @@ namespace backend.Models.DTOs
         public DateTime DueDate { get; set; }
 
         [Required]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public TaskStatus Status { get; set; }
 
         [Required]
+        [JsonConverter(typeof(JsonStringEnumConverter))]
         public TaskPriority Priority { get; set; }
 
         [Required]
