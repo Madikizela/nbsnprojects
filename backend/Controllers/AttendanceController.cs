@@ -1116,29 +1116,29 @@ namespace backend.Controllers
                     return BadRequest(new { message = "No learners in this class have registered their faces yet. Please register the learner's face first." });
                 }
 
-                // ── Nearest-neighbour search ──────────────────────────────────
-                const double threshold = 0.6;
+                // ── Nearest-neighbour search (ArcFace cosine similarity) ──────
+                // Embeddings are L2-normalised on the mobile side, so:
+                //   cosine_similarity = dot(a, b)  (range -1 to 1)
+                //   threshold ≥ 0.50  → same person (matches mobile matchThreshold)
+                const double threshold = 0.50;
                 int matchedLearnerId = -1;
                 string matchedName = "";
-                double bestDistance = threshold;
+                double bestSimilarity = threshold; // keep the best (highest) match
 
                 foreach (var (learnerId, fullName, storedEmb) in candidates)
                 {
                     if (storedEmb.Count != dto.Embedding.Count) continue;
 
-                    double sum = 0;
+                    // Cosine similarity via dot product (valid because embeddings are L2-normalised)
+                    double dot = 0;
                     for (int i = 0; i < storedEmb.Count; i++)
-                    {
-                        double diff = storedEmb[i] - dto.Embedding[i];
-                        sum += diff * diff;
-                    }
-                    double distance = Math.Sqrt(sum);
+                        dot += storedEmb[i] * dto.Embedding[i];
 
-                    _logger.LogInformation("Match attempt — Learner: {Name}, Distance: {Distance:F4}", fullName, distance);
+                    _logger.LogInformation("Match attempt — Learner: {Name}, CosineSimilarity: {Sim:F4}", fullName, dot);
 
-                    if (distance < bestDistance)
+                    if (dot > bestSimilarity)
                     {
-                        bestDistance = distance;
+                        bestSimilarity = dot;
                         matchedLearnerId = learnerId;
                         matchedName = fullName;
                     }
@@ -1150,7 +1150,7 @@ namespace backend.Controllers
                     return BadRequest(new { message = "Face not recognized. Please ensure learner is registered." });
                 }
 
-                _logger.LogInformation("Face matched — Learner: {Name} (id={Id}), Distance: {Distance:F4}", matchedName, matchedLearnerId, bestDistance);
+                _logger.LogInformation("Face matched — Learner: {Name} (id={Id}), CosineSimilarity: {Sim:F4}", matchedName, matchedLearnerId, bestSimilarity);
 
                 var learnerId2 = matchedLearnerId;
                 var today = GetSASTime().Date;
