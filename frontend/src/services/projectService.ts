@@ -95,7 +95,7 @@ export interface LegacyQualification {
   qualificationId: number;
   name: string;
   description?: string;
-  level: number;
+  level: string;   // backend stores as string (e.g. "Level 4", "Level 04")
   credits: number;
   qualificationType: string;
   hasCat?: string;

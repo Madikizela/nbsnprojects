@@ -149,7 +149,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
     qualificationId: 0,
     name: '',
     description: '',
-    level: 0,
+    level: '',    // string — matches backend (e.g. "Level 4", "Level 04")
     credits: 0,
     qualificationType: '',
     hasCat: 'NO'
@@ -563,7 +563,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
         qualificationId: 0,
         name: '',
         description: '',
-        level: 0,
+        level: '',
         credits: 0,
         qualificationType: '',
         hasCat: 'NO'
@@ -1412,7 +1412,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
               <button onClick={() => setShowLegacyQualificationModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[{l:'Qualification ID',k:'qualificationId',t:'number'},{l:'Name',k:'name',t:'text'},{l:'Description',k:'description',t:'text'},{l:'Level',k:'level',t:'number'},{l:'Credits',k:'credits',t:'number'},{l:'Qualification Type',k:'qualificationType',t:'text'}].map(({l,k,t}) => (
+              {[{l:'Qualification ID',k:'qualificationId',t:'number'},{l:'Name',k:'name',t:'text'},{l:'Description',k:'description',t:'text'},{l:'Level',k:'level',t:'text'},{l:'Credits',k:'credits',t:'number'},{l:'Qualification Type',k:'qualificationType',t:'text'}].map(({l,k,t}) => (
                 <div key={k}><label style={S.label}>{l}</label><input type={t} style={S.input} value={(newLegacyQualification as Record<string,unknown>)[k] as string} onChange={(e) => setNewLegacyQualification({...newLegacyQualification,[k]:t==='number'?(parseInt(e.target.value)||0):e.target.value})} /></div>
               ))}
             </div>

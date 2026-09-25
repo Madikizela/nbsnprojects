@@ -29,9 +29,5 @@ namespace backend.Models
         
         [Column("synced")]
         public int? Synced { get; set; }
-        
-        // Navigation property
-        [ForeignKey("QualificationId")]
-        public virtual LegacyQualification? Qualification { get; set; }
     }
 }

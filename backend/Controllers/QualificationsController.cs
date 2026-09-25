@@ -181,7 +181,6 @@ namespace backend.Controllers
         public async Task<ActionResult<IEnumerable<LegacyQualification>>> GetLegacyQualifications()
         {
             return await _context.LegacyQualifications
-                .Include(lq => lq.UnitStandards)
                 .ToListAsync();
         }
 
@@ -189,7 +188,6 @@ namespace backend.Controllers
         public async Task<ActionResult<LegacyQualification>> GetLegacyQualification(int id)
         {
             var lq = await _context.LegacyQualifications
-                .Include(lq => lq.UnitStandards)
                 .FirstOrDefaultAsync(lq => lq.Id == id);
 
             if (lq == null)
@@ -203,10 +201,16 @@ namespace backend.Controllers
         [HttpPost("legacy")]
         public async Task<ActionResult<LegacyQualification>> PostLegacyQualification(LegacyQualification lq)
         {
-            _context.LegacyQualifications.Add(lq);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetLegacyQualification), new { id = lq.Id }, lq);
+            try
+            {
+                _context.LegacyQualifications.Add(lq);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction(nameof(GetLegacyQualification), new { id = lq.Id }, lq);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message, type = ex.GetType().Name });
+            }
         }
 
         [HttpPut("legacy/{id}")]
@@ -270,11 +274,17 @@ namespace backend.Controllers
         [HttpPost("legacy/{qualificationId}/unit-standards")]
         public async Task<ActionResult<LegacyUnitStandard>> PostLegacyUnitStandard(int qualificationId, LegacyUnitStandard lus)
         {
-            lus.QualificationId = qualificationId;
-            _context.LegacyUnitStandards.Add(lus);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetLegacyUnitStandards), new { qualificationId = lus.QualificationId, id = lus.Id }, lus);
+            try
+            {
+                lus.QualificationId = qualificationId;
+                _context.LegacyUnitStandards.Add(lus);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction(nameof(GetLegacyUnitStandards), new { qualificationId = lus.QualificationId, id = lus.Id }, lus);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message, type = ex.GetType().Name });
+            }
         }
 
         [HttpPut("legacy/unit-standards/{id}")]
