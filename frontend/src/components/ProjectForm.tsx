@@ -1432,9 +1432,18 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
               <button onClick={() => setShowOccupationalUnitStandardModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[{l:'Module Code',k:'moduleCode',t:'text'},{l:'Unit Standard Name',k:'unitStandardName',t:'text'},{l:'Module Type',k:'moduleType',t:'text'},{l:'Level',k:'level',t:'text'},{l:'Credits',k:'credits',t:'number'}].map(({l,k,t}) => (
+              {[{l:'Module Code',k:'moduleCode',t:'text'},{l:'Unit Standard Name',k:'unitStandardName',t:'text'},{l:'Level',k:'level',t:'text'},{l:'Credits',k:'credits',t:'number'}].map(({l,k,t}) => (
                 <div key={k}><label style={S.label}>{l}</label><input type={t} style={S.input} value={(newOccupationalUnitStandard as Record<string,unknown>)[k] as string} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard,[k]:t==='number'?(parseInt(e.target.value)||0):e.target.value})} /></div>
               ))}
+              <div>
+                <label style={S.label}>Module Type</label>
+                <select style={S.input} value={newOccupationalUnitStandard.moduleType} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard, moduleType: e.target.value})}>
+                  <option value="">Select module type</option>
+                  <option value="Knowledge Modules">Knowledge Modules</option>
+                  <option value="Practical Skill Modules">Practical Skill Modules</option>
+                  <option value="Work Experience Modules">Work Experience Modules</option>
+                </select>
+              </div>
             </div>
             <div style={{ padding: '12px 20px', borderTop: '1px solid #334155', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
               <button onClick={() => setShowOccupationalUnitStandardModal(false)} style={{ background: 'transparent', color: '#94a3b8', border: '1px solid #334155', borderRadius: 8, padding: '8px 18px', fontSize: 13, cursor: 'pointer' }}>Cancel</button>

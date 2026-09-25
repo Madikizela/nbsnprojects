@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Models
 {
@@ -7,6 +8,7 @@ namespace backend.Models
     public class OccupationalUnitStandard
     {
         [Key]
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         [Column("id")]
         public int Id { get; set; }
         
@@ -23,6 +25,7 @@ namespace backend.Models
         [Column("unit_standard_name")]
         public string? UnitStandardName { get; set; }
         
+        // Must be one of: "Knowledge Modules", "Practical Skill Modules", "Work Experience Modules"
         [StringLength(50)]
         [Column("module_type")]
         public string? ModuleType { get; set; }
