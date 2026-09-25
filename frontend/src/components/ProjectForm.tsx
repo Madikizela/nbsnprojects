@@ -137,7 +137,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
   // New qualification data
   const [newOccupationalQualification, setNewOccupationalQualification] = useState({
     name: '',
-    level: 0,
+    level: '',        // string — matches backend model (e.g. "4", "NQF 5")
     credits: 0,
     qualificationType: '',
     description: '',
@@ -539,7 +539,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
       setShowOccupationalQualificationModal(false);
       setNewOccupationalQualification({
         name: '',
-        level: 0,
+        level: '',
         credits: 0,
         qualificationType: '',
         description: '',
@@ -1387,7 +1387,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
               <button onClick={() => setShowOccupationalQualificationModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[{l:'Name',k:'name',t:'text'},{l:'Level',k:'level',t:'number'},{l:'Credits',k:'credits',t:'number'},{l:'Qualification Type',k:'qualificationType',t:'text'},{l:'Description',k:'description',t:'text'},{l:'Quality Partner',k:'qualityPartner',t:'text'},{l:'Trade',k:'trade',t:'text'}].map(({l,k,t}) => (
+              {[{l:'Name',k:'name',t:'text'},{l:'Level',k:'level',t:'text'},{l:'Credits',k:'credits',t:'number'},{l:'Qualification Type',k:'qualificationType',t:'text'},{l:'Description',k:'description',t:'text'},{l:'Quality Partner',k:'qualityPartner',t:'text'},{l:'Trade',k:'trade',t:'text'}].map(({l,k,t}) => (
                 <div key={k}>
                   <label style={S.label}>{l}</label>
                   <input type={t} style={S.input} value={(newOccupationalQualification as Record<string,unknown>)[k] as string} onChange={(e) => setNewOccupationalQualification({...newOccupationalQualification, [k]: t==='number'?(parseInt(e.target.value)||0):e.target.value})} />

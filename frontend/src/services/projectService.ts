@@ -82,7 +82,7 @@ export interface QualificationType {
 export interface OccupationalQualification {
   qualificationId: number;
   name: string;
-  level: number;
+  level: string;  // backend stores level as string (e.g. "4", "6", "NQF 5")
   credits: number;
   qualificationType: string;
   description?: string;
