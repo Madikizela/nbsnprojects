@@ -429,7 +429,7 @@ export const deleteSDP = async (id: number): Promise<void> => {
 /**
  * Creates a new occupational qualification
  */
-export const createOccupationalQualification = async (oq: Omit<OccupationalQualification, 'qualificationId'>): Promise<OccupationalQualification> => {
+export const createOccupationalQualification = async (oq: OccupationalQualification): Promise<OccupationalQualification> => {
   try {
     const response = await fetch(`${API_BASE_URL}/qualifications/occupational`, {
       method: 'POST',
