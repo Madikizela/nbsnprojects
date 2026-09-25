@@ -101,9 +101,8 @@ namespace backend.Controllers
         {
             try
             {
-                var qualIdStr = qualificationId.ToString();
                 return await _context.OccupationalUnitStandards
-                    .Where(ous => ous.QualificationId == qualIdStr)
+                    .Where(ous => ous.QualificationId == qualificationId)
                     .ToListAsync();
             }
             catch (Exception ex)
@@ -117,7 +116,7 @@ namespace backend.Controllers
         {
             try
             {
-                ous.QualificationId = qualificationId.ToString();
+                ous.QualificationId = qualificationId;
                 _context.OccupationalUnitStandards.Add(ous);
                 await _context.SaveChangesAsync();
                 return CreatedAtAction(nameof(GetOccupationalUnitStandards), new { qualificationId = ous.QualificationId, id = ous.Id }, ous);

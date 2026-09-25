@@ -12,10 +12,9 @@ namespace backend.Models
         [Column("id")]
         public int Id { get; set; }
         
-        // qualification_id is VARCHAR(50) in the database — stored as string
-        [StringLength(50)]
+        // qualification_id is INTEGER in the live database
         [Column("qualification_id")]
-        public string? QualificationId { get; set; }
+        public int? QualificationId { get; set; }
         
         [StringLength(100)]
         [Column("module_code")]

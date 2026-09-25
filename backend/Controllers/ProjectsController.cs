@@ -402,10 +402,8 @@ namespace backend.Controllers
         {
             try
             {
-                // qualification_id is stored as VARCHAR in the database
-                var qualIdStr = qualificationId.ToString();
                 return await _context.OccupationalUnitStandards
-                    .Where(ous => ous.QualificationId == qualIdStr)
+                    .Where(ous => ous.QualificationId == qualificationId)
                     .ToListAsync();
             }
             catch (Exception ex)
