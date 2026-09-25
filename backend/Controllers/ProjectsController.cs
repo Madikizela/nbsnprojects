@@ -400,11 +400,18 @@ namespace backend.Controllers
         [HttpGet("unit-standards/occupational/{qualificationId}")]
         public async Task<ActionResult<IEnumerable<OccupationalUnitStandard>>> GetOccupationalUnitStandards(int qualificationId)
         {
-            // qualification_id is stored as VARCHAR in the database
-            var qualIdStr = qualificationId.ToString();
-            return await _context.OccupationalUnitStandards
-                .Where(ous => ous.QualificationId == qualIdStr)
-                .ToListAsync();
+            try
+            {
+                // qualification_id is stored as VARCHAR in the database
+                var qualIdStr = qualificationId.ToString();
+                return await _context.OccupationalUnitStandards
+                    .Where(ous => ous.QualificationId == qualIdStr)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message, type = ex.GetType().Name });
+            }
         }
 
         // GET: api/Projects/unit-standards/legacy/{qualificationId}

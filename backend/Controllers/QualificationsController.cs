@@ -99,20 +99,33 @@ namespace backend.Controllers
         [HttpGet("occupational/{qualificationId}/unit-standards")]
         public async Task<ActionResult<IEnumerable<OccupationalUnitStandard>>> GetOccupationalUnitStandards(int qualificationId)
         {
-            var qualIdStr = qualificationId.ToString();
-            return await _context.OccupationalUnitStandards
-                .Where(ous => ous.QualificationId == qualIdStr)
-                .ToListAsync();
+            try
+            {
+                var qualIdStr = qualificationId.ToString();
+                return await _context.OccupationalUnitStandards
+                    .Where(ous => ous.QualificationId == qualIdStr)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message, type = ex.GetType().Name });
+            }
         }
 
         [HttpPost("occupational/{qualificationId}/unit-standards")]
         public async Task<ActionResult<OccupationalUnitStandard>> PostOccupationalUnitStandard(int qualificationId, OccupationalUnitStandard ous)
         {
-            ous.QualificationId = qualificationId.ToString();
-            _context.OccupationalUnitStandards.Add(ous);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetOccupationalUnitStandards), new { qualificationId = ous.QualificationId, id = ous.Id }, ous);
+            try
+            {
+                ous.QualificationId = qualificationId.ToString();
+                _context.OccupationalUnitStandards.Add(ous);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction(nameof(GetOccupationalUnitStandards), new { qualificationId = ous.QualificationId, id = ous.Id }, ous);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message, type = ex.GetType().Name });
+            }
         }
 
         [HttpPut("occupational/unit-standards/{id}")]
