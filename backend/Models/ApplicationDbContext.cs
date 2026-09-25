@@ -468,20 +468,7 @@ namespace backend.Models
                 .HasForeignKey(pq => pq.LegacyQualificationId)
                 .OnDelete(DeleteBehavior.SetNull);
                 
-            // Configure Qualification relationships
-            modelBuilder.Entity<OccupationalUnitStandard>()
-                .HasOne(ous => ous.Qualification)
-                .WithMany(oq => oq.UnitStandards)
-                .HasForeignKey(ous => ous.QualificationId)
-                .HasPrincipalKey(oq => oq.QualificationId)
-                .OnDelete(DeleteBehavior.Cascade);
-                
-            modelBuilder.Entity<LegacyUnitStandard>()
-                .HasOne(lus => lus.Qualification)
-                .WithMany(lq => lq.UnitStandards)
-                .HasForeignKey(lus => lus.QualificationId)
-                .HasPrincipalKey(lq => lq.QualificationId)
-                .OnDelete(DeleteBehavior.Cascade);
+            // Configure LegacyUnitStandard → LegacyQualification relationship
                 
             modelBuilder.Entity<SystemAdmin>()
                 .HasIndex(sa => sa.Username)

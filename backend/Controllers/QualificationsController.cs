@@ -101,15 +101,16 @@ namespace backend.Controllers
         [HttpGet("occupational/{qualificationId}/unit-standards")]
         public async Task<ActionResult<IEnumerable<OccupationalUnitStandard>>> GetOccupationalUnitStandards(int qualificationId)
         {
+            var qualIdStr = qualificationId.ToString();
             return await _context.OccupationalUnitStandards
-                .Where(ous => ous.QualificationId == qualificationId)
+                .Where(ous => ous.QualificationId == qualIdStr)
                 .ToListAsync();
         }
 
         [HttpPost("occupational/{qualificationId}/unit-standards")]
         public async Task<ActionResult<OccupationalUnitStandard>> PostOccupationalUnitStandard(int qualificationId, OccupationalUnitStandard ous)
         {
-            ous.QualificationId = qualificationId;
+            ous.QualificationId = qualificationId.ToString();
             _context.OccupationalUnitStandards.Add(ous);
             await _context.SaveChangesAsync();
 

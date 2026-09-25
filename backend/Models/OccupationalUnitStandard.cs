@@ -10,8 +10,10 @@ namespace backend.Models
         [Column("id")]
         public int Id { get; set; }
         
+        // qualification_id is VARCHAR(50) in the database — stored as string
+        [StringLength(50)]
         [Column("qualification_id")]
-        public int? QualificationId { get; set; }
+        public string? QualificationId { get; set; }
         
         [StringLength(100)]
         [Column("module_code")]
@@ -31,9 +33,5 @@ namespace backend.Models
         
         [Column("credits")]
         public int? Credits { get; set; }
-        
-        // Navigation property
-        [ForeignKey("QualificationId")]
-        public virtual OccupationalQualification? Qualification { get; set; }
     }
 }

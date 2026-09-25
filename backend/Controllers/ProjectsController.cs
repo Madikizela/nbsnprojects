@@ -400,9 +400,10 @@ namespace backend.Controllers
         [HttpGet("unit-standards/occupational/{qualificationId}")]
         public async Task<ActionResult<IEnumerable<OccupationalUnitStandard>>> GetOccupationalUnitStandards(int qualificationId)
         {
-            // Use LINQ query instead of raw SQL to avoid parameterization issues
+            // qualification_id is stored as VARCHAR in the database
+            var qualIdStr = qualificationId.ToString();
             return await _context.OccupationalUnitStandards
-                .Where(ous => ous.QualificationId == qualificationId)
+                .Where(ous => ous.QualificationId == qualIdStr)
                 .ToListAsync();
         }
 
