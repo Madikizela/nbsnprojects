@@ -47,7 +47,6 @@ namespace backend.Models
         public string HasCat { get; set; } = "NO";
         
         // Navigation properties
-        public virtual ICollection<OccupationalUnitStandard> UnitStandards { get; set; } = new List<OccupationalUnitStandard>();
         public virtual ICollection<ProjectQualification> ProjectQualifications { get; set; } = new List<ProjectQualification>();
     }
 }

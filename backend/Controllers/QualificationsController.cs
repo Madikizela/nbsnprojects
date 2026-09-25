@@ -20,7 +20,6 @@ namespace backend.Controllers
         public async Task<ActionResult<IEnumerable<OccupationalQualification>>> GetOccupationalQualifications()
         {
             return await _context.OccupationalQualifications
-                .Include(oq => oq.UnitStandards)
                 .ToListAsync();
         }
 
@@ -28,7 +27,6 @@ namespace backend.Controllers
         public async Task<ActionResult<OccupationalQualification>> GetOccupationalQualification(int id)
         {
             var oq = await _context.OccupationalQualifications
-                .Include(oq => oq.UnitStandards)
                 .FirstOrDefaultAsync(oq => oq.QualificationId == id);
 
             if (oq == null)
