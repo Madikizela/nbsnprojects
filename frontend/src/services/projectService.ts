@@ -254,7 +254,9 @@ export const getOccupationalUnitStandards = async (qualificationId: number): Pro
     const response = await fetch(`${API_BASE_URL}/projects/unit-standards/occupational/${qualificationId}`);
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const body = await response.text().catch(() => '(no body)');
+      console.error('Server error body:', body);
+      throw new Error(`HTTP error! status: ${response.status} — ${body}`);
     }
 
     return await response.json();
@@ -464,7 +466,9 @@ export const createOccupationalUnitStandard = async (qualificationId: number, ou
     });
     
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const body = await response.text().catch(() => '(no body)');
+      console.error('Server error body:', body);
+      throw new Error(`HTTP error! status: ${response.status} — ${body}`);
     }
     
     return await response.json();
