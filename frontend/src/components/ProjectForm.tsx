@@ -160,15 +160,15 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
     moduleCode: '',
     unitStandardName: '',
     moduleType: '',
-    level: 0,
+    level: '',   // string — matches backend (e.g. "4", "NQF Level 4")
     credits: 0
   });
   const [newLegacyUnitStandard, setNewLegacyUnitStandard] = useState({
     unitStandardId: 0,
     unitStandardName: '',
-    level: 0,
+    level: '',   // string — matches backend
     credits: 0,
-    synced: false
+    synced: 0    // int — matches backend
   });
 
   // Current qualification for adding unit standards
@@ -593,7 +593,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
         moduleCode: '',
         unitStandardName: '',
         moduleType: '',
-        level: 0,
+        level: '',
         credits: 0
       });
     } catch (error) {
@@ -620,9 +620,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
       setNewLegacyUnitStandard({
         unitStandardId: 0,
         unitStandardName: '',
-        level: 0,
+        level: '',
         credits: 0,
-        synced: false
+        synced: 0
       });
     } catch (error) {
       console.error('Error creating legacy unit standard:', error);
@@ -1432,7 +1432,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
               <button onClick={() => setShowOccupationalUnitStandardModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[{l:'Module Code',k:'moduleCode',t:'text'},{l:'Unit Standard Name',k:'unitStandardName',t:'text'},{l:'Module Type',k:'moduleType',t:'text'},{l:'Level',k:'level',t:'number'},{l:'Credits',k:'credits',t:'number'}].map(({l,k,t}) => (
+              {[{l:'Module Code',k:'moduleCode',t:'text'},{l:'Unit Standard Name',k:'unitStandardName',t:'text'},{l:'Module Type',k:'moduleType',t:'text'},{l:'Level',k:'level',t:'text'},{l:'Credits',k:'credits',t:'number'}].map(({l,k,t}) => (
                 <div key={k}><label style={S.label}>{l}</label><input type={t} style={S.input} value={(newOccupationalUnitStandard as Record<string,unknown>)[k] as string} onChange={(e) => setNewOccupationalUnitStandard({...newOccupationalUnitStandard,[k]:t==='number'?(parseInt(e.target.value)||0):e.target.value})} /></div>
               ))}
             </div>
@@ -1452,7 +1452,7 @@ const ProjectForm: React.FC<ProjectFormProps> = ({ onCancel, onSubmit, clientId,
               <button onClick={() => setShowLegacyUnitStandardModal(false)} style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: 20, cursor: 'pointer', lineHeight: 1 }}>×</button>
             </div>
             <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[{l:'Unit Standard ID',k:'unitStandardId',t:'number'},{l:'Unit Standard Name',k:'unitStandardName',t:'text'},{l:'Level',k:'level',t:'number'},{l:'Credits',k:'credits',t:'number'}].map(({l,k,t}) => (
+              {[{l:'Unit Standard ID',k:'unitStandardId',t:'number'},{l:'Unit Standard Name',k:'unitStandardName',t:'text'},{l:'Level',k:'level',t:'text'},{l:'Credits',k:'credits',t:'number'}].map(({l,k,t}) => (
                 <div key={k}><label style={S.label}>{l}</label><input type={t} style={S.input} value={(newLegacyUnitStandard as Record<string,unknown>)[k] as string} onChange={(e) => setNewLegacyUnitStandard({...newLegacyUnitStandard,[k]:t==='number'?(parseInt(e.target.value)||0):e.target.value})} /></div>
               ))}
             </div>

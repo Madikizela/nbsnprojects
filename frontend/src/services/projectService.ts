@@ -107,7 +107,7 @@ export interface OccupationalUnitStandard {
   moduleCode: string;
   unitStandardName: string;
   moduleType: string;
-  level: number;
+  level: string;  // backend stores level as string (e.g. "4", "NQF Level 4")
   credits: number;
 }
 
@@ -116,9 +116,9 @@ export interface LegacyUnitStandard {
   unitStandardId: number;
   qualificationId: number;
   unitStandardName: string;
-  level: number;
+  level: string;   // backend stores as string
   credits: number;
-  synced: boolean;
+  synced: number;  // backend stores as int (0/1), not boolean
 }
 
 export interface SkillsDevelopmentProvider {
