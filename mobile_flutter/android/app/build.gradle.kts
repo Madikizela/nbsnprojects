@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.nbsn_mobile"
+    namespace = "com.nbsn.mobile"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "28.2.13676358"
 
@@ -19,7 +19,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.nbsn_mobile"
+        applicationId = "com.nbsn.mobile"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
@@ -29,9 +29,19 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            // Set these via environment variables or local.properties — never hardcode
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "keystore/release.keystore")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("KEY_ALIAS") ?: ""
+            keyPassword = System.getenv("KEY_PASSWORD") ?: ""
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             isMinifyEnabled = false
             isShrinkResources = false
