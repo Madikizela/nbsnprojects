@@ -66,6 +66,12 @@ namespace backend.Models
         [Required]
         public UserStatus Status { get; set; } = UserStatus.Active;
 
+        /// <summary>Forces password change on next login (Feature 6 — password policy).</summary>
+        public bool MustChangePassword { get; set; } = false;
+
+        /// <summary>Tracked for audit log display.</summary>
+        public DateTime? LastLoginAt { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

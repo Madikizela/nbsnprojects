@@ -181,6 +181,11 @@ namespace backend.Controllers
                 // If admin is not valid or inactive, try regular user
                 if (user != null && userPasswordOk && userActive)
                 {
+                    // Update last login time
+                    user.LastLoginAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+                    user.UpdatedAt   = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+                    await _context.SaveChangesAsync();
+
                     // Generate JWT token
                     var token = GenerateJwtToken(user);
 
@@ -229,6 +234,7 @@ namespace backend.Controllers
                             Email = user.Email,
                             Role = user.Role.ToString(),
                             Status = user.Status.ToString(),
+                            MustChangePassword = user.MustChangePassword,
                             ClientId = user.ClientId,
                             ClientName = user.Client?.Name,
                             SkillsDevelopmentProviderId = user.SkillsDevelopmentProviderId,
@@ -799,6 +805,7 @@ namespace backend.Controllers
         public string Email { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
+        public bool MustChangePassword { get; set; } = false;
         public int? ClientId { get; set; }
         public string? ClientName { get; set; }
         public int? SkillsDevelopmentProviderId { get; set; }

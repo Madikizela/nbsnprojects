@@ -106,6 +106,7 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
           projectCount: data.user?.projectCount ?? data.user?.ProjectCount ?? 0,
           activeProjectCount: data.user?.activeProjectCount ?? data.user?.ActiveProjectCount ?? 0,
           departmentCount: data.user?.departmentCount ?? data.user?.DepartmentCount ?? 0,
+          mustChangePassword: data.user?.mustChangePassword ?? data.user?.MustChangePassword ?? false,
         };
         
         // Store authentication data
@@ -163,6 +164,12 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
           setPendingRoute(targetRoute);
           setShowPopiaModal(true);
           setIsLoading(false);
+          return;
+        }
+
+        // Force password change on first login
+        if (normalizedUser.mustChangePassword) {
+          navigate('/change-password');
           return;
         }
 

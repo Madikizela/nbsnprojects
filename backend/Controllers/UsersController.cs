@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
+using backend.Services.Interfaces;
 
 namespace backend.Controllers
 {
@@ -9,10 +10,12 @@ namespace backend.Controllers
     public class UsersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly IPasswordHashingService _passwordHashingService;
 
-        public UsersController(ApplicationDbContext context)
+        public UsersController(ApplicationDbContext context, IPasswordHashingService passwordHashingService)
         {
             _context = context;
+            _passwordHashingService = passwordHashingService;
         }
 
         // GET: api/Users
@@ -181,11 +184,20 @@ namespace backend.Controllers
             if (user.Role == UserRole.SystemAdmin)
                 return BadRequest(new { message = "System admin accounts cannot be managed through this endpoint" });
 
+            var previousStatus = user.Status.ToString();
             var newStatus = request.Active ? UserStatus.Active : UserStatus.Inactive;
             user.Status = newStatus;
             user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
 
             await _context.SaveChangesAsync();
+
+            // Write audit log
+            var adminEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "System Admin";
+            var action = request.Active ? "USER_ENABLED" : "USER_DISABLED";
+            var description = $"User '{user.FirstName} {user.LastName}' ({user.Email}) was {(request.Active ? "enabled" : "disabled")} by {adminEmail}. Previous status: {previousStatus}.";
+            await AuditLogHelper.LogAsync(_context, action, description, "User", user.Id,
+                $"{user.FirstName} {user.LastName}", adminEmail,
+                metadata: $"{{\"previousStatus\":\"{previousStatus}\",\"newStatus\":\"{newStatus}\"}}");
 
             return Ok(new
             {
@@ -194,6 +206,28 @@ namespace backend.Controllers
                 status = newStatus.ToString()
             });
         }
+
+        // PUT: api/Users/{id}/change-password
+        // Used on forced first-login password change for staff/SDP users.
+        [HttpPut("{id}/change-password")]
+        public async Task<IActionResult> ChangePassword(int id, [FromBody] ChangePasswordRequest request)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return NotFound(new { message = "User not found" });
+
+            if (!_passwordHashingService.VerifyPassword(request.CurrentPassword, user.PasswordHash))
+                return BadRequest(new { message = "Current password is incorrect" });
+
+            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+                return BadRequest(new { message = "New password must be at least 8 characters" });
+
+            user.PasswordHash       = _passwordHashingService.HashPassword(request.NewPassword);
+            user.MustChangePassword = false;
+            user.UpdatedAt          = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Password changed successfully" });
+        }
     }
 
     // DTO for individual user status toggle
@@ -201,5 +235,11 @@ namespace backend.Controllers
     {
         /// <summary>true = Active, false = Inactive</summary>
         public bool Active { get; set; }
+    }
+
+    public class ChangePasswordRequest
+    {
+        public string CurrentPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
     }
 }

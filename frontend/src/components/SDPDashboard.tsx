@@ -4,6 +4,128 @@ import { southAfricaData, type District, type Municipality } from '../data/south
 import ProjectForm from './ProjectForm';
 import nbsnLogo from '../assets/nbsn-logo.png';
 
+// ── Learner Progress Report ───────────────────────────────────────────────────
+const LearnerProgressView: React.FC<{ sdpId: number; token: string; apiUrl: string }> = ({ sdpId, token, apiUrl }) => {
+  const [projects, setProjects] = React.useState<any[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = React.useState<number | null>(null);
+  const [progress, setProgress] = React.useState<any | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [projLoading, setProjLoading] = React.useState(true);
+  const [search, setSearch] = React.useState('');
+
+  React.useEffect(() => {
+    if (!sdpId) return;
+    fetch(`${apiUrl}/api/LearnerProgress/sdp/${sdpId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { setProjects(d.projects ?? []); setProjLoading(false); })
+      .catch(() => setProjLoading(false));
+  }, [sdpId, token, apiUrl]);
+
+  const loadProject = async (projectId: number) => {
+    setSelectedProjectId(projectId);
+    setLoading(true);
+    try {
+      const r = await fetch(`${apiUrl}/api/LearnerProgress/project/${projectId}`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      setProgress(d);
+    } finally { setLoading(false); }
+  };
+
+  const statusColor = (s: string) => s === 'On Track' ? '#16a34a' : s === 'At Risk' ? '#d97706' : '#dc2626';
+  const statusBg   = (s: string) => s === 'On Track' ? '#dcfce7' : s === 'At Risk' ? '#fef3c7' : '#fee2e2';
+
+  const filtered = (progress?.learners ?? []).filter((l: any) =>
+    !search || l.fullName.toLowerCase().includes(search.toLowerCase()) || l.idNumber.includes(search)
+  );
+
+  return (
+    <div>
+      <div style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px', marginBottom:20 }}>
+        <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>📈 Learner Progress Report</h2>
+        <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Attendance rates and assessment completion per learner</p>
+      </div>
+
+      {/* Project selector */}
+      <div style={{ background:'#fff', borderRadius:12, padding:16, marginBottom:16, border:'1px solid #e2e8f0' }}>
+        <div style={{ fontWeight:600, fontSize:13, color:'#475569', marginBottom:10 }}>Select a project:</div>
+        {projLoading ? <div className="spinner-border spinner-border-sm text-primary" role="status" /> : (
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            {projects.length === 0 ? <span style={{ color:'#94a3b8', fontSize:13 }}>No projects found.</span> : projects.map((p: any) => (
+              <button key={p.projectId} onClick={() => loadProject(p.projectId)}
+                style={{ padding:'6px 16px', borderRadius:20, border:'none', cursor:'pointer', fontSize:13, fontWeight:600,
+                  background: selectedProjectId === p.projectId ? 'linear-gradient(135deg,#667eea,#764ba2)' : '#f1f5f9',
+                  color: selectedProjectId === p.projectId ? '#fff' : '#475569' }}>
+                {p.projectName} <span style={{ fontSize:11, opacity:0.7 }}>({p.totalLearners} learners)</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Progress data */}
+      {loading ? <div className="text-center py-4"><div className="spinner-border text-primary" role="status" /></div> : progress && (
+        <div>
+          {/* Summary pills */}
+          <div style={{ display:'flex', gap:12, marginBottom:16, flexWrap:'wrap' }}>
+            {[
+              { label:'Total', val: progress.totalLearners, color:'#6366f1', bg:'#eef2ff' },
+              { label:'On Track ✅', val: progress.onTrack, color:'#16a34a', bg:'#dcfce7' },
+              { label:'At Risk ⚠️', val: progress.atRisk, color:'#d97706', bg:'#fef3c7' },
+              { label:'Behind 🔴', val: progress.behind, color:'#dc2626', bg:'#fee2e2' },
+            ].map(c => (
+              <div key={c.label} style={{ padding:'8px 18px', borderRadius:20, background:c.bg, color:c.color, fontWeight:700, fontSize:13 }}>
+                {c.val} {c.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Search */}
+          <input type="text" placeholder="Search by name or ID number..." value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{ width:'100%', padding:'8px 14px', borderRadius:8, border:'1px solid #e2e8f0', fontSize:14, marginBottom:12 }} />
+
+          {/* Table */}
+          <div style={{ background:'#fff', borderRadius:12, border:'1px solid #e2e8f0', overflow:'hidden' }}>
+            <div className="table-responsive">
+              <table className="table table-hover mb-0">
+                <thead style={{ background:'#f8fafc' }}>
+                  <tr>
+                    {['Name','ID Number','Days Present','Attendance %','Assessments','Status'].map(h => (
+                      <th key={h} style={{ fontSize:12, fontWeight:600, color:'#64748b', padding:'10px 14px', borderBottom:'1px solid #e2e8f0' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr><td colSpan={6} className="text-center text-muted py-3">No learners found.</td></tr>
+                  ) : filtered.map((l: any) => (
+                    <tr key={l.learnerId}>
+                      <td style={{ padding:'10px 14px', fontWeight:600, fontSize:13 }}>{l.fullName}</td>
+                      <td style={{ padding:'10px 14px', fontSize:12, color:'#64748b' }}>{l.idNumber || '—'}</td>
+                      <td style={{ padding:'10px 14px', fontSize:13 }}>{l.daysPresent} / {l.totalDays}</td>
+                      <td style={{ padding:'10px 14px' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                          <div style={{ flex:1, background:'#f1f5f9', borderRadius:4, height:6, overflow:'hidden' }}>
+                            <div style={{ width:`${Math.min(l.attendanceRate, 100)}%`, height:'100%', background: l.attendanceRate >= 80 ? '#16a34a' : l.attendanceRate >= 50 ? '#d97706' : '#dc2626', borderRadius:4 }} />
+                          </div>
+                          <span style={{ fontSize:12, fontWeight:600, color:'#475569', minWidth:36 }}>{l.attendanceRate}%</span>
+                        </div>
+                      </td>
+                      <td style={{ padding:'10px 14px', fontSize:13 }}>{l.assessmentsSubmitted}</td>
+                      <td style={{ padding:'10px 14px' }}>
+                        <span style={{ padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:700, background:statusBg(l.status), color:statusColor(l.status) }}>{l.status}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface SkillsDevelopmentProvider {
   id: number;
   name: string;
@@ -138,6 +260,109 @@ interface ProjectBudget {
   phases: ProjectPhase[];
 }
 
+// ── Bulk Learner CSV Import ───────────────────────────────────────────────────
+const BulkImportView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
+  const [file, setFile] = React.useState<File | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [result, setResult] = React.useState<any | null>(null);
+  const [dragOver, setDragOver] = React.useState(false);
+
+  const handleFile = (f: File) => {
+    if (!f.name.endsWith('.csv')) { alert('Only CSV files are accepted.'); return; }
+    setFile(f); setResult(null);
+  };
+
+  const submit = async () => {
+    if (!file) return;
+    setLoading(true); setResult(null);
+    const fd = new FormData();
+    fd.append('file', file);
+    try {
+      const r = await fetch(`${apiUrl}/api/Learners/bulk-import`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const d = await r.json();
+      setResult(d);
+    } catch (e: any) {
+      setResult({ message: `Network error: ${e.message}`, imported: 0, skipped: 0, errors: [], results: [] });
+    } finally { setLoading(false); }
+  };
+
+  const templateCsv = 'Title,FirstName,LastName,IdNumber,Email,ContactNumber,Gender\nMr,John,Doe,8001015009087,john.doe@example.com,0821234567,Male';
+  const downloadTemplate = () => {
+    const blob = new Blob([templateCsv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a'); a.href = url; a.download = 'learner_import_template.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div>
+      <div style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px', marginBottom:20 }}>
+        <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>📥 Bulk Learner Import</h2>
+        <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Import multiple learners at once using a CSV file</p>
+      </div>
+
+      <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:12, padding:16, marginBottom:16 }}>
+        <div style={{ fontWeight:700, fontSize:13, color:'#1e40af', marginBottom:8 }}>📋 CSV Format</div>
+        <div style={{ fontSize:13, color:'#1e40af', marginBottom:8 }}>
+          Required columns: <code>Title, FirstName, LastName, IdNumber</code><br/>
+          Optional: <code>Email, ContactNumber, Gender</code>
+        </div>
+        <div style={{ fontSize:12, color:'#3b82f6', marginBottom:8 }}>
+          • SA ID numbers are validated (Luhn algorithm)<br/>
+          • Duplicates are automatically skipped<br/>
+          • Learners with email receive login credentials
+        </div>
+        <button onClick={downloadTemplate} style={{ padding:'6px 14px', borderRadius:8, border:'none', background:'#3b82f6', color:'#fff', fontSize:12, fontWeight:600, cursor:'pointer' }}>
+          ⬇️ Download Template
+        </button>
+      </div>
+
+      <div
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+        style={{ border:`2px dashed ${dragOver ? '#667eea' : '#e2e8f0'}`, borderRadius:12, padding:'32px 20px', textAlign:'center', background: dragOver ? '#f5f3ff' : '#f8fafc', marginBottom:16, transition:'all 0.2s', cursor:'pointer' }}
+        onClick={() => document.getElementById('csv-file-input')?.click()}
+      >
+        <input id="csv-file-input" type="file" accept=".csv" style={{ display:'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+        <div style={{ fontSize:36, marginBottom:8 }}>📂</div>
+        {file
+          ? <div style={{ fontWeight:600, color:'#1e293b' }}>{file.name} <span style={{ color:'#10b981' }}>✓</span></div>
+          : <div style={{ color:'#64748b', fontSize:14 }}>Drag & drop a CSV file here, or click to browse</div>}
+      </div>
+
+      <button onClick={submit} disabled={!file || loading}
+        style={{ padding:'10px 28px', borderRadius:10, border:'none', background:'linear-gradient(135deg,#667eea,#764ba2)', color:'#fff', fontWeight:700, fontSize:14, cursor: !file || loading ? 'not-allowed' : 'pointer', opacity: !file || loading ? 0.6 : 1 }}>
+        {loading ? <><span className="spinner-border spinner-border-sm me-2" role="status" />Importing…</> : '🚀 Import Learners'}
+      </button>
+
+      {result && (
+        <div style={{ marginTop:20 }}>
+          <div style={{ background: result.imported > 0 ? '#dcfce7' : '#fef2f2', border:`1px solid ${result.imported > 0 ? '#bbf7d0' : '#fecaca'}`, borderRadius:12, padding:16, marginBottom:12 }}>
+            <div style={{ fontWeight:700, fontSize:15, color: result.imported > 0 ? '#16a34a' : '#dc2626' }}>{result.message}</div>
+            <div style={{ marginTop:6, display:'flex', gap:16, fontSize:13 }}>
+              <span style={{ color:'#16a34a' }}>✅ {result.imported} imported</span>
+              <span style={{ color:'#d97706' }}>⏭️ {result.skipped} skipped</span>
+            </div>
+          </div>
+          {result.errors?.length > 0 && (
+            <div style={{ background:'#fff', border:'1px solid #fecaca', borderRadius:12, padding:16 }}>
+              <div style={{ fontWeight:700, fontSize:13, color:'#dc2626', marginBottom:8 }}>⚠️ Skipped rows:</div>
+              <ul style={{ margin:0, paddingLeft:20, fontSize:12, color:'#7f1d1d' }}>
+                {result.errors.map((e: string, i: number) => <li key={i}>{e}</li>)}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SDPDashboard: React.FC = () => {
   const navigate = useNavigate();
   const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
@@ -146,7 +371,7 @@ const SDPDashboard: React.FC = () => {
   const [sdps, setSdps] = useState<SkillsDevelopmentProvider[]>([]);
   const [filteredSdps, setFilteredSdps] = useState<SkillsDevelopmentProvider[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
-  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users' | 'learner-progress' | 'bulk-import'>('overview');
   const [selectedSdp, setSelectedSdp] = useState<SkillsDevelopmentProvider | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -3095,6 +3320,20 @@ const SDPDashboard: React.FC = () => {
                   <span>👤</span> Users
                 </button>
                 <button
+                  style={{ color: activeSection === 'learner-progress' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'learner-progress' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'learner-progress' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
+                  onClick={() => setActiveSection('learner-progress')}
+                >
+                  <span>📈</span> Learner Progress
+                </button>
+                <button
+                  style={{ color: activeSection === 'bulk-import' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'bulk-import' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'bulk-import' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
+                  onClick={() => setActiveSection('bulk-import')}
+                >
+                  <span>📥</span> Bulk Import
+                </button>
+                <button
                   style={{ color: activeSection === 'budget-management' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'budget-management' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'budget-management' ? 700 : 400, transition:'all 0.15s', opacity: projects.length === 0 ? 0.4 : 1 }}
                   className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
                   onClick={() => setActiveSection('budget-management')}
@@ -3206,6 +3445,19 @@ const SDPDashboard: React.FC = () => {
               {activeSection === 'add-project' && renderAddProject()}
               {activeSection === 'add-department' && renderAddDepartment()}
               {activeSection === 'budget-management' && renderBudgetManagement()}
+              {activeSection === 'learner-progress' && (
+                <LearnerProgressView
+                  sdpId={user?.skillsDevelopmentProviderId ?? 0}
+                  token={localStorage.getItem('token') ?? ''}
+                  apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
+                />
+              )}
+              {activeSection === 'bulk-import' && (
+                <BulkImportView
+                  token={localStorage.getItem('token') ?? ''}
+                  apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
+                />
+              )}
             </div>
           </div>
         </div>

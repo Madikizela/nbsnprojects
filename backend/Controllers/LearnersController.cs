@@ -942,6 +942,154 @@ namespace backend.Controllers
 
             return Ok(new { message = "Face embedding registered successfully" });
         }
+
+        // POST: api/Learners/bulk-import
+        // Accepts a CSV file with columns: Title,FirstName,LastName,IdNumber,Email,ContactNumber,Gender
+        // Validates SA ID numbers, detects duplicates, creates learner accounts.
+        [HttpPost("bulk-import")]
+        public async Task<IActionResult> BulkImport(IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return BadRequest(new { message = "Please upload a CSV file." });
+
+            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (ext != ".csv")
+                return BadRequest(new { message = "Only CSV files are accepted." });
+
+            var results = new List<object>();
+            var imported = 0;
+            var skipped  = 0;
+            var errors   = new List<string>();
+
+            using var reader = new System.IO.StreamReader(file.OpenReadStream());
+            var headerLine = await reader.ReadLineAsync();
+            if (headerLine == null)
+                return BadRequest(new { message = "CSV file is empty." });
+
+            // Normalise header names
+            var headers = headerLine.Split(',').Select(h => h.Trim().ToLowerInvariant()).ToList();
+            int Col(string name) => headers.IndexOf(name);
+
+            int rowNumber = 1;
+            while (!reader.EndOfStream)
+            {
+                rowNumber++;
+                var line = await reader.ReadLineAsync();
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                var cols = line.Split(',').Select(c => c.Trim().Trim('"')).ToList();
+                string Get(string name) => Col(name) >= 0 && Col(name) < cols.Count ? cols[Col(name)] : "";
+
+                var firstName = Get("firstname");
+                var lastName  = Get("lastname");
+                var idNumber  = Get("idnumber");
+                var email     = Get("email");
+                var title     = Get("title");
+                var contact   = Get("contactnumber");
+                var gender    = Get("gender");
+
+                // Required field checks
+                if (string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName))
+                {
+                    errors.Add($"Row {rowNumber}: FirstName and LastName are required.");
+                    skipped++; continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(idNumber) || idNumber.Length != 13 || !idNumber.All(char.IsDigit))
+                {
+                    errors.Add($"Row {rowNumber} ({firstName} {lastName}): ID number must be exactly 13 digits.");
+                    skipped++; continue;
+                }
+
+                // SA ID Luhn check
+                if (!ValidateSAId(idNumber))
+                {
+                    errors.Add($"Row {rowNumber} ({firstName} {lastName}): ID number '{idNumber}' failed SA-ID validation.");
+                    skipped++; continue;
+                }
+
+                // Duplicate check by ID number
+                if (await _context.Learners.AnyAsync(l => l.IdNumber == idNumber))
+                {
+                    errors.Add($"Row {rowNumber} ({firstName} {lastName}): ID number '{idNumber}' already exists — skipped.");
+                    skipped++; continue;
+                }
+
+                // Duplicate check by email (if provided)
+                if (!string.IsNullOrWhiteSpace(email) && await _context.Learners.AnyAsync(l => l.Email == email))
+                {
+                    errors.Add($"Row {rowNumber} ({firstName} {lastName}): Email '{email}' already exists — skipped.");
+                    skipped++; continue;
+                }
+
+                // Create learner
+                var learner = new Learner
+                {
+                    Title         = string.IsNullOrWhiteSpace(title) ? "Mr" : title,
+                    FirstName     = firstName,
+                    LastName      = lastName,
+                    IdNumber      = idNumber,
+                    Email         = string.IsNullOrWhiteSpace(email) ? null : email,
+                    ContactNumber = string.IsNullOrWhiteSpace(contact) ? null : contact,
+                    Gender        = string.IsNullOrWhiteSpace(gender) ? null : gender,
+                    MustChangePassword = true,
+                    CreatedAt     = DateTime.UtcNow,
+                    UpdatedAt     = DateTime.UtcNow
+                };
+
+                // Generate login credentials if email is provided
+                if (!string.IsNullOrWhiteSpace(email))
+                {
+                    learner.Username     = await GenerateUniqueUsernameAsync(firstName, lastName);
+                    var plainPassword    = GenerateRandomPassword();
+                    learner.PasswordHash = _passwordHashingService.HashPassword(plainPassword);
+
+                    // Send welcome email (fire-and-forget)
+                    try
+                    {
+                        await _emailService.SendWelcomeEmailAsync(email, $"{firstName} {lastName}", learner.Username, plainPassword);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Could not send welcome email to {Email} during bulk import", email);
+                    }
+                }
+
+                _context.Learners.Add(learner);
+                imported++;
+                results.Add(new { row = rowNumber, name = $"{firstName} {lastName}", idNumber, email, status = "imported" });
+            }
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message  = $"Import complete: {imported} imported, {skipped} skipped.",
+                imported,
+                skipped,
+                errors,
+                results
+            });
+        }
+
+        /// <summary>SA ID number Luhn algorithm validation.</summary>
+        private static bool ValidateSAId(string id)
+        {
+            if (id.Length != 13) return false;
+            int sum = 0;
+            for (int i = 0; i < 12; i++)
+            {
+                int digit = id[i] - '0';
+                if (i % 2 == 0) { sum += digit; }
+                else
+                {
+                    int doubled = digit * 2;
+                    sum += doubled > 9 ? doubled - 9 : doubled;
+                }
+            }
+            int check = (10 - (sum % 10)) % 10;
+            return check == (id[12] - '0');
+        }
     }
 }
 

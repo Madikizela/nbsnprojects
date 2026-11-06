@@ -240,6 +240,7 @@ namespace backend.Controllers
                     PhoneNumber = request.PhoneNumber,
                     Role = UserRole.SDPAdministrator,
                     Status = UserStatus.Active,
+                    MustChangePassword = true,  // Force password change on first login
                     SkillsDevelopmentProviderId = sdp.Id,
                     CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc),
                     UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc)
@@ -329,6 +330,7 @@ namespace backend.Controllers
 
             var newSdpStatus = request.Active ? SDPStatus.Active : SDPStatus.Inactive;
             var newUserStatus = request.Active ? UserStatus.Active : UserStatus.Inactive;
+            var previousStatus = sdp.Status.ToString();
 
             sdp.Status = newSdpStatus;
             sdp.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
@@ -341,6 +343,40 @@ namespace backend.Controllers
             }
 
             await _context.SaveChangesAsync();
+
+            // Write audit log
+            var adminEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "System Admin";
+            var action = request.Active ? "SDP_ENABLED" : "SDP_DISABLED";
+            var description = $"SDP '{sdp.Name}' was {(request.Active ? "enabled" : "disabled")} by {adminEmail}. {sdp.Users.Count} sub-user(s) updated. Previous status: {previousStatus}.";
+            await AuditLogHelper.LogAsync(_context, action, description, "SDP", sdp.Id, sdp.Name, adminEmail,
+                metadata: $"{{\"previousStatus\":\"{previousStatus}\",\"newStatus\":\"{newSdpStatus}\",\"usersAffected\":{sdp.Users.Count}}}");
+
+            // Send email notification to all sub-users informing them of the status change
+            var statusVerb = request.Active ? "re-enabled" : "disabled";
+            var statusEmoji = request.Active ? "✅" : "🚫";
+            var emailSubject = $"{statusEmoji} Your NBSN account has been {statusVerb}";
+            foreach (var subUser in sdp.Users.Where(u => !string.IsNullOrWhiteSpace(u.Email)))
+            {
+                var emailBody = request.Active
+                    ? $@"<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>
+                            <h2 style='color:#16a34a'>✅ Account Re-enabled</h2>
+                            <p>Dear {subUser.FirstName},</p>
+                            <p>Your NBSN account for <strong>{sdp.Name}</strong> has been <strong>re-enabled</strong> by a system administrator.</p>
+                            <p>You can now log in at <a href='https://nbsn-frontend-production.up.railway.app'>nbsn-frontend-production.up.railway.app</a>.</p>
+                            <p>If you have any questions, please contact your administrator.</p>
+                            <p>Regards,<br/>NBSN System</p>
+                          </div>"
+                    : $@"<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>
+                            <h2 style='color:#dc2626'>🚫 Account Disabled</h2>
+                            <p>Dear {subUser.FirstName},</p>
+                            <p>Your NBSN account for <strong>{sdp.Name}</strong> has been <strong>disabled</strong> by a system administrator.</p>
+                            <p>You will not be able to log in until the account is re-enabled. If you believe this is a mistake, please contact your administrator.</p>
+                            <p>Regards,<br/>NBSN System</p>
+                          </div>";
+
+                try { await _emailService.SendEmailAsync(subUser.Email, emailSubject, emailBody); }
+                catch (Exception emailEx) { _logger.LogWarning(emailEx, "Failed to send status notification to {Email}", subUser.Email); }
+            }
 
             _logger.LogInformation(
                 "SDP {SdpId} ({SdpName}) set to {Status}. {UserCount} sub-users updated.",
@@ -387,6 +423,10 @@ namespace backend.Controllers
                 if (emailSent)
                 {
                     _logger.LogInformation("Credentials resent to {Email} for SDP {SdpName}", adminUser.Email, sdp.Name);
+                    var adminEmail2 = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "System Admin";
+                    await AuditLogHelper.LogAsync(_context, "CREDENTIALS_RESENT",
+                        $"Credentials resent to {adminUser.Email} for SDP '{sdp.Name}' by {adminEmail2}.",
+                        "SDP", sdp.Id, sdp.Name, adminEmail2);
                     return Ok(new { message = $"Credentials resent to {adminUser.Email}", emailSent = true });
                 }
                 else

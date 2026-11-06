@@ -461,25 +461,46 @@ const ClientDashboard: React.FC = () => {
 
         <div className="col-md-6">
           <div className="cd-card" style={{ overflow:'hidden' }}>
-            <div style={{ padding:'14px 20px', borderBottom:'1px solid #f1f5f9', background:'linear-gradient(135deg,#0ea5e9,#0284c7)' }}>
+            <div style={{ padding:'14px 20px', borderBottom:'1px solid #f1f5f9', background:'linear-gradient(135deg,#0ea5e9,#0284c7)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <span style={{ fontWeight:700, color:'#fff', fontSize:15 }}>Projects ({projects.length})</span>
             </div>
-            <div style={{ padding:'8px 0' }}>
+            <div style={{ padding:12, display:'flex', flexDirection:'column', gap:10 }}>
               {dataLoading ? (
                 <div className="text-center py-4"><div className="spinner-border text-info" role="status"><span className="visually-hidden">Loading...</span></div></div>
-              ) : projects.length > 0 ? projects.map(project => (
-                <div key={project.id} style={{ padding:'12px 20px', borderBottom:'1px solid #f8fafc' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                    <div>
-                      <div style={{ fontWeight:600, color:'#1e293b', fontSize:14 }}>{project.projectName}</div>
-                      <div style={{ color:'#64748b', fontSize:12, marginTop:2 }}>Contract: {project.contractNumber}</div>
-                      <div style={{ color:'#64748b', fontSize:12 }}>Financial Year: {project.financialYear}</div>
-                      {project.skillsDevelopmentProvider && <div style={{ color:'#94a3b8', fontSize:11 }}>SDP: {project.skillsDevelopmentProvider.name}</div>}
+              ) : projects.length > 0 ? projects.map(project => {
+                const totalLearners = project.projectLearningPathways?.reduce((sum: number, plp: any) =>
+                  sum + (plp.projectQualifications?.reduce((s2: number, pq: any) => s2 + (pq.numberOfBeneficiaries ?? 0), 0) ?? 0), 0) ?? 0;
+                const statusColor = project.status === 'Active' ? '#16a34a' : project.status === 'Completed' ? '#2563eb' : '#d97706';
+                const statusBg    = project.status === 'Active' ? '#dcfce7' : project.status === 'Completed' ? '#dbeafe' : '#fef3c7';
+                return (
+                  <div key={project.id} style={{ background:'#f8fafc', borderRadius:12, padding:'14px 16px', border:'1px solid #e2e8f0' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:8 }}>
+                      <div style={{ fontWeight:700, color:'#1e293b', fontSize:14 }}>{project.projectName}</div>
+                      <span style={{ padding:'2px 10px', borderRadius:20, fontSize:11, fontWeight:700, background:statusBg, color:statusColor }}>
+                        {project.status || 'Active'}
+                      </span>
                     </div>
-                    <div style={{ color:'#94a3b8', fontSize:11 }}>ID: {project.id}</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:8 }}>
+                      <div style={{ background:'#fff', borderRadius:8, padding:'8px 10px', textAlign:'center', border:'1px solid #f1f5f9' }}>
+                        <div style={{ fontSize:18, fontWeight:800, color:'#6366f1' }}>{totalLearners}</div>
+                        <div style={{ fontSize:10, color:'#94a3b8', fontWeight:600 }}>BENEFICIARIES</div>
+                      </div>
+                      <div style={{ background:'#fff', borderRadius:8, padding:'8px 10px', textAlign:'center', border:'1px solid #f1f5f9' }}>
+                        <div style={{ fontSize:18, fontWeight:800, color:'#10b981' }}>{project.projectLearningPathways?.length ?? 0}</div>
+                        <div style={{ fontSize:10, color:'#94a3b8', fontWeight:600 }}>PATHWAYS</div>
+                      </div>
+                      <div style={{ background:'#fff', borderRadius:8, padding:'8px 10px', textAlign:'center', border:'1px solid #f1f5f9' }}>
+                        <div style={{ fontSize:18, fontWeight:800, color:'#f59e0b' }}>{project.financialYear || '—'}</div>
+                        <div style={{ fontSize:10, color:'#94a3b8', fontWeight:600 }}>FIN. YEAR</div>
+                      </div>
+                    </div>
+                    <div style={{ display:'flex', gap:16, fontSize:11, color:'#64748b' }}>
+                      <span>📄 {project.contractNumber || 'No contract #'}</span>
+                      {project.skillsDevelopmentProvider && <span>🎓 {project.skillsDevelopmentProvider.name}</span>}
+                    </div>
                   </div>
-                </div>
-              )) : (
+                );
+              }) : (
                 <div className="text-center py-4 text-muted">
                   <div style={{ fontSize:'2rem', marginBottom:8 }}>📋</div>
                   <p style={{ fontSize:14 }}>No projects yet</p>

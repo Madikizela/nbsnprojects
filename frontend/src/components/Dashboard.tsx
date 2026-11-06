@@ -4,6 +4,79 @@ import ClientForm from './ClientForm';
 import PersonalInfoForm from './PersonalInfoForm';
 import productIcon from '../assets/mobile_icon.png';
 
+// ── Platform-wide stats for admin overview cards ─────────────────────────────
+interface AdminStats {
+  sdps: { total: number; active: number; inactive: number; pending: number; newThisMonth: number };
+  clients: { total: number };
+  users: { total: number; active: number; inactive: number };
+  learners: { total: number };
+  projects: { total: number };
+  classes: { total: number };
+  attendance: { todayClockins: number };
+  recentActivity: { action: string; description: string; entityName: string; performedBy: string; createdAt: string }[];
+}
+
+const AdminOverviewCards: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
+  const [stats, setStats] = React.useState<AdminStats | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    fetch(`${apiUrl}/api/AdminStats`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { setStats(d); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [token, apiUrl]);
+
+  if (loading) return <div className="text-center py-3"><div className="spinner-border spinner-border-sm text-primary" role="status" /></div>;
+  if (!stats) return null;
+
+  const cards = [
+    { label: 'Total SDPs', value: stats.sdps.total, sub: `${stats.sdps.active} active · ${stats.sdps.inactive} inactive`, icon: '🎓', color: '#6366f1' },
+    { label: 'Pending Approval', value: stats.sdps.pending, sub: `${stats.sdps.newThisMonth} registered this month`, icon: '⏳', color: '#f59e0b' },
+    { label: 'Total Clients', value: stats.clients.total, sub: '', icon: '🏢', color: '#10b981' },
+    { label: 'Active Users', value: stats.users.active, sub: `${stats.users.inactive} inactive · ${stats.users.total} total`, icon: '👥', color: '#3b82f6' },
+    { label: 'Learners', value: stats.learners.total, sub: '', icon: '🧑‍🎓', color: '#8b5cf6' },
+    { label: 'Projects', value: stats.projects.total, sub: `${stats.classes.total} classes`, icon: '📋', color: '#06b6d4' },
+    { label: "Today's Clockins", value: stats.attendance.todayClockins, sub: 'biometric attendance today', icon: '⏱️', color: '#ec4899' },
+  ];
+
+  return (
+    <div>
+      {/* Stat cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(180px,1fr))', gap: 14, marginBottom: 24 }}>
+        {cards.map(c => (
+          <div key={c.label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ fontSize: 28 }}>{c.icon}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: c.color, lineHeight: 1 }}>{c.value.toLocaleString()}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b' }}>{c.label}</div>
+            {c.sub && <div style={{ fontSize: 11, color: '#94a3b8' }}>{c.sub}</div>}
+          </div>
+        ))}
+      </div>
+
+      {/* Recent activity feed */}
+      {stats.recentActivity.length > 0 && (
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '16px 20px', marginBottom: 24 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>🕐 Recent Admin Activity</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {stats.recentActivity.map((a, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '8px 0', borderBottom: i < stats.recentActivity.length - 1 ? '1px solid #f1f5f9' : 'none' }}>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>
+                  {a.action.includes('DISABLED') ? '🚫' : a.action.includes('ENABLED') ? '✅' : a.action.includes('CREDENTIALS') ? '🔑' : '📝'}
+                </span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, color: '#1e293b' }}>{a.description}</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{new Date(a.createdAt).toLocaleString('en-ZA')}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface User {
   id: number;
   firstName: string;
@@ -43,6 +116,7 @@ interface SubUser {
   email: string;
   role: string | number;
   status: string | number;
+  lastLoginAt?: string;
 }
 
 const sdpIsActive = (status: string | number) =>
@@ -65,11 +139,13 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
   const [sdps, setSdps] = React.useState<SdpRecord[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
+  const [search, setSearch] = React.useState('');
   const [togglingId, setTogglingId] = React.useState<number | null>(null);
   const [expandedId, setExpandedId] = React.useState<number | null>(null);
   const [subUsers, setSubUsers] = React.useState<Record<number, SubUser[]>>({});
   const [subUsersLoading, setSubUsersLoading] = React.useState<Record<number, boolean>>({});
   const [togglingUserId, setTogglingUserId] = React.useState<number | null>(null);
+  const [resendingUserId, setResendingUserId] = React.useState<number | null>(null);
   const [toast, setToast] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const showToast = (type: 'success' | 'error', text: string) => {
@@ -107,11 +183,9 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
       });
       if (!r.ok) { showToast('error', `Failed to update SDP status (${r.status})`); return; }
       const result = await r.json();
-      // Update local SDP status
       setSdps(prev => prev.map(s =>
         s.id === sdp.id ? { ...s, status: newActive ? 'Active' : 'Inactive' } : s
       ));
-      // If sub-users for this SDP are loaded, update them too
       if (subUsers[sdp.id]) {
         setSubUsers(prev => ({
           ...prev,
@@ -127,7 +201,7 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
   };
 
   const loadSubUsers = async (sdpId: number) => {
-    if (subUsers[sdpId]) return; // already loaded
+    // Always reload to get fresh lastLoginAt
     setSubUsersLoading(prev => ({ ...prev, [sdpId]: true }));
     try {
       const r = await fetch(`${apiUrl}/api/SkillsDevelopmentProviders/${sdpId}/Users`, {
@@ -177,8 +251,41 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
     }
   };
 
+  const resendUserCredentials = async (sdpId: number, user: SubUser) => {
+    setResendingUserId(user.id);
+    try {
+      // Resend via the SDP endpoint — it resets password for the first user matching the SDP
+      // For a per-user resend we call the SDP resend endpoint which finds the admin user
+      const r = await fetch(`${apiUrl}/api/SkillsDevelopmentProviders/${sdpId}/resend-credentials`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      const result = await r.json();
+      if (r.ok) {
+        showToast('success', result.message ?? `Credentials resent to ${user.email}.`);
+      } else {
+        showToast('error', result.message ?? 'Failed to resend credentials.');
+      }
+    } catch {
+      showToast('error', 'Network error while resending credentials.');
+    } finally {
+      setResendingUserId(null);
+    }
+  };
+
   const thStyle: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: '#64748b', padding: '10px 14px', borderBottom: '1px solid #e2e8f0' };
   const tdStyle: React.CSSProperties = { padding: '11px 14px', fontSize: 14, verticalAlign: 'middle' };
+
+  // Filter SDPs by search
+  const filteredSdps = sdps.filter(s =>
+    !search ||
+    s.name.toLowerCase().includes(search.toLowerCase()) ||
+    (s.contactPerson ?? '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Count inactive users per SDP (from loaded sub-users)
+  const inactiveCount = (sdpId: number) =>
+    (subUsers[sdpId] ?? []).filter(u => !userIsActive(u.status)).length;
 
   if (loading) return <div className="text-center p-4"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>;
   if (error) return (
@@ -190,26 +297,37 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
 
   return (
     <div>
-      {/* Toast notification */}
+      {/* Toast */}
       {toast && (
         <div style={{
           position: 'fixed', top: 24, right: 24, zIndex: 9999,
           padding: '12px 20px', borderRadius: 10, fontWeight: 600, fontSize: 14,
           background: toast.type === 'success' ? '#dcfce7' : '#fee2e2',
           color: toast.type === 'success' ? '#16a34a' : '#dc2626',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-          display: 'flex', alignItems: 'center', gap: 10
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)', display: 'flex', alignItems: 'center', gap: 10
         }}>
           {toast.type === 'success' ? '✅' : '❌'} {toast.text}
         </div>
       )}
 
       <div className="dash-card" style={{ overflow: 'hidden' }}>
-        <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontWeight: 700, color: '#1e293b', fontSize: 15 }}>Skills Development Providers ({sdps.length})</span>
-          <button onClick={loadSdps} style={{ background: 'transparent', border: '1px solid #e2e8f0', borderRadius: 8, padding: '4px 12px', fontSize: 12, color: '#64748b', cursor: 'pointer' }}>
-            🔄 Refresh
-          </button>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 700, color: '#1e293b', fontSize: 15 }}>
+            Skills Development Providers ({filteredSdps.length}{search ? ` of ${sdps.length}` : ''})
+          </span>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Search */}
+            <input
+              type="text"
+              placeholder="Search by name or contact..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, width: 220, outline: 'none' }}
+            />
+            <button onClick={loadSdps} style={{ background: 'transparent', border: '1px solid #e2e8f0', borderRadius: 8, padding: '5px 12px', fontSize: 12, color: '#64748b', cursor: 'pointer' }}>
+              🔄 Refresh
+            </button>
+          </div>
         </div>
 
         <div className="table-responsive">
@@ -225,16 +343,16 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
               </tr>
             </thead>
             <tbody>
-              {sdps.length === 0 ? (
-                <tr><td colSpan={6} className="text-center text-muted py-4">No SDPs registered yet.</td></tr>
-              ) : sdps.map(sdp => {
+              {filteredSdps.length === 0 ? (
+                <tr><td colSpan={6} className="text-center text-muted py-4">{search ? 'No SDPs match your search.' : 'No SDPs registered yet.'}</td></tr>
+              ) : filteredSdps.map(sdp => {
                 const active = sdpIsActive(sdp.status);
                 const isToggling = togglingId === sdp.id;
                 const isExpanded = expandedId === sdp.id;
+                const disabledUsers = inactiveCount(sdp.id);
 
                 return (
                   <React.Fragment key={sdp.id}>
-                    {/* Main SDP row */}
                     <tr style={{ opacity: active ? 1 : 0.65 }}>
                       <td style={{ ...tdStyle, fontWeight: 600, color: '#1e293b' }}>
                         <button
@@ -245,6 +363,12 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
                           {isExpanded ? '▼' : '▶'}
                         </button>
                         {sdp.name}
+                        {/* Disabled user count badge — shown once sub-users are loaded */}
+                        {subUsers[sdp.id] && disabledUsers > 0 && (
+                          <span style={{ marginLeft: 6, padding: '1px 7px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>
+                            {disabledUsers} disabled
+                          </span>
+                        )}
                       </td>
                       <td style={{ ...tdStyle, color: '#64748b' }}>{sdp.contactPerson || '—'}</td>
                       <td style={{ ...tdStyle, color: '#64748b', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sdp.address || '—'}</td>
@@ -257,10 +381,10 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
                           onClick={() => toggleSdpStatus(sdp)}
                           disabled={isToggling}
                           style={{
-                            padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: isToggling ? 'not-allowed' : 'pointer', border: 'none',
+                            padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                            cursor: isToggling ? 'not-allowed' : 'pointer', border: 'none',
                             background: active ? '#fee2e2' : '#dcfce7',
-                            color: active ? '#dc2626' : '#16a34a',
-                            minWidth: 90
+                            color: active ? '#dc2626' : '#16a34a', minWidth: 90
                           }}
                         >
                           {isToggling ? '...' : active ? '🚫 Disable' : '✅ Enable'}
@@ -285,7 +409,7 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
                               <table className="table table-sm mb-0" style={{ background: 'transparent' }}>
                                 <thead>
                                   <tr>
-                                    {['Name', 'Email', 'Role', 'Status', 'Action'].map(h => (
+                                    {['Name', 'Email', 'Role', 'Last Login', 'Status', 'Actions'].map(h => (
                                       <th key={h} style={{ fontSize: 12, fontWeight: 600, color: '#64748b', padding: '6px 10px', border: 'none', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
                                     ))}
                                   </tr>
@@ -294,24 +418,43 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
                                   {subUsers[sdp.id].map(u => {
                                     const uActive = userIsActive(u.status);
                                     const isTogglingUser = togglingUserId === u.id;
+                                    const isResending = resendingUserId === u.id;
+                                    const lastLogin = u.lastLoginAt
+                                      ? new Date(u.lastLoginAt).toLocaleDateString('en-ZA') + ' ' + new Date(u.lastLoginAt).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
+                                      : 'Never';
                                     return (
                                       <tr key={u.id} style={{ opacity: uActive ? 1 : 0.6 }}>
                                         <td style={{ padding: '7px 10px', fontSize: 13, fontWeight: 500 }}>{u.firstName} {u.lastName}</td>
-                                        <td style={{ padding: '7px 10px', fontSize: 13, color: '#64748b' }}>{u.email}</td>
-                                        <td style={{ padding: '7px 10px', fontSize: 12, color: '#64748b' }}>{typeof u.role === 'number' ? u.role : u.role}</td>
+                                        <td style={{ padding: '7px 10px', fontSize: 12, color: '#64748b' }}>{u.email}</td>
+                                        <td style={{ padding: '7px 10px', fontSize: 11, color: '#94a3b8' }}>{String(u.role)}</td>
+                                        <td style={{ padding: '7px 10px', fontSize: 11, color: lastLogin === 'Never' ? '#f87171' : '#64748b' }}>
+                                          {lastLogin === 'Never' ? '⚠️ Never' : lastLogin}
+                                        </td>
                                         <td style={{ padding: '7px 10px' }}><StatusBadge active={uActive} /></td>
-                                        <td style={{ padding: '7px 10px' }}>
+                                        <td style={{ padding: '7px 10px', display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                                           <button
                                             onClick={() => toggleUserStatus(sdp.id, u)}
                                             disabled={isTogglingUser}
                                             style={{
-                                              padding: '3px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                              padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
                                               cursor: isTogglingUser ? 'not-allowed' : 'pointer', border: 'none',
                                               background: uActive ? '#fee2e2' : '#dcfce7',
                                               color: uActive ? '#dc2626' : '#16a34a',
                                             }}
                                           >
                                             {isTogglingUser ? '...' : uActive ? 'Disable' : 'Enable'}
+                                          </button>
+                                          <button
+                                            onClick={() => resendUserCredentials(sdp.id, u)}
+                                            disabled={isResending}
+                                            title="Resend login credentials"
+                                            style={{
+                                              padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                              cursor: isResending ? 'not-allowed' : 'pointer', border: '1px solid #e2e8f0',
+                                              background: '#f8fafc', color: '#475569',
+                                            }}
+                                          >
+                                            {isResending ? '...' : '🔑 Resend'}
                                           </button>
                                         </td>
                                       </tr>
@@ -336,6 +479,79 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
 };
 
 type Toast = { id:number; type:'success'|'error'|'info'; text:string };
+
+// ── Audit Log viewer ─────────────────────────────────────────────────────────
+const AuditLogView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
+  const [logs, setLogs] = React.useState<AdminStats['recentActivity']>([]);
+  const [total, setTotal] = React.useState(0);
+  const [page, setPage] = React.useState(1);
+  const [search, setSearch] = React.useState('');
+  const [loading, setLoading] = React.useState(true);
+  const pageSize = 20;
+
+  const loadLogs = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+      if (search) params.set('search', search);
+      const r = await fetch(`${apiUrl}/api/AuditLog?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      setLogs(d.logs ?? []);
+      setTotal(d.total ?? 0);
+    } finally { setLoading(false); }
+  }, [token, apiUrl, page, search]);
+
+  React.useEffect(() => { loadLogs(); }, [loadLogs]);
+
+  const actionColor = (a: string) => a.includes('DISABLED') ? '#dc2626' : a.includes('ENABLED') ? '#16a34a' : a.includes('CREDENTIALS') ? '#d97706' : '#6366f1';
+  const actionIcon  = (a: string) => a.includes('DISABLED') ? '🚫' : a.includes('ENABLED') ? '✅' : a.includes('CREDENTIALS') ? '🔑' : '📝';
+
+  return (
+    <div>
+      <div className="dash-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px' }}>
+        <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>Audit Log 📋</h2>
+        <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>All admin actions across the platform</p>
+      </div>
+      <div style={{ marginBottom:16, display:'flex', gap:12 }}>
+        <input type="text" placeholder="Search by name, action, admin..." value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1); }}
+          style={{ flex:1, padding:'8px 14px', borderRadius:8, border:'1px solid #e2e8f0', fontSize:14 }} />
+        <button onClick={loadLogs} style={{ padding:'8px 16px', borderRadius:8, border:'1px solid #e2e8f0', background:'#f8fafc', cursor:'pointer', fontSize:13 }}>🔄 Refresh</button>
+      </div>
+      {loading ? <div className="text-center py-4"><div className="spinner-border text-primary" role="status" /></div> : (
+        <div className="dash-card" style={{ overflow:'hidden' }}>
+          <div style={{ padding:'10px 16px', borderBottom:'1px solid #f1f5f9', fontSize:13, color:'#64748b' }}>
+            Showing {logs.length} of {total} entries
+          </div>
+          {logs.length === 0 ? <div className="text-center text-muted py-4">No audit log entries yet.</div> : (
+            <div style={{ display:'flex', flexDirection:'column' }}>
+              {logs.map((l: any, i: number) => (
+                <div key={i} style={{ display:'flex', alignItems:'flex-start', gap:14, padding:'12px 16px', borderBottom:'1px solid #f8fafc' }}>
+                  <span style={{ fontSize:20, flexShrink:0 }}>{actionIcon(l.action)}</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
+                      <span style={{ fontSize:11, fontWeight:700, padding:'2px 8px', borderRadius:20, background: `${actionColor(l.action)}18`, color: actionColor(l.action) }}>{l.action}</span>
+                      <span style={{ fontSize:12, color:'#94a3b8' }}>{new Date(l.createdAt).toLocaleString('en-ZA')}</span>
+                    </div>
+                    <div style={{ fontSize:13, color:'#1e293b' }}>{l.description}</div>
+                    <div style={{ fontSize:11, color:'#94a3b8', marginTop:2 }}>By: {l.performedBy}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {total > pageSize && (
+            <div style={{ padding:'12px 16px', display:'flex', gap:8, justifyContent:'center' }}>
+              <button disabled={page === 1} onClick={() => setPage(p => p - 1)} style={{ padding:'4px 12px', borderRadius:6, border:'1px solid #e2e8f0', cursor:'pointer', opacity: page === 1 ? 0.4 : 1 }}>← Prev</button>
+              <span style={{ padding:'4px 12px', fontSize:13, color:'#64748b' }}>Page {page} of {Math.ceil(total / pageSize)}</span>
+              <button disabled={page >= Math.ceil(total / pageSize)} onClick={() => setPage(p => p + 1)} style={{ padding:'4px 12px', borderRadius:6, border:'1px solid #e2e8f0', cursor:'pointer', opacity: page >= Math.ceil(total / pageSize) ? 0.4 : 1 }}>Next →</button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -440,6 +656,7 @@ const Dashboard = () => {
   const menuItems = [
     { id: 'clients', label: 'Client Management', icon: '🏢' },
     { id: 'sdp', label: 'SDP Management', icon: '🎓' },
+    { id: 'audit', label: 'Audit Log', icon: '📋' },
     { id: 'profile', label: 'Profile', icon: '👤' },
   ];
 
@@ -631,14 +848,21 @@ const Dashboard = () => {
         return (
           <div>
             {/* Header */}
-            <div className="dash-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px' }}>
-              <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>SDP Management 🎓</h2>
-              <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>View Skills Development Providers</p>
+            <div className="dash-card mb-4" style={{ background:'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius:16, padding:'24px 28px', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+              <div>
+                <h2 style={{ color:'#fff', fontWeight:800, fontSize:'1.4rem', margin:0 }}>SDP Management 🎓</h2>
+                <p style={{ color:'rgba(255,255,255,0.6)', margin:'4px 0 0', fontSize:14 }}>Manage Skills Development Providers</p>
+              </div>
             </div>
+
+            {/* Platform analytics */}
+            <AdminOverviewCards token={localStorage.getItem('token') || ''} apiUrl={API} />
 
             <SDPListView token={localStorage.getItem('token') || ''} apiUrl={API} />
           </div>
         );
+      case 'audit':
+        return <AuditLogView token={localStorage.getItem('token') || ''} apiUrl={API} />;
       case 'profile':
         return (
           <PersonalInfoForm 

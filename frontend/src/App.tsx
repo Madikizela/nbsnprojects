@@ -6,6 +6,7 @@ import ClientDashboard from './components/ClientDashboard'
 import SDPDashboard from './components/SDPDashboard'
 import SDPManagerDashboard from './components/SDPManagerDashboard'
 import ResetPassword from './components/ResetPassword'
+import ChangePassword from './components/ChangePassword'
 import LearnerPortal from './components/LearnerPortal'
 import LearnerResetPassword from './components/LearnerResetPassword'
 import ExternalPortal from './components/ExternalPortal'
@@ -306,6 +307,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<Login expiredMessage={expiredMsg} />} />
           <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/popia-policy" element={<PopiaPolicyPage />} />
           <Route
             path="/learner-reset-password"

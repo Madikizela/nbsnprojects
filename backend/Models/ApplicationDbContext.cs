@@ -88,6 +88,9 @@ namespace backend.Models
         // External User Access
         public DbSet<ExternalUserAccess> ExternalUserAccess { get; set; }
         
+        // Admin Audit Log
+        public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
+        
         // Legacy Assessment System Entities
         public DbSet<AssessmentType> AssessmentTypes { get; set; }
         public DbSet<UnitStandardAssessment> UnitStandardAssessments { get; set; }
