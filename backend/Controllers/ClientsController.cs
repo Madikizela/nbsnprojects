@@ -421,5 +421,86 @@ namespace backend.Controllers
         {
             return _context.Clients.Any(e => e.Id == id);
         }
+
+        // PUT: api/Clients/{id}/status
+        // Enables or disables a client and cascades the same status to all its sub-users.
+        // Audit-logged and email-notified (mirrors the SDP status pattern).
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> SetClientStatus(int id, [FromBody] SetClientStatusRequest request)
+        {
+            var client = await _context.Clients
+                .Include(c => c.Users)
+                .FirstOrDefaultAsync(c => c.Id == id);
+
+            if (client == null)
+                return NotFound(new { message = "Client not found" });
+
+            var newClientStatus = request.Active ? ClientStatus.Active : ClientStatus.Inactive;
+            var newUserStatus   = request.Active ? UserStatus.Active   : UserStatus.Inactive;
+            var previousStatus  = client.Status.ToString();
+
+            client.Status    = newClientStatus;
+            client.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+
+            // Cascade to all sub-users so login is blocked/unblocked immediately
+            foreach (var user in client.Users)
+            {
+                user.Status    = newUserStatus;
+                user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+            }
+
+            await _context.SaveChangesAsync();
+
+            // Write audit log
+            var adminEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "System Admin";
+            var action      = request.Active ? "CLIENT_ENABLED" : "CLIENT_DISABLED";
+            var description = $"Client '{client.Name}' was {(request.Active ? "enabled" : "disabled")} by {adminEmail}. " +
+                              $"{client.Users.Count} sub-user(s) updated. Previous status: {previousStatus}.";
+            await AuditLogHelper.LogAsync(_context, action, description, "Client", client.Id, client.Name, adminEmail,
+                metadata: $"{{\"previousStatus\":\"{previousStatus}\",\"newStatus\":\"{newClientStatus}\",\"usersAffected\":{client.Users.Count}}}");
+
+            // Email all sub-users about the status change
+            var statusVerb  = request.Active ? "re-enabled" : "disabled";
+            var statusEmoji = request.Active ? "✅" : "🚫";
+            var emailSubject = $"{statusEmoji} Your NBSN account has been {statusVerb}";
+            foreach (var subUser in client.Users.Where(u => !string.IsNullOrWhiteSpace(u.Email)))
+            {
+                var emailBody = request.Active
+                    ? $@"<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>
+                           <h2 style='color:#16a34a'>✅ Account Re-enabled</h2>
+                           <p>Dear {subUser.FirstName},</p>
+                           <p>Your NBSN account for <strong>{client.Name}</strong> has been <strong>re-enabled</strong> by a system administrator.</p>
+                           <p>You can now log in at <a href='https://nbsn-frontend-production.up.railway.app'>nbsn-frontend-production.up.railway.app</a>.</p>
+                           <p>Regards,<br/>NBSN System</p>
+                         </div>"
+                    : $@"<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>
+                           <h2 style='color:#dc2626'>🚫 Account Disabled</h2>
+                           <p>Dear {subUser.FirstName},</p>
+                           <p>Your NBSN account for <strong>{client.Name}</strong> has been <strong>disabled</strong> by a system administrator.</p>
+                           <p>You will not be able to log in until the account is re-enabled. Please contact your administrator if you believe this is a mistake.</p>
+                           <p>Regards,<br/>NBSN System</p>
+                         </div>";
+
+                try { await _emailService.SendEmailAsync(subUser.Email, emailSubject, emailBody); }
+                catch (Exception emailEx) { _logger.LogWarning(emailEx, "Failed to send status email to {Email}", subUser.Email); }
+            }
+
+            _logger.LogInformation("Client {Id} ({Name}) set to {Status}. {Count} user(s) updated.",
+                client.Id, client.Name, newClientStatus, client.Users.Count);
+
+            return Ok(new
+            {
+                message      = $"Client '{client.Name}' is now {newClientStatus}. {client.Users.Count} user(s) updated.",
+                clientStatus = newClientStatus.ToString(),
+                usersUpdated = client.Users.Count
+            });
+        }
+    }
+
+    // DTO for client status toggle
+    public class SetClientStatusRequest
+    {
+        /// <summary>true = Active, false = Inactive</summary>
+        public bool Active { get; set; }
     }
 }

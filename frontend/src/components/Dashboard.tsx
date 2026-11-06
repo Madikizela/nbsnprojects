@@ -561,6 +561,7 @@ const Dashboard = () => {
   const [clientsError, setClientsError] = useState('');
   const [resendingId, setResendingId] = useState<number | null>(null);
   const [resendMessage, setResendMessage] = useState<{ id: number; text: string; type: 'success' | 'error' } | null>(null);
+  const [togglingClientId, setTogglingClientId] = useState<number | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const navigate = useNavigate();
 
@@ -644,6 +645,33 @@ const Dashboard = () => {
       setResendMessage({ id: clientId, text: 'Network error — please try again', type: 'error' });
     } finally {
       setResendingId(null);
+    }
+  };
+
+  const toggleClientStatus = async (client: ClientRecord) => {
+    const clientActive = client.status === 'Active' || client.status === '1';
+    const newActive = !clientActive;
+    setTogglingClientId(client.id);
+    try {
+      const token = localStorage.getItem('token');
+      const r = await fetch(`${API}/api/Clients/${client.id}/status`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: newActive }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        setClients(prev => prev.map(c =>
+          c.id === client.id ? { ...c, status: newActive ? 'Active' : 'Inactive' } : c
+        ));
+        pushToast('success', data.message ?? `Client ${newActive ? 'enabled' : 'disabled'}.`);
+      } else {
+        pushToast('error', data.message ?? `Failed to update client status (${r.status}).`);
+      }
+    } catch {
+      pushToast('error', 'Network error — could not update client status.');
+    } finally {
+      setTogglingClientId(null);
     }
   };
 
@@ -804,22 +832,37 @@ const Dashboard = () => {
                               <td style={{ padding:'12px 16px', color:'#64748b', fontSize:14 }}>{client.email || '—'}</td>
                               <td style={{ padding:'12px 16px', color:'#64748b', fontSize:14 }}>{client.phoneNumber || '—'}</td>
                               <td style={{ padding:'12px 16px' }}>
-                                <span style={{ padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:600, background: (client.status === 'Active' || client.status === '1') ? '#dcfce7' : '#f1f5f9', color: (client.status === 'Active' || client.status === '1') ? '#16a34a' : '#64748b' }}>
-                                  {client.status === '1' ? 'Active' : client.status}
+                                <span style={{ padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:600, background: (client.status === 'Active' || client.status === '1') ? '#dcfce7' : '#fee2e2', color: (client.status === 'Active' || client.status === '1') ? '#16a34a' : '#dc2626' }}>
+                                  {client.status === '1' ? 'Active' : client.status === 'Inactive' ? 'Inactive' : client.status}
                                 </span>
                               </td>
                               <td style={{ padding:'12px 16px' }}>
-                                <button
-                                  style={{ padding:'6px 12px', borderRadius:8, border:'1.5px solid #667eea', background:'#fff', color:'#667eea', fontWeight:600, fontSize:12, cursor:'pointer' }}
-                                  onClick={() => resendCredentials(client.id)}
-                                  disabled={resendingId === client.id}
-                                >
-                                  {resendingId === client.id ? (
-                                    <><span className="spinner-border spinner-border-sm me-1" />Sending...</>
-                                  ) : (
-                                    '📧 Resend Credentials'
-                                  )}
-                                </button>
+                                <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                                  <button
+                                    style={{ padding:'5px 12px', borderRadius:8, border:'1.5px solid #667eea', background:'#fff', color:'#667eea', fontWeight:600, fontSize:12, cursor:'pointer' }}
+                                    onClick={() => resendCredentials(client.id)}
+                                    disabled={resendingId === client.id}
+                                  >
+                                    {resendingId === client.id ? (
+                                      <><span className="spinner-border spinner-border-sm me-1" />Sending...</>
+                                    ) : (
+                                      '📧 Resend'
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => toggleClientStatus(client)}
+                                    disabled={togglingClientId === client.id}
+                                    style={{
+                                      padding:'5px 14px', borderRadius:8, fontSize:12, fontWeight:600,
+                                      cursor: togglingClientId === client.id ? 'not-allowed' : 'pointer',
+                                      border:'none',
+                                      background: (client.status === 'Active' || client.status === '1') ? '#fee2e2' : '#dcfce7',
+                                      color:      (client.status === 'Active' || client.status === '1') ? '#dc2626' : '#16a34a',
+                                    }}
+                                  >
+                                    {togglingClientId === client.id ? '...' : (client.status === 'Active' || client.status === '1') ? '🚫 Disable' : '✅ Enable'}
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                             {resendMessage?.id === client.id && (

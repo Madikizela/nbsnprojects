@@ -135,7 +135,9 @@ namespace backend.Controllers
                     try
                     {
                         userPasswordOk = _passwordHashingService.VerifyPassword(password, user.PasswordHash);
-                        userActive = user.Status == UserStatus.Active;
+                        // Block login if the user is inactive OR their parent client is disabled
+                        var clientActive = user.Client == null || user.Client.Status == ClientStatus.Active;
+                        userActive = user.Status == UserStatus.Active && clientActive;
                         _logger.LogInformation("DEBUG: User password check: {PassOk}, Status: {Status}", userPasswordOk, user.Status);
                     }
                     catch (Exception ex)
@@ -263,7 +265,9 @@ namespace backend.Controllers
                 }
                 if (user != null && userPasswordOk && !userActive)
                 {
-                    _logger.LogWarning("Login attempt for inactive user: {Email}", email);
+                    var reason = user.Status != UserStatus.Active ? "inactive user account"
+                               : "disabled client organisation";
+                    _logger.LogWarning("Login attempt blocked — {Reason}: {Email}", reason, email);
                     return Unauthorized(new { message = "Your account has been disabled. Please contact your administrator.", code = "ACCOUNT_DISABLED" });
                 }
 
