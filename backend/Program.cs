@@ -313,7 +313,47 @@ try
         var seedingService = scope.ServiceProvider.GetRequiredService<backend.Services.IDataSeedingService>();
         await seedingService.SeedInitialDataAsync();
 
-        // Test a simple query to ensure the context is working
+        // ── Safe column migrations — ADD COLUMN IF NOT EXISTS ───────────────
+        // These run on every startup but are no-ops when the column already exists.
+        Console.WriteLine("⏳ Running safe column migrations...");
+        var migrationConn = context.Database.GetDbConnection();
+        if (migrationConn.State != System.Data.ConnectionState.Open)
+            await migrationConn.OpenAsync();
+
+        var columnMigrations = new[]
+        {
+            // Users table — new columns added in feature batch
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"MustChangePassword\" boolean NOT NULL DEFAULT false",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"LastLoginAt\" timestamptz NULL",
+            // AdminAuditLogs table
+            @"CREATE TABLE IF NOT EXISTS ""admin_audit_logs"" (
+                ""Id"" serial PRIMARY KEY,
+                ""PerformedBy"" varchar(200) NOT NULL DEFAULT 'System',
+                ""Action"" varchar(100) NOT NULL,
+                ""Description"" varchar(1000) NOT NULL DEFAULT '',
+                ""EntityType"" varchar(50) NOT NULL DEFAULT '',
+                ""EntityId"" integer NULL,
+                ""EntityName"" varchar(200) NOT NULL DEFAULT '',
+                ""Metadata"" varchar(2000) NULL,
+                ""CreatedAt"" timestamptz NOT NULL DEFAULT NOW()
+            )"
+        };
+
+        foreach (var sql in columnMigrations)
+        {
+            try
+            {
+                using var cmd = migrationConn.CreateCommand();
+                cmd.CommandText = sql;
+                await cmd.ExecuteNonQueryAsync();
+            }
+            catch (Exception migEx)
+            {
+                Console.WriteLine($"⚠️ Migration warning (non-fatal): {migEx.Message}");
+            }
+        }
+        Console.WriteLine("✅ Column migrations complete");
+
         var adminCount = context.SystemAdmins.Count();
         var userCount = context.Users.Count();
         Console.WriteLine($"✅ Database context initialized - Found {adminCount} admins and {userCount} users");
