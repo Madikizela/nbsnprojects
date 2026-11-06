@@ -480,6 +480,247 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
 
 type Toast = { id:number; type:'success'|'error'|'info'; text:string };
 
+// ── Admin Document Browser (read-only) ────────────────────────────────────────
+// Flow: Project list → Learner list → Document list → File viewer (iframe/img)
+interface DocProject { projectId: number; projectName: string; totalDocuments: number; pendingDocuments: number; approvedDocuments: number; declinedDocuments: number; }
+interface DocLearner { learnerId: number; firstName: string; lastName: string; idNumber: string; totalDocuments: number; pendingDocuments: number; approvedDocuments: number; declinedDocuments: number; documents: DocFile[]; }
+interface DocFile { id: number; documentType: string; fileName: string; fileSize: number; mimeType: string; uploadedAt: string; approvalStatus: string; declineReason?: string; }
+
+const approvalColor = (s: string) => s === 'Approved' ? '#16a34a' : s === 'Declined' ? '#dc2626' : '#d97706';
+const approvalBg   = (s: string) => s === 'Approved' ? '#dcfce7' : s === 'Declined' ? '#fee2e2' : '#fef3c7';
+
+const AdminDocumentBrowser: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
+  const [projects, setProjects]           = React.useState<DocProject[]>([]);
+  const [projLoading, setProjLoading]     = React.useState(true);
+  const [projSearch, setProjSearch]       = React.useState('');
+
+  const [selectedProject, setSelectedProject] = React.useState<DocProject | null>(null);
+  const [learners, setLearners]           = React.useState<DocLearner[]>([]);
+  const [learnersLoading, setLearnersLoading] = React.useState(false);
+  const [learnerSearch, setLearnerSearch] = React.useState('');
+
+  const [selectedLearner, setSelectedLearner] = React.useState<DocLearner | null>(null);
+
+  const [viewerDoc, setViewerDoc]         = React.useState<DocFile | null>(null);
+  const [blobUrl, setBlobUrl]             = React.useState<string | null>(null);
+  const [blobLoading, setBlobLoading]     = React.useState(false);
+
+  // Load project list on mount
+  React.useEffect(() => {
+    fetch(`${apiUrl}/api/DocumentApprovals/projects`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => { setProjects(Array.isArray(d) ? d : []); setProjLoading(false); })
+      .catch(() => setProjLoading(false));
+  }, [token, apiUrl]);
+
+  const selectProject = async (p: DocProject) => {
+    setSelectedProject(p);
+    setSelectedLearner(null);
+    setLearnerSearch('');
+    setLearnersLoading(true);
+    try {
+      const r = await fetch(`${apiUrl}/api/DocumentApprovals/projects/${p.projectId}/learners`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      setLearners(Array.isArray(d) ? d : []);
+    } finally { setLearnersLoading(false); }
+  };
+
+  const openDocument = async (doc: DocFile) => {
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    setBlobUrl(null);
+    setViewerDoc(doc);
+    setBlobLoading(true);
+    try {
+      const r = await fetch(`${apiUrl}/api/LearnerDocuments/${doc.id}/download`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) {
+        const blob = await r.blob();
+        setBlobUrl(URL.createObjectURL(blob));
+      }
+    } finally { setBlobLoading(false); }
+  };
+
+  const closeViewer = () => {
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    setBlobUrl(null);
+    setViewerDoc(null);
+  };
+
+  const filteredProjects = projects.filter(p => !projSearch || p.projectName.toLowerCase().includes(projSearch.toLowerCase()));
+  const filteredLearners = (selectedProject ? learners : []).filter(l =>
+    !learnerSearch || `${l.firstName} ${l.lastName}`.toLowerCase().includes(learnerSearch.toLowerCase()) || l.idNumber.includes(learnerSearch)
+  );
+
+  const thS: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#64748b', padding: '9px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' };
+  const tdS: React.CSSProperties = { padding: '10px 12px', fontSize: 13, verticalAlign: 'middle' };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+        <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', margin: 0 }}>📄 Learner Documents</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0', fontSize: 14 }}>Read-only view of all learner documents across the platform</p>
+      </div>
+
+      {/* Breadcrumb */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, fontSize: 13, color: '#64748b' }}>
+        <span style={{ cursor: 'pointer', color: selectedProject ? '#667eea' : '#1e293b', fontWeight: selectedProject ? 400 : 700 }}
+          onClick={() => { setSelectedProject(null); setSelectedLearner(null); }}>
+          All Projects
+        </span>
+        {selectedProject && (<><span>›</span>
+          <span style={{ cursor: 'pointer', color: selectedLearner ? '#667eea' : '#1e293b', fontWeight: selectedLearner ? 400 : 700 }}
+            onClick={() => setSelectedLearner(null)}>
+            {selectedProject.projectName}
+          </span></>)}
+        {selectedLearner && (<><span>›</span>
+          <span style={{ color: '#1e293b', fontWeight: 700 }}>{selectedLearner.firstName} {selectedLearner.lastName}</span></>)}
+      </div>
+
+      {/* ── LEVEL 1: Project list ── */}
+      {!selectedProject && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input type="text" placeholder="Search projects..." value={projSearch} onChange={e => setProjSearch(e.target.value)}
+              style={{ flex: 1, padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }} />
+          </div>
+          {projLoading ? <div className="text-center py-4"><div className="spinner-border text-primary" role="status" /></div> : (
+            <table className="table table-hover mb-0">
+              <thead><tr>
+                {['Project', 'Total Docs', 'Pending', 'Approved', 'Declined'].map(h => <th key={h} style={thS}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {filteredProjects.length === 0
+                  ? <tr><td colSpan={5} className="text-center text-muted py-4">No projects with documents found.</td></tr>
+                  : filteredProjects.map(p => (
+                    <tr key={p.projectId} style={{ cursor: 'pointer' }} onClick={() => selectProject(p)}>
+                      <td style={{ ...tdS, fontWeight: 600, color: '#667eea' }}>{p.projectName} →</td>
+                      <td style={tdS}><span style={{ fontWeight: 700 }}>{p.totalDocuments}</span></td>
+                      <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#d97706' }}>{p.pendingDocuments}</span></td>
+                      <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#dcfce7', color: '#16a34a' }}>{p.approvedDocuments}</span></td>
+                      <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>{p.declinedDocuments}</span></td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── LEVEL 2: Learner list for selected project ── */}
+      {selectedProject && !selectedLearner && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', gap: 10, alignItems: 'center' }}>
+            <input type="text" placeholder="Search by name or ID number..." value={learnerSearch} onChange={e => setLearnerSearch(e.target.value)}
+              style={{ flex: 1, padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }} />
+            <span style={{ fontSize: 12, color: '#94a3b8' }}>{filteredLearners.length} learners</span>
+          </div>
+          {learnersLoading ? <div className="text-center py-4"><div className="spinner-border text-primary" role="status" /></div> : (
+            <table className="table table-hover mb-0">
+              <thead><tr>
+                {['Learner', 'ID Number', 'Total', 'Pending', 'Approved', 'Declined', ''].map(h => <th key={h} style={thS}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {filteredLearners.length === 0
+                  ? <tr><td colSpan={7} className="text-center text-muted py-4">No learners found.</td></tr>
+                  : filteredLearners.map(l => (
+                    <tr key={l.learnerId} style={{ opacity: l.totalDocuments === 0 ? 0.5 : 1 }}>
+                      <td style={{ ...tdS, fontWeight: 600, color: '#1e293b' }}>{l.firstName} {l.lastName}</td>
+                      <td style={{ ...tdS, color: '#64748b', fontSize: 12 }}>{l.idNumber}</td>
+                      <td style={tdS}><span style={{ fontWeight: 700 }}>{l.totalDocuments}</span></td>
+                      <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#d97706' }}>{l.pendingDocuments}</span></td>
+                      <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#dcfce7', color: '#16a34a' }}>{l.approvedDocuments}</span></td>
+                      <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>{l.declinedDocuments}</span></td>
+                      <td style={tdS}>
+                        {l.totalDocuments > 0 && (
+                          <button onClick={() => setSelectedLearner(l)}
+                            style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                            View {l.totalDocuments} doc{l.totalDocuments > 1 ? 's' : ''}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── LEVEL 3: Document list for selected learner ── */}
+      {selectedLearner && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', fontSize: 13, color: '#475569', fontWeight: 600 }}>
+            📁 {selectedLearner.firstName} {selectedLearner.lastName} — {selectedLearner.documents.length} document{selectedLearner.documents.length !== 1 ? 's' : ''}
+          </div>
+          <table className="table table-hover mb-0">
+            <thead><tr>
+              {['Document Type', 'File Name', 'Size', 'Uploaded', 'Status', 'View'].map(h => <th key={h} style={thS}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {selectedLearner.documents.length === 0
+                ? <tr><td colSpan={6} className="text-center text-muted py-4">No documents uploaded for this learner.</td></tr>
+                : selectedLearner.documents.map(doc => (
+                  <tr key={doc.id}>
+                    <td style={{ ...tdS, fontWeight: 600 }}>{doc.documentType}</td>
+                    <td style={{ ...tdS, color: '#64748b', fontSize: 12 }}>{doc.fileName}</td>
+                    <td style={{ ...tdS, color: '#94a3b8', fontSize: 11 }}>{(doc.fileSize / 1024).toFixed(1)} KB</td>
+                    <td style={{ ...tdS, color: '#94a3b8', fontSize: 11 }}>{new Date(doc.uploadedAt).toLocaleDateString('en-ZA')}</td>
+                    <td style={tdS}>
+                      <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: approvalBg(doc.approvalStatus), color: approvalColor(doc.approvalStatus) }}>
+                        {doc.approvalStatus}
+                      </span>
+                      {doc.approvalStatus === 'Declined' && doc.declineReason && (
+                        <div style={{ fontSize: 10, color: '#dc2626', marginTop: 2 }}>↳ {doc.declineReason}</div>
+                      )}
+                    </td>
+                    <td style={tdS}>
+                      <button onClick={() => openDocument(doc)}
+                        style={{ padding: '4px 12px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                        👁️ View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Document viewer modal (read-only) ── */}
+      {viewerDoc && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 900, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            {/* Modal header */}
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a' }}>
+              <div>
+                <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{viewerDoc.documentType} — {viewerDoc.fileName}</div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>
+                  Read-only · {(viewerDoc.fileSize / 1024).toFixed(1)} KB · Uploaded {new Date(viewerDoc.uploadedAt).toLocaleDateString('en-ZA')}
+                  <span style={{ marginLeft: 10, padding: '1px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: approvalBg(viewerDoc.approvalStatus), color: approvalColor(viewerDoc.approvalStatus) }}>
+                    {viewerDoc.approvalStatus}
+                  </span>
+                </div>
+              </div>
+              <button onClick={closeViewer} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>✕ Close</button>
+            </div>
+            {/* Document display area */}
+            <div style={{ flex: 1, overflow: 'auto', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
+              {blobLoading ? (
+                <div className="text-center"><div className="spinner-border text-light" role="status" /><div style={{ color: '#94a3b8', marginTop: 12, fontSize: 13 }}>Loading document...</div></div>
+              ) : blobUrl ? (
+                viewerDoc.mimeType === 'application/pdf'
+                  ? <iframe src={blobUrl} title={viewerDoc.fileName} style={{ width: '100%', height: '70vh', border: 'none' }} />
+                  : <img src={blobUrl} alt={viewerDoc.fileName} style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 8 }} />
+              ) : (
+                <div style={{ color: '#f87171', fontSize: 14 }}>❌ Could not load document. The file may be missing or corrupted.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── Audit Log viewer ─────────────────────────────────────────────────────────
 const AuditLogView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
   const [logs, setLogs] = React.useState<AdminStats['recentActivity']>([]);
@@ -684,6 +925,7 @@ const Dashboard = () => {
   const menuItems = [
     { id: 'clients', label: 'Client Management', icon: '🏢' },
     { id: 'sdp', label: 'SDP Management', icon: '🎓' },
+    { id: 'documents', label: 'Documents', icon: '📄' },
     { id: 'audit', label: 'Audit Log', icon: '📋' },
     { id: 'profile', label: 'Profile', icon: '👤' },
   ];
@@ -904,6 +1146,8 @@ const Dashboard = () => {
             <SDPListView token={localStorage.getItem('token') || ''} apiUrl={API} />
           </div>
         );
+      case 'documents':
+        return <AdminDocumentBrowser token={localStorage.getItem('token') || ''} apiUrl={API} />;
       case 'audit':
         return <AuditLogView token={localStorage.getItem('token') || ''} apiUrl={API} />;
       case 'profile':

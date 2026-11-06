@@ -363,6 +363,273 @@ const BulkImportView: React.FC<{ token: string; apiUrl: string }> = ({ token, ap
   );
 };
 
+// ── SDP Document Summary ──────────────────────────────────────────────────────
+// Shows platform-wide document stats + per-type compliance table.
+// Uses GET /api/DocumentApprovals/stats (no SDP scoping on the backend yet —
+// shows the full platform view that the SDP admin can see).
+interface DocStats {
+  totalDocuments: number;
+  pendingDocuments: number;
+  approvedDocuments: number;
+  declinedDocuments: number;
+  approvalRate: number;
+  totalLearners: number;
+  documentTypeBreakdown: {
+    documentType: string;
+    totalLearners: number;
+    submittedDocuments: number;
+    pendingDocuments: number;
+    approvedDocuments: number;
+    declinedDocuments: number;
+    missingDocuments: number;
+    complianceRate: number;
+    approvalRate: number;
+  }[];
+}
+
+const SDPDocumentSummary: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
+  const [stats, setStats]     = React.useState<DocStats | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError]     = React.useState('');
+
+  // Also load per-project document counts for the drill-down table
+  const [projects, setProjects]               = React.useState<any[]>([]);
+  const [projLoading, setProjLoading]         = React.useState(true);
+  const [selectedProject, setSelectedProject] = React.useState<any | null>(null);
+  const [learners, setLearners]               = React.useState<any[]>([]);
+  const [learnersLoading, setLearnersLoading] = React.useState(false);
+  const [learnerSearch, setLearnerSearch]     = React.useState('');
+
+  // Document viewer
+  const [viewerDoc, setViewerDoc] = React.useState<any | null>(null);
+  const [blobUrl, setBlobUrl]     = React.useState<string | null>(null);
+  const [blobLoading, setBlobLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    // Fetch stats and project list in parallel
+    Promise.all([
+      fetch(`${apiUrl}/api/DocumentApprovals/stats`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+      fetch(`${apiUrl}/api/DocumentApprovals/projects`, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()),
+    ]).then(([s, p]) => {
+      setStats(s);        setLoading(false);
+      setProjects(Array.isArray(p) ? p : []); setProjLoading(false);
+    }).catch(() => { setError('Failed to load document statistics.'); setLoading(false); setProjLoading(false); });
+  }, [token, apiUrl]);
+
+  const selectProject = async (p: any) => {
+    setSelectedProject(p);
+    setLearnerSearch('');
+    setLearnersLoading(true);
+    try {
+      const r = await fetch(`${apiUrl}/api/DocumentApprovals/projects/${p.projectId}/learners`, { headers: { Authorization: `Bearer ${token}` } });
+      setLearners(await r.json());
+    } finally { setLearnersLoading(false); }
+  };
+
+  const openDocument = async (doc: any) => {
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    setBlobUrl(null); setViewerDoc(doc); setBlobLoading(true);
+    try {
+      const r = await fetch(`${apiUrl}/api/LearnerDocuments/${doc.id}/download`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) setBlobUrl(URL.createObjectURL(await r.blob()));
+    } finally { setBlobLoading(false); }
+  };
+
+  const closeViewer = () => { if (blobUrl) URL.revokeObjectURL(blobUrl); setBlobUrl(null); setViewerDoc(null); };
+
+  const approvalColor = (s: string) => s === 'Approved' ? '#16a34a' : s === 'Declined' ? '#dc2626' : '#d97706';
+  const approvalBg   = (s: string) => s === 'Approved' ? '#dcfce7' : s === 'Declined' ? '#fee2e2' : '#fef3c7';
+  const thS: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#64748b', padding: '9px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' };
+  const tdS: React.CSSProperties = { padding: '9px 12px', fontSize: 13, verticalAlign: 'middle' };
+
+  const filteredLearners = (selectedProject ? learners : []).filter((l: any) =>
+    !learnerSearch || `${l.firstName} ${l.lastName}`.toLowerCase().includes(learnerSearch.toLowerCase()) || l.idNumber.includes(learnerSearch)
+  );
+
+  if (loading) return <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>;
+  if (error) return <div className="alert alert-danger">{error}</div>;
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+        <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', margin: 0 }}>📄 Document Summary</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0', fontSize: 14 }}>Learner document compliance and approval status</p>
+      </div>
+
+      {/* ── Summary stat cards ── */}
+      {stats && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 14, marginBottom: 24 }}>
+          {[
+            { label: 'Total Documents', value: stats.totalDocuments, color: '#6366f1', icon: '📄' },
+            { label: 'Pending Review', value: stats.pendingDocuments, color: '#d97706', icon: '⏳' },
+            { label: 'Approved', value: stats.approvedDocuments, color: '#16a34a', icon: '✅' },
+            { label: 'Declined', value: stats.declinedDocuments, color: '#dc2626', icon: '❌' },
+            { label: 'Approval Rate', value: `${stats.approvalRate}%`, color: '#0ea5e9', icon: '📊' },
+            { label: 'Total Learners', value: stats.totalLearners, color: '#8b5cf6', icon: '🧑‍🎓' },
+          ].map(c => (
+            <div key={c.label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '16px 18px' }}>
+              <div style={{ fontSize: 24 }}>{c.icon}</div>
+              <div style={{ fontSize: 24, fontWeight: 800, color: c.color, lineHeight: 1.1, marginTop: 4 }}>{c.value}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', marginTop: 4 }}>{c.label}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Document type compliance table ── */}
+      {stats && stats.documentTypeBreakdown?.length > 0 && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', marginBottom: 24 }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: 13, color: '#1e293b' }}>
+            📋 Compliance by Document Type
+          </div>
+          <table className="table table-hover mb-0">
+            <thead>
+              <tr>
+                {['Document Type', 'Expected', 'Submitted', 'Pending', 'Approved', 'Declined', 'Missing', 'Compliance'].map(h => (
+                  <th key={h} style={thS}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {stats.documentTypeBreakdown.map(row => {
+                const rate = row.complianceRate;
+                const barColor = rate >= 80 ? '#16a34a' : rate >= 50 ? '#d97706' : '#dc2626';
+                return (
+                  <tr key={row.documentType}>
+                    <td style={{ ...tdS, fontWeight: 600 }}>{row.documentType}</td>
+                    <td style={tdS}>{row.totalLearners}</td>
+                    <td style={tdS}><span style={{ fontWeight: 700 }}>{row.submittedDocuments}</span></td>
+                    <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#d97706' }}>{row.pendingDocuments}</span></td>
+                    <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#dcfce7', color: '#16a34a' }}>{row.approvedDocuments}</span></td>
+                    <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>{row.declinedDocuments}</span></td>
+                    <td style={tdS}><span style={{ fontWeight: 700, color: row.missingDocuments > 0 ? '#dc2626' : '#16a34a' }}>{row.missingDocuments}</span></td>
+                    <td style={{ ...tdS, minWidth: 120 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.min(rate, 100)}%`, height: '100%', background: barColor, borderRadius: 4 }} />
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: barColor, minWidth: 36 }}>{rate}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ── Project drill-down ── */}
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: 13, color: '#1e293b', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>📁 {selectedProject ? `${selectedProject.projectName} — Learners` : 'Projects with Documents'}</span>
+          {selectedProject && (
+            <button onClick={() => { setSelectedProject(null); setLearners([]); }}
+              style={{ fontSize: 12, color: '#667eea', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+              ← All Projects
+            </button>
+          )}
+        </div>
+
+        {/* Project list */}
+        {!selectedProject && (
+          projLoading ? <div className="text-center py-3"><div className="spinner-border spinner-border-sm text-primary" role="status" /></div> : (
+            <table className="table table-hover mb-0">
+              <thead><tr>
+                {['Project', 'Total Docs', 'Pending', 'Approved', 'Declined'].map(h => <th key={h} style={thS}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {projects.length === 0
+                  ? <tr><td colSpan={5} className="text-center text-muted py-3" style={{ fontSize: 13 }}>No projects with documents yet.</td></tr>
+                  : projects.map((p: any) => (
+                    <tr key={p.projectId} style={{ cursor: 'pointer' }} onClick={() => selectProject(p)}>
+                      <td style={{ ...tdS, fontWeight: 600, color: '#667eea' }}>{p.projectName} →</td>
+                      <td style={tdS}><b>{p.totalDocuments}</b></td>
+                      <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#d97706' }}>{p.pendingDocuments}</span></td>
+                      <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#dcfce7', color: '#16a34a' }}>{p.approvedDocuments}</span></td>
+                      <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fee2e2', color: '#dc2626' }}>{p.declinedDocuments}</span></td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )
+        )}
+
+        {/* Learner list within project */}
+        {selectedProject && (
+          <>
+            <div style={{ padding: '8px 12px', borderBottom: '1px solid #f1f5f9' }}>
+              <input type="text" placeholder="Search learner..." value={learnerSearch} onChange={e => setLearnerSearch(e.target.value)}
+                style={{ width: '100%', padding: '6px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }} />
+            </div>
+            {learnersLoading ? <div className="text-center py-3"><div className="spinner-border spinner-border-sm text-primary" role="status" /></div> : (
+              <table className="table table-hover mb-0">
+                <thead><tr>
+                  {['Learner', 'ID Number', 'Total', 'Pending', 'Approved', 'View'].map(h => <th key={h} style={thS}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {filteredLearners.length === 0
+                    ? <tr><td colSpan={6} className="text-center text-muted py-3" style={{ fontSize: 13 }}>No learners found.</td></tr>
+                    : filteredLearners.map((l: any) => (
+                      <tr key={l.learnerId} style={{ opacity: l.totalDocuments === 0 ? 0.5 : 1 }}>
+                        <td style={{ ...tdS, fontWeight: 600 }}>{l.firstName} {l.lastName}</td>
+                        <td style={{ ...tdS, color: '#64748b', fontSize: 11 }}>{l.idNumber}</td>
+                        <td style={tdS}><b>{l.totalDocuments}</b></td>
+                        <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#fef3c7', color: '#d97706' }}>{l.pendingDocuments}</span></td>
+                        <td style={tdS}><span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: '#dcfce7', color: '#16a34a' }}>{l.approvedDocuments}</span></td>
+                        <td style={tdS}>
+                          {l.documents?.length > 0 && l.documents.map((doc: any) => (
+                            <button key={doc.id} onClick={() => openDocument(doc)}
+                              style={{ marginRight: 4, marginBottom: 4, padding: '3px 10px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                              👁️ {doc.documentType}
+                              <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: approvalBg(doc.approvalStatus), color: approvalColor(doc.approvalStatus) }}>{doc.approvalStatus}</span>
+                            </button>
+                          ))}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Read-only document viewer modal ── */}
+      {viewerDoc && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 900, maxHeight: '90vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#0f172a' }}>
+              <div>
+                <div style={{ color: '#fff', fontWeight: 700, fontSize: 14 }}>{viewerDoc.documentType} — {viewerDoc.fileName}</div>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12, marginTop: 2 }}>
+                  Read-only · {new Date(viewerDoc.uploadedAt).toLocaleDateString('en-ZA')}
+                  <span style={{ marginLeft: 10, padding: '1px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: approvalBg(viewerDoc.approvalStatus), color: approvalColor(viewerDoc.approvalStatus) }}>
+                    {viewerDoc.approvalStatus}
+                  </span>
+                </div>
+              </div>
+              <button onClick={closeViewer} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13 }}>✕ Close</button>
+            </div>
+            <div style={{ flex: 1, overflow: 'auto', background: '#1e293b', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 400 }}>
+              {blobLoading ? (
+                <div className="text-center"><div className="spinner-border text-light" role="status" /><div style={{ color: '#94a3b8', marginTop: 12, fontSize: 13 }}>Loading...</div></div>
+              ) : blobUrl ? (
+                viewerDoc.mimeType === 'application/pdf'
+                  ? <iframe src={blobUrl} title={viewerDoc.fileName} style={{ width: '100%', height: '70vh', border: 'none' }} />
+                  : <img src={blobUrl} alt={viewerDoc.fileName} style={{ maxWidth: '100%', maxHeight: '70vh', objectFit: 'contain', borderRadius: 8 }} />
+              ) : (
+                <div style={{ color: '#f87171', fontSize: 14 }}>❌ Could not load document.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SDPDashboard: React.FC = () => {
   const navigate = useNavigate();
   const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
@@ -371,7 +638,7 @@ const SDPDashboard: React.FC = () => {
   const [sdps, setSdps] = useState<SkillsDevelopmentProvider[]>([]);
   const [filteredSdps, setFilteredSdps] = useState<SkillsDevelopmentProvider[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
-  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users' | 'learner-progress' | 'bulk-import'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users' | 'learner-progress' | 'bulk-import' | 'document-summary'>('overview');
   const [selectedSdp, setSelectedSdp] = useState<SkillsDevelopmentProvider | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -3334,6 +3601,13 @@ const SDPDashboard: React.FC = () => {
                   <span>📥</span> Bulk Import
                 </button>
                 <button
+                  style={{ color: activeSection === 'document-summary' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'document-summary' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'document-summary' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
+                  onClick={() => setActiveSection('document-summary')}
+                >
+                  <span>📄</span> Document Summary
+                </button>
+                <button
                   style={{ color: activeSection === 'budget-management' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'budget-management' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'budget-management' ? 700 : 400, transition:'all 0.15s', opacity: projects.length === 0 ? 0.4 : 1 }}
                   className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
                   onClick={() => setActiveSection('budget-management')}
@@ -3454,6 +3728,12 @@ const SDPDashboard: React.FC = () => {
               )}
               {activeSection === 'bulk-import' && (
                 <BulkImportView
+                  token={localStorage.getItem('token') ?? ''}
+                  apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
+                />
+              )}
+              {activeSection === 'document-summary' && (
+                <SDPDocumentSummary
                   token={localStorage.getItem('token') ?? ''}
                   apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
                 />
