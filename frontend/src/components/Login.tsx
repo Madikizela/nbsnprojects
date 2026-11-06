@@ -15,6 +15,7 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(expiredMessage || '');
+  const [isAccountDisabled, setIsAccountDisabled] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -61,6 +62,7 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
     
     // Clear previous errors
     setError('');
+    setIsAccountDisabled(false);
     
     // Validate form
     const emailValidationError = validateEmail(email);
@@ -168,15 +170,18 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
       } else {
         const text = await response.text();
         let errorMessage = 'Login failed';
+        let accountDisabled = false;
         try {
           const errorData = JSON.parse(text);
           errorMessage = errorData.message || errorData.error || errorMessage;
+          if (errorData.code === 'ACCOUNT_DISABLED') accountDisabled = true;
           if (errorData.details) {
             errorMessage += `\nDetails: ${errorData.details}`;
           }
         } catch {
           errorMessage = `Server Error (${response.status}): ${text.substring(0, 100)}...`;
         }
+        setIsAccountDisabled(accountDisabled);
         setError(errorMessage);
       }
     } catch (error: unknown) {
@@ -360,8 +365,22 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
 
           {/* Error */}
           {error && (
-            <div style={{ background:'#fef2f2', border:'1px solid #fecaca', borderRadius:12, padding:'12px 16px', marginBottom:20, color:'#dc2626', fontSize:14, display:'flex', alignItems:'center', gap:8 }}>
-              <i className="bi bi-exclamation-triangle-fill"></i> {error}
+            <div style={{
+              background: isAccountDisabled ? '#fff7ed' : '#fef2f2',
+              border: `1px solid ${isAccountDisabled ? '#fed7aa' : '#fecaca'}`,
+              borderRadius: 12, padding: '12px 16px', marginBottom: 20,
+              color: isAccountDisabled ? '#c2410c' : '#dc2626',
+              fontSize: 14, display: 'flex', alignItems: 'flex-start', gap: 10
+            }}>
+              <i className={`bi ${isAccountDisabled ? 'bi-slash-circle-fill' : 'bi-exclamation-triangle-fill'}`} style={{ marginTop: 1, flexShrink: 0 }}></i>
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: isAccountDisabled ? 2 : 0 }}>{error}</div>
+                {isAccountDisabled && (
+                  <div style={{ fontSize: 12, opacity: 0.85 }}>
+                    If you believe this is a mistake, please contact your system administrator.
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

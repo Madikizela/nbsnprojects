@@ -246,19 +246,22 @@ namespace backend.Controllers
                 if (systemAdmin == null && user == null)
                 {
                     _logger.LogWarning("Login attempt with non-existent email: {Email}", email);
-                }
-                else
-                {
-                    if (systemAdmin != null && adminPasswordOk && !adminActive)
-                    {
-                        _logger.LogWarning("Login attempt for inactive system admin: {Email}", email);
-                    }
-                    if (user != null && userPasswordOk && !userActive)
-                    {
-                        _logger.LogWarning("Login attempt for inactive user: {Email}", email);
-                    }
+                    return Unauthorized(new { message = "Invalid email or password" });
                 }
 
+                // Correct credentials but account disabled — give a clear distinct message
+                if (systemAdmin != null && adminPasswordOk && !adminActive)
+                {
+                    _logger.LogWarning("Login attempt for inactive system admin: {Email}", email);
+                    return Unauthorized(new { message = "Your account has been disabled. Please contact your administrator.", code = "ACCOUNT_DISABLED" });
+                }
+                if (user != null && userPasswordOk && !userActive)
+                {
+                    _logger.LogWarning("Login attempt for inactive user: {Email}", email);
+                    return Unauthorized(new { message = "Your account has been disabled. Please contact your administrator.", code = "ACCOUNT_DISABLED" });
+                }
+
+                // Wrong password
                 return Unauthorized(new { message = "Invalid email or password" });
             }
             catch (Exception ex)
