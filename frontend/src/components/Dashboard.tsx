@@ -26,20 +26,56 @@ interface ClientRecord {
 
 const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
 
-// ── Read-only SDP list for system admin ──────────────────────────────────────
+// ── SDP Management with enable/disable for system admin ──────────────────────
 interface SdpRecord {
   id: number;
   name: string;
   contactPerson?: string;
   address?: string;
-  status: string;
+  status: string | number;
   createdAt?: string;
 }
+
+interface SubUser {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: string | number;
+  status: string | number;
+}
+
+const sdpIsActive = (status: string | number) =>
+  status === 'Active' || status === 1 || status === '1';
+
+const userIsActive = (status: string | number) =>
+  status === 'Active' || status === 1 || status === '1';
+
+const StatusBadge: React.FC<{ active: boolean }> = ({ active }) => (
+  <span style={{
+    padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+    background: active ? '#dcfce7' : '#fee2e2',
+    color: active ? '#16a34a' : '#dc2626'
+  }}>
+    {active ? 'Active' : 'Inactive'}
+  </span>
+);
 
 const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
   const [sdps, setSdps] = React.useState<SdpRecord[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState('');
+  const [togglingId, setTogglingId] = React.useState<number | null>(null);
+  const [expandedId, setExpandedId] = React.useState<number | null>(null);
+  const [subUsers, setSubUsers] = React.useState<Record<number, SubUser[]>>({});
+  const [subUsersLoading, setSubUsersLoading] = React.useState<Record<number, boolean>>({});
+  const [togglingUserId, setTogglingUserId] = React.useState<number | null>(null);
+  const [toast, setToast] = React.useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const showToast = (type: 'success' | 'error', text: string) => {
+    setToast({ type, text });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   const loadSdps = React.useCallback(async () => {
     setLoading(true);
@@ -48,21 +84,11 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
       const r = await fetch(`${apiUrl}/api/SkillsDevelopmentProviders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!r.ok) {
-        setError(`Server returned ${r.status}: ${r.statusText}. Please try again.`);
-        return;
-      }
-      const ct = r.headers.get('content-type') || '';
-      let data;
-      if (ct.includes('application/json')) {
-        data = await r.json();
-      } else {
-        setError('Unexpected non-JSON response from server. The SDP service may be unavailable.');
-        return;
-      }
+      if (!r.ok) { setError(`Server returned ${r.status}.`); return; }
+      const data = await r.json();
       setSdps(Array.isArray(data) ? data : []);
     } catch {
-      setError('Network error — could not reach the server. Please check your connection and retry.');
+      setError('Network error — could not reach the server.');
     } finally {
       setLoading(false);
     }
@@ -70,53 +96,240 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
 
   React.useEffect(() => { loadSdps(); }, [loadSdps]);
 
+  const toggleSdpStatus = async (sdp: SdpRecord) => {
+    setTogglingId(sdp.id);
+    const newActive = !sdpIsActive(sdp.status);
+    try {
+      const r = await fetch(`${apiUrl}/api/SkillsDevelopmentProviders/${sdp.id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ active: newActive }),
+      });
+      if (!r.ok) { showToast('error', `Failed to update SDP status (${r.status})`); return; }
+      const result = await r.json();
+      // Update local SDP status
+      setSdps(prev => prev.map(s =>
+        s.id === sdp.id ? { ...s, status: newActive ? 'Active' : 'Inactive' } : s
+      ));
+      // If sub-users for this SDP are loaded, update them too
+      if (subUsers[sdp.id]) {
+        setSubUsers(prev => ({
+          ...prev,
+          [sdp.id]: prev[sdp.id].map(u => ({ ...u, status: newActive ? 'Active' : 'Inactive' }))
+        }));
+      }
+      showToast('success', result.message ?? `SDP ${newActive ? 'enabled' : 'disabled'}.`);
+    } catch {
+      showToast('error', 'Network error while updating SDP status.');
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  const loadSubUsers = async (sdpId: number) => {
+    if (subUsers[sdpId]) return; // already loaded
+    setSubUsersLoading(prev => ({ ...prev, [sdpId]: true }));
+    try {
+      const r = await fetch(`${apiUrl}/api/SkillsDevelopmentProviders/${sdpId}/Users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) { showToast('error', `Failed to load users (${r.status})`); return; }
+      const data = await r.json();
+      setSubUsers(prev => ({ ...prev, [sdpId]: Array.isArray(data) ? data : [] }));
+    } catch {
+      showToast('error', 'Network error while loading users.');
+    } finally {
+      setSubUsersLoading(prev => ({ ...prev, [sdpId]: false }));
+    }
+  };
+
+  const toggleExpand = (sdpId: number) => {
+    if (expandedId === sdpId) {
+      setExpandedId(null);
+    } else {
+      setExpandedId(sdpId);
+      loadSubUsers(sdpId);
+    }
+  };
+
+  const toggleUserStatus = async (sdpId: number, user: SubUser) => {
+    setTogglingUserId(user.id);
+    const newActive = !userIsActive(user.status);
+    try {
+      const r = await fetch(`${apiUrl}/api/Users/${user.id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ active: newActive }),
+      });
+      if (!r.ok) { showToast('error', `Failed to update user status (${r.status})`); return; }
+      const result = await r.json();
+      setSubUsers(prev => ({
+        ...prev,
+        [sdpId]: prev[sdpId].map(u =>
+          u.id === user.id ? { ...u, status: newActive ? 'Active' : 'Inactive' } : u
+        )
+      }));
+      showToast('success', result.message ?? `User ${newActive ? 'enabled' : 'disabled'}.`);
+    } catch {
+      showToast('error', 'Network error while updating user status.');
+    } finally {
+      setTogglingUserId(null);
+    }
+  };
+
+  const thStyle: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: '#64748b', padding: '10px 14px', borderBottom: '1px solid #e2e8f0' };
+  const tdStyle: React.CSSProperties = { padding: '11px 14px', fontSize: 14, verticalAlign: 'middle' };
+
   if (loading) return <div className="text-center p-4"><div className="spinner-border text-primary" role="status"><span className="visually-hidden">Loading...</span></div></div>;
   if (error) return (
-    <div className="alert alert-danger d-flex justify-content-between align-items-start gap-3" style={{borderRadius:12,border:'1.5px solid #dc2626',backgroundColor:'#fef2f2',color:'#991b1b'}}>
-      <div>
-        <div style={{fontWeight:700,marginBottom:4}}>❌ Failed to load SDP list</div>
-        <div style={{fontSize:14}}>{error}</div>
-      </div>
-      <button onClick={loadSdps} className="btn btn-sm" style={{backgroundColor:'#dc2626',color:'#fff',fontWeight:600,whiteSpace:'nowrap'}}>
-        🔄 Retry
-      </button>
+    <div className="alert alert-danger d-flex justify-content-between align-items-start gap-3" style={{ borderRadius: 12 }}>
+      <span>{error}</span>
+      <button onClick={loadSdps} className="btn btn-sm btn-danger">🔄 Retry</button>
     </div>
   );
 
   return (
-    <div className="dash-card" style={{ overflow:'hidden' }}>
-      <div style={{ padding:'14px 20px', borderBottom:'1px solid #f1f5f9', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <span style={{ fontWeight:700, color:'#1e293b', fontSize:15 }}>Skills Development Providers ({sdps.length})</span>
-      </div>
-      <div className="table-responsive">
-        <table className="table table-hover mb-0">
-          <thead style={{ background:'#f8fafc' }}>
-            <tr>
-              {['Name','Contact Person','Address','Status','Registered'].map(h => (
-                <th key={h} style={{ fontSize:13, fontWeight:600, color:'#64748b', padding:'12px 16px', borderBottom:'1px solid #e2e8f0' }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {sdps.length === 0 ? (
-              <tr><td colSpan={5} className="text-center text-muted py-4">No SDPs registered yet.</td></tr>
-            ) : sdps.map(sdp => (
-              <tr key={sdp.id}>
-                <td style={{ padding:'12px 16px', fontWeight:600, color:'#1e293b' }}>{sdp.name}</td>
-                <td style={{ padding:'12px 16px', color:'#64748b', fontSize:14 }}>{sdp.contactPerson || '—'}</td>
-                <td style={{ padding:'12px 16px', color:'#64748b', fontSize:14, maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{sdp.address || '—'}</td>
-                <td style={{ padding:'12px 16px' }}>
-                  <span style={{ padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:600, background: sdp.status === 'Active' || sdp.status === '1' ? '#dcfce7' : '#f1f5f9', color: sdp.status === 'Active' || sdp.status === '1' ? '#16a34a' : '#64748b' }}>
-                    {sdp.status === '1' ? 'Active' : sdp.status || 'Pending'}
-                  </span>
-                </td>
-                <td style={{ padding:'12px 16px', color:'#64748b', fontSize:13 }}>
-                  {sdp.createdAt ? new Date(sdp.createdAt).toLocaleDateString('en-ZA') : '—'}
-                </td>
+    <div>
+      {/* Toast notification */}
+      {toast && (
+        <div style={{
+          position: 'fixed', top: 24, right: 24, zIndex: 9999,
+          padding: '12px 20px', borderRadius: 10, fontWeight: 600, fontSize: 14,
+          background: toast.type === 'success' ? '#dcfce7' : '#fee2e2',
+          color: toast.type === 'success' ? '#16a34a' : '#dc2626',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+          display: 'flex', alignItems: 'center', gap: 10
+        }}>
+          {toast.type === 'success' ? '✅' : '❌'} {toast.text}
+        </div>
+      )}
+
+      <div className="dash-card" style={{ overflow: 'hidden' }}>
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span style={{ fontWeight: 700, color: '#1e293b', fontSize: 15 }}>Skills Development Providers ({sdps.length})</span>
+          <button onClick={loadSdps} style={{ background: 'transparent', border: '1px solid #e2e8f0', borderRadius: 8, padding: '4px 12px', fontSize: 12, color: '#64748b', cursor: 'pointer' }}>
+            🔄 Refresh
+          </button>
+        </div>
+
+        <div className="table-responsive">
+          <table className="table table-hover mb-0">
+            <thead style={{ background: '#f8fafc' }}>
+              <tr>
+                <th style={thStyle}>Name</th>
+                <th style={thStyle}>Contact Person</th>
+                <th style={thStyle}>Address</th>
+                <th style={thStyle}>Status</th>
+                <th style={thStyle}>Registered</th>
+                <th style={thStyle}>Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sdps.length === 0 ? (
+                <tr><td colSpan={6} className="text-center text-muted py-4">No SDPs registered yet.</td></tr>
+              ) : sdps.map(sdp => {
+                const active = sdpIsActive(sdp.status);
+                const isToggling = togglingId === sdp.id;
+                const isExpanded = expandedId === sdp.id;
+
+                return (
+                  <React.Fragment key={sdp.id}>
+                    {/* Main SDP row */}
+                    <tr style={{ opacity: active ? 1 : 0.65 }}>
+                      <td style={{ ...tdStyle, fontWeight: 600, color: '#1e293b' }}>
+                        <button
+                          onClick={() => toggleExpand(sdp.id)}
+                          style={{ background: 'none', border: 'none', padding: 0, marginRight: 6, cursor: 'pointer', color: '#64748b', fontSize: 12 }}
+                          title={isExpanded ? 'Collapse users' : 'View users'}
+                        >
+                          {isExpanded ? '▼' : '▶'}
+                        </button>
+                        {sdp.name}
+                      </td>
+                      <td style={{ ...tdStyle, color: '#64748b' }}>{sdp.contactPerson || '—'}</td>
+                      <td style={{ ...tdStyle, color: '#64748b', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sdp.address || '—'}</td>
+                      <td style={tdStyle}><StatusBadge active={active} /></td>
+                      <td style={{ ...tdStyle, color: '#64748b', fontSize: 13 }}>
+                        {sdp.createdAt ? new Date(sdp.createdAt).toLocaleDateString('en-ZA') : '—'}
+                      </td>
+                      <td style={tdStyle}>
+                        <button
+                          onClick={() => toggleSdpStatus(sdp)}
+                          disabled={isToggling}
+                          style={{
+                            padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: isToggling ? 'not-allowed' : 'pointer', border: 'none',
+                            background: active ? '#fee2e2' : '#dcfce7',
+                            color: active ? '#dc2626' : '#16a34a',
+                            minWidth: 90
+                          }}
+                        >
+                          {isToggling ? '...' : active ? '🚫 Disable' : '✅ Enable'}
+                        </button>
+                      </td>
+                    </tr>
+
+                    {/* Expandable sub-user panel */}
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={6} style={{ padding: 0, background: '#f8fafc', borderTop: '2px solid #e2e8f0' }}>
+                          <div style={{ padding: '14px 24px' }}>
+                            <div style={{ fontWeight: 700, fontSize: 13, color: '#475569', marginBottom: 10 }}>
+                              👥 Sub-users of {sdp.name}
+                            </div>
+
+                            {subUsersLoading[sdp.id] ? (
+                              <div className="text-center py-2"><div className="spinner-border spinner-border-sm text-primary" role="status" /></div>
+                            ) : !subUsers[sdp.id] || subUsers[sdp.id].length === 0 ? (
+                              <div style={{ color: '#94a3b8', fontSize: 13 }}>No users found for this SDP.</div>
+                            ) : (
+                              <table className="table table-sm mb-0" style={{ background: 'transparent' }}>
+                                <thead>
+                                  <tr>
+                                    {['Name', 'Email', 'Role', 'Status', 'Action'].map(h => (
+                                      <th key={h} style={{ fontSize: 12, fontWeight: 600, color: '#64748b', padding: '6px 10px', border: 'none', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {subUsers[sdp.id].map(u => {
+                                    const uActive = userIsActive(u.status);
+                                    const isTogglingUser = togglingUserId === u.id;
+                                    return (
+                                      <tr key={u.id} style={{ opacity: uActive ? 1 : 0.6 }}>
+                                        <td style={{ padding: '7px 10px', fontSize: 13, fontWeight: 500 }}>{u.firstName} {u.lastName}</td>
+                                        <td style={{ padding: '7px 10px', fontSize: 13, color: '#64748b' }}>{u.email}</td>
+                                        <td style={{ padding: '7px 10px', fontSize: 12, color: '#64748b' }}>{typeof u.role === 'number' ? u.role : u.role}</td>
+                                        <td style={{ padding: '7px 10px' }}><StatusBadge active={uActive} /></td>
+                                        <td style={{ padding: '7px 10px' }}>
+                                          <button
+                                            onClick={() => toggleUserStatus(sdp.id, u)}
+                                            disabled={isTogglingUser}
+                                            style={{
+                                              padding: '3px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                              cursor: isTogglingUser ? 'not-allowed' : 'pointer', border: 'none',
+                                              background: uActive ? '#fee2e2' : '#dcfce7',
+                                              color: uActive ? '#dc2626' : '#16a34a',
+                                            }}
+                                          >
+                                            {isTogglingUser ? '...' : uActive ? 'Disable' : 'Enable'}
+                                          </button>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </tbody>
+                              </table>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

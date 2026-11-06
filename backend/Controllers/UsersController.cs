@@ -167,5 +167,39 @@ namespace backend.Controllers
         {
             return _context.Users.Any(e => e.Id == id);
         }
+
+        // PUT: api/Users/{id}/status
+        // Allows a System Admin to enable or disable a single user independently of their SDP.
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> SetUserStatus(int id, [FromBody] SetUserStatusRequest request)
+        {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null)
+                return NotFound(new { message = "User not found" });
+
+            // Prevent disabling a SystemAdmin via this endpoint — use SystemAdmin-specific management
+            if (user.Role == UserRole.SystemAdmin)
+                return BadRequest(new { message = "System admin accounts cannot be managed through this endpoint" });
+
+            var newStatus = request.Active ? UserStatus.Active : UserStatus.Inactive;
+            user.Status = newStatus;
+            user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = $"User '{user.FirstName} {user.LastName}' is now {newStatus}.",
+                userId = user.Id,
+                status = newStatus.ToString()
+            });
+        }
+    }
+
+    // DTO for individual user status toggle
+    public class SetUserStatusRequest
+    {
+        /// <summary>true = Active, false = Inactive</summary>
+        public bool Active { get; set; }
     }
 }

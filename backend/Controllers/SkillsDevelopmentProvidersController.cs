@@ -315,6 +315,45 @@ namespace backend.Controllers
             return _context.SkillsDevelopmentProviders.Any(e => e.Id == id);
         }
 
+        // PUT: api/SkillsDevelopmentProviders/{id}/status
+        // Sets the SDP active/inactive and cascades the same status to all its sub-users.
+        [HttpPut("{id}/status")]
+        public async Task<IActionResult> SetSDPStatus(int id, [FromBody] SetSDPStatusRequest request)
+        {
+            var sdp = await _context.SkillsDevelopmentProviders
+                .Include(s => s.Users)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (sdp == null)
+                return NotFound(new { message = "SDP not found" });
+
+            var newSdpStatus = request.Active ? SDPStatus.Active : SDPStatus.Inactive;
+            var newUserStatus = request.Active ? UserStatus.Active : UserStatus.Inactive;
+
+            sdp.Status = newSdpStatus;
+            sdp.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+
+            // Cascade to all sub-users so login is blocked/unblocked immediately
+            foreach (var user in sdp.Users)
+            {
+                user.Status = newUserStatus;
+                user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+            }
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation(
+                "SDP {SdpId} ({SdpName}) set to {Status}. {UserCount} sub-users updated.",
+                sdp.Id, sdp.Name, newSdpStatus, sdp.Users.Count);
+
+            return Ok(new
+            {
+                message = $"SDP '{sdp.Name}' is now {newSdpStatus}. {sdp.Users.Count} user(s) updated.",
+                sdpStatus = newSdpStatus.ToString(),
+                usersUpdated = sdp.Users.Count
+            });
+        }
+
         // POST: api/SkillsDevelopmentProviders/{id}/resend-credentials
         [HttpPost("{id}/resend-credentials")]
         public async Task<IActionResult> ResendCredentials(int id)
@@ -501,5 +540,12 @@ namespace backend.Controllers
         public int SdpId { get; set; }
         public string Username { get; set; } = string.Empty;
         public bool EmailSent { get; set; }
+    }
+
+    // DTO for SDP status toggle
+    public class SetSDPStatusRequest
+    {
+        /// <summary>true = Active, false = Inactive</summary>
+        public bool Active { get; set; }
     }
 }
