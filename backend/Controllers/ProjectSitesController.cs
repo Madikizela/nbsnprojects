@@ -58,7 +58,40 @@ namespace backend.Controllers
             return Ok(sites);
         }
 
-        // GET: api/ProjectSites/{id}
+        // GET: api/ProjectSites/sdp/{sdpId}
+        // Returns all sites across all projects belonging to an SDP, with lat/lng/status for map rendering.
+        [HttpGet("sdp/{sdpId}")]
+        public async Task<IActionResult> GetSitesBySDP(int sdpId)
+        {
+            var sites = await _context.ProjectSites
+                .Include(s => s.Project)
+                .Where(s => s.Project != null && s.Project.SkillsDevelopmentProviderId == sdpId)
+                .OrderBy(s => s.SiteName)
+                .Select(s => new
+                {
+                    s.Id,
+                    s.SiteName,
+                    s.SiteCode,
+                    s.Category,
+                    s.Province,
+                    s.City,
+                    s.Address,
+                    ContactPerson = (s.ContactFirstName + " " + s.ContactLastName).Trim(),
+                    s.ContactPhone,
+                    s.ContactEmail,
+                    s.Latitude,
+                    s.Longitude,
+                    s.Capacity,
+                    s.Status,
+                    s.Description,
+                    TotalClasses = s.SiteClasses.Count,
+                    ProjectId   = s.ProjectId,
+                    ProjectName = s.Project != null ? s.Project.ProjectName : ""
+                })
+                .ToListAsync();
+
+            return Ok(sites);
+        }
         [HttpGet("{id}")]
         public async Task<ActionResult<ProjectSiteResponseDto>> GetProjectSite(int id)
         {

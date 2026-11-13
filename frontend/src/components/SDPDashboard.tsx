@@ -1,8 +1,218 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { southAfricaData, type District, type Municipality } from '../data/southAfricaData';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
 import ProjectForm from './ProjectForm';
 import nbsnLogo from '../assets/nbsn-logo.png';
+
+// ── Sites Map ─────────────────────────────────────────────────────────────────
+// Leaflet default icon fix (webpack/vite strips the asset references)
+const activeIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+const inactiveIcon = new L.Icon({
+  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
+});
+
+interface SiteMapSite {
+  id: number;
+  siteName: string;
+  siteCode?: string;
+  projectName: string;
+  province?: string;
+  city?: string;
+  address?: string;
+  contactPerson?: string;
+  contactPhone?: string;
+  status: string;
+  latitude?: number;
+  longitude?: number;
+  totalClasses: number;
+  capacity?: number;
+}
+
+const SiteMapView: React.FC<{ sdpId: number; token: string; apiUrl: string }> = ({ sdpId, token, apiUrl }) => {
+  const [sites, setSites]       = React.useState<SiteMapSite[]>([]);
+  const [loading, setLoading]   = React.useState(true);
+  const [error, setError]       = React.useState('');
+  const [filter, setFilter]     = React.useState<'all' | 'active' | 'inactive'>('all');
+
+  React.useEffect(() => {
+    if (!sdpId) return;
+    fetch(`${apiUrl}/api/ProjectSites/sdp/${sdpId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json())
+      .then(d => { setSites(Array.isArray(d) ? d : []); setLoading(false); })
+      .catch(() => { setError('Failed to load sites.'); setLoading(false); });
+  }, [sdpId, token, apiUrl]);
+
+  const isActive = (s: SiteMapSite) => s.status === 'Active' || s.status === '1';
+
+  const mappable = sites.filter(s =>
+    s.latitude != null && s.longitude != null &&
+    (filter === 'all' || (filter === 'active' ? isActive(s) : !isActive(s)))
+  );
+
+  const unmappable = sites.filter(s => s.latitude == null || s.longitude == null);
+  const activeSites   = sites.filter(s => isActive(s));
+  const inactiveSites = sites.filter(s => !isActive(s));
+
+  // Default map centre — South Africa
+  const defaultCenter: [number, number] = mappable.length > 0
+    ? [mappable[0].latitude!, mappable[0].longitude!]
+    : [-28.4793, 24.6727];
+
+  if (loading) return <div className="text-center py-5"><div className="spinner-border text-primary" role="status" /></div>;
+  if (error)   return <div className="alert alert-danger">{error}</div>;
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+        <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', margin: 0 }}>📍 Training Sites Map</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0', fontSize: 14 }}>
+          All training sites for your SDP — green pins are active, red pins are inactive
+        </p>
+      </div>
+
+      {/* Summary badges + filter */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          {[
+            { label: `All (${sites.length})`,       val: 'all'      as const, bg: '#f1f5f9', color: '#475569' },
+            { label: `✅ Active (${activeSites.length})`,   val: 'active'   as const, bg: '#dcfce7', color: '#16a34a' },
+            { label: `🔴 Inactive (${inactiveSites.length})`, val: 'inactive' as const, bg: '#fee2e2', color: '#dc2626' },
+          ].map(f => (
+            <button key={f.val} onClick={() => setFilter(f.val)}
+              style={{ padding: '6px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: filter === f.val ? 700 : 500, fontSize: 13,
+                background: filter === f.val ? f.bg : '#fff',
+                color: filter === f.val ? f.color : '#94a3b8',
+                outline: filter === f.val ? `2px solid ${f.color}` : '1px solid #e2e8f0',
+              }}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+        {unmappable.length > 0 && (
+          <span style={{ fontSize: 12, color: '#f59e0b', marginLeft: 'auto' }}>
+            ⚠️ {unmappable.length} site{unmappable.length > 1 ? 's' : ''} have no GPS coordinates and won't appear on the map
+          </span>
+        )}
+      </div>
+
+      {/* Legend */}
+      <div style={{ display: 'flex', gap: 20, marginBottom: 12, fontSize: 13, color: '#475569' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 14, height: 14, borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} /> Active site
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 14, height: 14, borderRadius: '50%', background: '#dc2626', display: 'inline-block' }} /> Inactive site
+        </span>
+      </div>
+
+      {/* Map */}
+      {mappable.length === 0 ? (
+        <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: '48px 24px', textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>🗺️</div>
+          <div style={{ fontWeight: 600, color: '#1e293b', fontSize: 15 }}>No sites with GPS coordinates</div>
+          <div style={{ color: '#94a3b8', fontSize: 13, marginTop: 6 }}>
+            Add latitude and longitude to your sites to see them on the map.
+          </div>
+        </div>
+      ) : (
+        <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid #e2e8f0', height: 520 }}>
+          <MapContainer
+            center={defaultCenter}
+            zoom={6}
+            style={{ height: '100%', width: '100%' }}
+            key={filter} // remount when filter changes to re-centre
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            {mappable.map(site => (
+              <Marker
+                key={site.id}
+                position={[site.latitude!, site.longitude!]}
+                icon={isActive(site) ? activeIcon : inactiveIcon}
+              >
+                <Popup maxWidth={260}>
+                  <div style={{ fontFamily: 'Arial, sans-serif', minWidth: 200 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6, color: '#1e293b' }}>{site.siteName}</div>
+                    <div style={{ marginBottom: 4 }}>
+                      <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                        background: isActive(site) ? '#dcfce7' : '#fee2e2',
+                        color: isActive(site) ? '#16a34a' : '#dc2626' }}>
+                        {site.status}
+                      </span>
+                    </div>
+                    {site.projectName && <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>📋 {site.projectName}</div>}
+                    {site.siteCode   && <div style={{ fontSize: 12, color: '#64748b' }}>🏷️ Code: {site.siteCode}</div>}
+                    {site.address    && <div style={{ fontSize: 12, color: '#64748b' }}>📍 {site.address}</div>}
+                    {site.province   && <div style={{ fontSize: 12, color: '#64748b' }}>🗺️ {site.province}{site.city ? `, ${site.city}` : ''}</div>}
+                    {site.contactPerson && <div style={{ fontSize: 12, color: '#64748b' }}>👤 {site.contactPerson}</div>}
+                    {site.contactPhone  && <div style={{ fontSize: 12, color: '#64748b' }}>📞 {site.contactPhone}</div>}
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+                      🏫 {site.totalClasses} class{site.totalClasses !== 1 ? 'es' : ''}
+                      {site.capacity ? ` · Capacity: ${site.capacity}` : ''}
+                    </div>
+                  </div>
+                </Popup>
+              </Marker>
+            ))}
+          </MapContainer>
+        </div>
+      )}
+
+      {/* Site list below map */}
+      {sites.length > 0 && (
+        <div style={{ marginTop: 20, background: '#fff', borderRadius: 14, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', fontWeight: 700, fontSize: 13, color: '#1e293b' }}>
+            All Sites ({sites.length})
+          </div>
+          <table className="table table-hover mb-0">
+            <thead style={{ background: '#f8fafc' }}>
+              <tr>
+                {['Site Name', 'Project', 'Province / City', 'Classes', 'GPS', 'Status'].map(h => (
+                  <th key={h} style={{ fontSize: 12, fontWeight: 600, color: '#64748b', padding: '9px 12px', borderBottom: '1px solid #e2e8f0' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sites.map(site => (
+                <tr key={site.id} style={{ opacity: isActive(site) ? 1 : 0.6 }}>
+                  <td style={{ padding: '9px 12px', fontWeight: 600, fontSize: 13 }}>{site.siteName}</td>
+                  <td style={{ padding: '9px 12px', fontSize: 12, color: '#64748b' }}>{site.projectName}</td>
+                  <td style={{ padding: '9px 12px', fontSize: 12, color: '#64748b' }}>
+                    {[site.province, site.city].filter(Boolean).join(', ') || '—'}
+                  </td>
+                  <td style={{ padding: '9px 12px', fontSize: 13 }}>{site.totalClasses}</td>
+                  <td style={{ padding: '9px 12px', fontSize: 11 }}>
+                    {site.latitude != null && site.longitude != null
+                      ? <span style={{ color: '#16a34a' }}>✓ {Number(site.latitude).toFixed(4)}, {Number(site.longitude).toFixed(4)}</span>
+                      : <span style={{ color: '#f59e0b' }}>⚠️ No GPS</span>}
+                  </td>
+                  <td style={{ padding: '9px 12px' }}>
+                    <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                      background: isActive(site) ? '#dcfce7' : '#fee2e2',
+                      color: isActive(site) ? '#16a34a' : '#dc2626' }}>
+                      {site.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── Learner Progress Report ───────────────────────────────────────────────────
 const LearnerProgressView: React.FC<{ sdpId: number; token: string; apiUrl: string }> = ({ sdpId, token, apiUrl }) => {
@@ -638,7 +848,7 @@ const SDPDashboard: React.FC = () => {
   const [sdps, setSdps] = useState<SkillsDevelopmentProvider[]>([]);
   const [filteredSdps, setFilteredSdps] = useState<SkillsDevelopmentProvider[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
-  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users' | 'learner-progress' | 'bulk-import' | 'document-summary'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users' | 'learner-progress' | 'bulk-import' | 'document-summary' | 'sites-map'>('overview');
   const [selectedSdp, setSelectedSdp] = useState<SkillsDevelopmentProvider | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -3608,6 +3818,13 @@ const SDPDashboard: React.FC = () => {
                   <span>📄</span> Document Summary
                 </button>
                 <button
+                  style={{ color: activeSection === 'sites-map' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'sites-map' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'sites-map' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
+                  onClick={() => setActiveSection('sites-map')}
+                >
+                  <span>📍</span> Sites Map
+                </button>
+                <button
                   style={{ color: activeSection === 'budget-management' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'budget-management' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'budget-management' ? 700 : 400, transition:'all 0.15s', opacity: projects.length === 0 ? 0.4 : 1 }}
                   className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
                   onClick={() => setActiveSection('budget-management')}
@@ -3734,6 +3951,13 @@ const SDPDashboard: React.FC = () => {
               )}
               {activeSection === 'document-summary' && (
                 <SDPDocumentSummary
+                  token={localStorage.getItem('token') ?? ''}
+                  apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
+                />
+              )}
+              {activeSection === 'sites-map' && (
+                <SiteMapView
+                  sdpId={user?.skillsDevelopmentProviderId ?? 0}
                   token={localStorage.getItem('token') ?? ''}
                   apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
                 />
