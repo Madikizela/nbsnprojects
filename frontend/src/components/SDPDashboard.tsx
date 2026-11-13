@@ -3513,6 +3513,11 @@ const SDPDashboard: React.FC = () => {
                 onChange={(e) => {
                   const project = projects.find(p => p.id === parseInt(e.target.value));
                   setSelectedProject(project || null);
+                  // Reset phase state when switching projects
+                  setPhaseSetupComplete(false);
+                  setActivePhase('');
+                  setProjectBudget(null);
+                  setNumberOfPhases(1);
                   if (project) {
                     loadBudgetData();
                   }
@@ -4061,6 +4066,11 @@ const SDPDashboard: React.FC = () => {
               <h5 className="mb-0">➕ Add New Budget Line Item</h5>
             </div>
             <div className="card-body text-white">
+              {!activePhase && (
+                <div className="alert alert-warning mb-3" style={{ background: 'rgba(255,193,7,0.2)', border: '1px solid rgba(255,193,7,0.5)', color: '#fff' }}>
+                  ⚠️ <strong>Select a phase first</strong> — click one of the phase cards above to activate it before adding line items.
+                </div>
+              )}
               <div className="row g-3">
                 <div className="col-md-3">
                   <label className="form-label text-white">Category</label>
@@ -4106,7 +4116,8 @@ const SDPDashboard: React.FC = () => {
                   <button
                     onClick={handleAddLineItem}
                     className="btn btn-success w-100"
-                    disabled={!newLineItem.category || !newLineItem.description || projectBudget.remainingBudget < newLineItem.allocatedAmount}
+                    disabled={!newLineItem.category || !newLineItem.description || !activePhase || (projectBudget?.remainingBudget ?? 0) < newLineItem.allocatedAmount}
+                    title={!activePhase ? 'Select a phase above first' : !newLineItem.category ? 'Select a category' : !newLineItem.description ? 'Enter a description' : ''}
                   >
                     ➕ Add
                   </button>
