@@ -4242,9 +4242,25 @@ const SDPDashboard: React.FC = () => {
                   <span>🔒</span> POPIA Export
                 </button>
                 <button
+                  title={
+                    projects.length === 0
+                      ? 'Create a project first'
+                      : selectedProject
+                      ? `Budget for: ${selectedProject.projectName || 'Selected project'}`
+                      : 'Select a project from the Projects list first'
+                  }
                   style={{ color: activeSection === 'budget-management' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'budget-management' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'budget-management' ? 700 : 400, transition:'all 0.15s', opacity: projects.length === 0 ? 0.4 : 1 }}
                   className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2"
-                  onClick={() => setActiveSection('budget-management')}
+                  onClick={() => {
+                    if (!selectedProject) {
+                      setActiveSection('projects');
+                      setSidebarTip('💡 Select a project below by clicking its 💰 Budget button, then return here.');
+                      setTimeout(() => setSidebarTip(prev => prev?.startsWith('💡') ? null : prev), 6000);
+                      return;
+                    }
+                    loadBudgetData();
+                    setActiveSection('budget-management');
+                  }}
                   disabled={projects.length === 0}
                 >
                   <span>💰</span> Budget Management
