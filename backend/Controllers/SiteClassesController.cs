@@ -156,7 +156,29 @@ namespace backend.Controllers
             return NoContent();
         }
 
-        // PUT: api/SiteClasses/{id}/video-conference
+        // GET: api/SiteClasses/project/{projectId}
+        // Returns all classes across all sites in a project — used by Notice Board web view.
+        [HttpGet("project/{projectId}")]
+        public async Task<IActionResult> GetClassesByProject(int projectId)
+        {
+            var classes = await _context.SiteClasses
+                .Include(c => c.ProjectSite)
+                .Where(c => c.ProjectSite != null && c.ProjectSite.ProjectId == projectId)
+                .OrderBy(c => c.ProjectSite!.SiteName)
+                .ThenBy(c => c.ClassName)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.ClassName,
+                    c.MaxLearners,
+                    c.Status,
+                    SiteName = c.ProjectSite != null ? c.ProjectSite.SiteName : "",
+                    ProjectSiteId = c.ProjectSiteId
+                })
+                .ToListAsync();
+
+            return Ok(classes);
+        }
         [HttpPut("{id}/video-conference")]
         public async Task<IActionResult> UpdateVideoConference(int id, UpdateVideoConferenceDto dto)
         {
