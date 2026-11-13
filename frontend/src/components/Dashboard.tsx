@@ -531,7 +531,187 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
   );
 };
 
+// ── Notification Bell ────────────────────────────────────────────────────────
+const NotificationBell: React.FC<{ token: string; apiUrl: string; userId?: number }> = ({ token, apiUrl, userId }) => {
+  const [unread, setUnread] = React.useState(0);
+  const [open, setOpen]     = React.useState(false);
+  const [items, setItems]   = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+
+  const fetchCount = React.useCallback(() => {
+    const url = userId ? `${apiUrl}/api/Notifications/unread-count?userId=${userId}` : `${apiUrl}/api/Notifications/unread-count`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => setUnread(d.unreadCount ?? 0)).catch(() => {});
+  }, [token, apiUrl, userId]);
+
+  React.useEffect(() => { fetchCount(); const t = setInterval(fetchCount, 60000); return () => clearInterval(t); }, [fetchCount]);
+
+  const openPanel = async () => {
+    setOpen(o => !o);
+    if (!open) {
+      setLoading(true);
+      const url = userId ? `${apiUrl}/api/Notifications?userId=${userId}&pageSize=20` : `${apiUrl}/api/Notifications?pageSize=20`;
+      try { const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); const d = await r.json(); setItems(d.notifications ?? []); } finally { setLoading(false); }
+    }
+  };
+
+  const markAllRead = async () => {
+    const url = userId ? `${apiUrl}/api/Notifications/mark-all-read?userId=${userId}` : `${apiUrl}/api/Notifications/mark-all-read`;
+    await fetch(url, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } });
+    setUnread(0); setItems(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+
+  const markRead = async (id: number) => {
+    await fetch(`${apiUrl}/api/Notifications/${id}/read`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } });
+    setItems(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    setUnread(c => Math.max(0, c - 1));
+  };
+
+  const typeIcon = (t: string) => t.includes('ALERT') ? '⚠️' : t.includes('APPROVED') ? '✅' : t.includes('REJECTED') ? '❌' : t.includes('DOCUMENT') ? '📄' : '🔔';
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={openPanel} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', position: 'relative', fontSize: 18 }}>
+        🔔
+        {unread > 0 && (
+          <span style={{ position: 'absolute', top: -4, right: -4, background: '#dc2626', color: '#fff', borderRadius: '50%', width: 18, height: 18, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {unread > 9 ? '9+' : unread}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', right: 0, top: 42, width: 360, background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', zIndex: 9999, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>🔔 Notifications {unread > 0 && <span style={{ color: '#dc2626' }}>({unread} unread)</span>}</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {unread > 0 && <button onClick={markAllRead} style={{ fontSize: 11, color: '#667eea', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Mark all read</button>}
+              <button onClick={() => setOpen(false)} style={{ fontSize: 16, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+          </div>
+          <div style={{ maxHeight: 360, overflowY: 'auto' }}>
+            {loading ? <div className="text-center py-3"><div className="spinner-border spinner-border-sm text-primary" role="status" /></div>
+              : items.length === 0 ? <div style={{ padding: '24px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No notifications yet.</div>
+              : items.map((n: any) => (
+                <div key={n.id} onClick={() => !n.isRead && markRead(n.id)}
+                  style={{ padding: '12px 16px', borderBottom: '1px solid #f8fafc', background: n.isRead ? '#fff' : '#f0f9ff', cursor: n.isRead ? 'default' : 'pointer', display: 'flex', gap: 10 }}>
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>{typeIcon(n.type)}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: n.isRead ? 400 : 700, fontSize: 13, color: '#1e293b' }}>{n.title}</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{n.message}</div>
+                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>{new Date(n.createdAt).toLocaleString('en-ZA')}</div>
+                  </div>
+                  {!n.isRead && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', flexShrink: 0, marginTop: 4 }} />}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 type Toast = { id:number; type:'success'|'error'|'info'; text:string };
+
+// ── SDP Inactivity Report ─────────────────────────────────────────────────────
+const InactivityReport: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
+  const [sdps, setSdps]       = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [days, setDays]       = React.useState(30);
+  const [search, setSearch]   = React.useState('');
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const r = await fetch(`${apiUrl}/api/SkillsDevelopmentProviders`, { headers: { Authorization: `Bearer ${token}` } });
+      const all = await r.json();
+      // For each SDP, check last login of its admin user
+      const enriched = await Promise.all((Array.isArray(all) ? all : []).map(async (s: any) => {
+        try {
+          const ur = await fetch(`${apiUrl}/api/SkillsDevelopmentProviders/${s.id}/Users`, { headers: { Authorization: `Bearer ${token}` } });
+          const users = await ur.json();
+          const lastLogin = users.length > 0
+            ? users.reduce((latest: string | null, u: any) => {
+                if (!u.lastLoginAt) return latest;
+                return !latest || new Date(u.lastLoginAt) > new Date(latest) ? u.lastLoginAt : latest;
+              }, null)
+            : null;
+          const daysSince = lastLogin ? Math.floor((Date.now() - new Date(lastLogin).getTime()) / 86400000) : null;
+          return { ...s, lastLogin, daysSince, userCount: users.length };
+        } catch { return { ...s, lastLogin: null, daysSince: null, userCount: 0 }; }
+      }));
+      setSdps(enriched);
+    } finally { setLoading(false); }
+  }, [token, apiUrl]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const inactive = sdps.filter(s => s.daysSince === null || s.daysSince >= days);
+  const filtered = inactive.filter(s => !search || s.name.toLowerCase().includes(search.toLowerCase()));
+  const thS: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#64748b', padding: '9px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' };
+  const tdS: React.CSSProperties = { padding: '10px 12px', fontSize: 13, verticalAlign: 'middle' };
+
+  return (
+    <div>
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+        <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', margin: 0 }}>💤 SDP Inactivity Report</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0', fontSize: 14 }}>SDPs whose users have not logged in recently</p>
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 13 }}>
+          <span style={{ color: '#64748b' }}>Inactive for more than</span>
+          <select value={days} onChange={e => setDays(Number(e.target.value))}
+            style={{ border: 'none', fontWeight: 700, color: '#1e293b', cursor: 'pointer', outline: 'none' }}>
+            {[7, 14, 30, 60, 90].map(d => <option key={d} value={d}>{d} days</option>)}
+          </select>
+        </div>
+        <input type="text" placeholder="Search SDP name..." value={search} onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1, minWidth: 180, padding: '7px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }} />
+        <button onClick={load} style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 12, cursor: 'pointer' }}>🔄 Refresh</button>
+        <span style={{ fontSize: 13, color: '#dc2626', fontWeight: 600 }}>{filtered.length} inactive SDP{filtered.length !== 1 ? 's' : ''}</span>
+      </div>
+      {loading ? <div className="text-center py-4"><div className="spinner-border text-primary" role="status" /></div> : (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <table className="table table-hover mb-0">
+            <thead><tr>
+              {['SDP Name', 'Status', 'Users', 'Last Login', 'Days Inactive', 'Action'].map(h => <th key={h} style={thS}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {filtered.length === 0
+                ? <tr><td colSpan={6} className="text-center text-muted py-4">No inactive SDPs found for this threshold.</td></tr>
+                : filtered.map((s: any) => (
+                  <tr key={s.id}>
+                    <td style={{ ...tdS, fontWeight: 600 }}>{s.name}</td>
+                    <td style={tdS}>
+                      <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                        background: s.status === 'Active' || s.status === 1 ? '#dcfce7' : '#fee2e2',
+                        color: s.status === 'Active' || s.status === 1 ? '#16a34a' : '#dc2626' }}>
+                        {typeof s.status === 'number' ? (s.status === 1 ? 'Active' : 'Inactive') : s.status}
+                      </span>
+                    </td>
+                    <td style={tdS}>{s.userCount}</td>
+                    <td style={{ ...tdS, color: '#64748b', fontSize: 12 }}>
+                      {s.lastLogin ? new Date(s.lastLogin).toLocaleDateString('en-ZA') : '⚠️ Never'}
+                    </td>
+                    <td style={tdS}>
+                      {s.daysSince === null
+                        ? <span style={{ color: '#f59e0b', fontWeight: 700 }}>Never logged in</span>
+                        : <span style={{ fontWeight: 700, color: s.daysSince >= 90 ? '#dc2626' : s.daysSince >= 30 ? '#d97706' : '#475569' }}>{s.daysSince}d</span>}
+                    </td>
+                    <td style={tdS}>
+                      <a href={`mailto:${s.contactEmail || ''}`}
+                        style={{ padding: '3px 10px', borderRadius: 6, border: '1px solid #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: 11, fontWeight: 600, textDecoration: 'none' }}>
+                        📧 Contact
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── Admin Document Browser (read-only) ────────────────────────────────────────
 // Flow: Project list → Learner list → Document list → File viewer (iframe/img)
@@ -980,6 +1160,7 @@ const Dashboard = () => {
     { id: 'sdp', label: 'SDP Management', icon: '🎓' },
     { id: 'documents', label: 'Documents', icon: '📄' },
     { id: 'audit', label: 'Audit Log', icon: '📋' },
+    { id: 'inactivity', label: 'Inactivity Report', icon: '💤' },
     { id: 'profile', label: 'Profile', icon: '👤' },
   ];
 
@@ -1203,6 +1384,8 @@ const Dashboard = () => {
         return <AdminDocumentBrowser token={localStorage.getItem('token') || ''} apiUrl={API} />;
       case 'audit':
         return <AuditLogView token={localStorage.getItem('token') || ''} apiUrl={API} />;
+      case 'inactivity':
+        return <InactivityReport token={localStorage.getItem('token') || ''} apiUrl={API} />;
       case 'profile':
         return (
           <PersonalInfoForm 
@@ -1314,6 +1497,7 @@ const Dashboard = () => {
             <button onClick={handleLogout} style={{ background:'rgba(255,255,255,0.1)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:8, padding:'6px 14px', fontSize:13, fontWeight:600, cursor:'pointer' }}>
               Logout
             </button>
+            <NotificationBell token={localStorage.getItem('token') || ''} apiUrl={API} />
           </div>
         </nav>
 

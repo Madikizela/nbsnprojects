@@ -5,6 +5,70 @@ import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import ProjectForm from './ProjectForm';
 import nbsnLogo from '../assets/nbsn-logo.png';
+// Notification bell shared component (defined in Dashboard.tsx — re-implemented inline here)
+const NotificationBell: React.FC<{ token: string; apiUrl: string; userId?: number }> = ({ token, apiUrl, userId }) => {
+  const [unread, setUnread] = React.useState(0);
+  const [open, setOpen]     = React.useState(false);
+  const [items, setItems]   = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const fetchCount = React.useCallback(() => {
+    const url = userId ? `${apiUrl}/api/Notifications/unread-count?userId=${userId}` : `${apiUrl}/api/Notifications/unread-count`;
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } }).then(r => r.json()).then(d => setUnread(d.unreadCount ?? 0)).catch(() => {});
+  }, [token, apiUrl, userId]);
+  React.useEffect(() => { fetchCount(); const t = setInterval(fetchCount, 60000); return () => clearInterval(t); }, [fetchCount]);
+  const openPanel = async () => {
+    setOpen(o => !o);
+    if (!open) {
+      setLoading(true);
+      const url = userId ? `${apiUrl}/api/Notifications?userId=${userId}&pageSize=20` : `${apiUrl}/api/Notifications?pageSize=20`;
+      try { const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } }); const d = await r.json(); setItems(d.notifications ?? []); } finally { setLoading(false); }
+    }
+  };
+  const markAllRead = async () => {
+    const url = userId ? `${apiUrl}/api/Notifications/mark-all-read?userId=${userId}` : `${apiUrl}/api/Notifications/mark-all-read`;
+    await fetch(url, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } });
+    setUnread(0); setItems(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+  const markRead = async (id: number) => {
+    await fetch(`${apiUrl}/api/Notifications/${id}/read`, { method: 'PUT', headers: { Authorization: `Bearer ${token}` } });
+    setItems(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n)); setUnread(c => Math.max(0, c - 1));
+  };
+  const typeIcon = (t: string) => t.includes('ALERT') ? '⚠️' : t.includes('APPROVED') ? '✅' : t.includes('REJECTED') ? '❌' : t.includes('DOCUMENT') ? '📄' : '🔔';
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={openPanel} style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', position: 'relative', fontSize: 18, color: '#fff' }}>
+        🔔{unread > 0 && <span style={{ position: 'absolute', top: -4, right: -4, background: '#dc2626', color: '#fff', borderRadius: '50%', width: 17, height: 17, fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{unread > 9 ? '9+' : unread}</span>}
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', right: 0, top: 42, width: 340, background: '#fff', borderRadius: 12, boxShadow: '0 8px 32px rgba(0,0,0,0.18)', zIndex: 9999, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>🔔 Notifications</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {unread > 0 && <button onClick={markAllRead} style={{ fontSize: 11, color: '#667eea', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Mark all read</button>}
+              <button onClick={() => setOpen(false)} style={{ fontSize: 16, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}>✕</button>
+            </div>
+          </div>
+          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+            {loading ? <div className="text-center py-3"><div className="spinner-border spinner-border-sm text-primary" role="status" /></div>
+              : items.length === 0 ? <div style={{ padding: '24px 16px', textAlign: 'center', color: '#94a3b8', fontSize: 13 }}>No notifications.</div>
+              : items.map((n: any) => (
+                <div key={n.id} onClick={() => !n.isRead && markRead(n.id)}
+                  style={{ padding: '11px 16px', borderBottom: '1px solid #f8fafc', background: n.isRead ? '#fff' : '#f0f9ff', cursor: n.isRead ? 'default' : 'pointer', display: 'flex', gap: 10 }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{typeIcon(n.type)}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: n.isRead ? 400 : 700, fontSize: 13, color: '#1e293b' }}>{n.title}</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{n.message}</div>
+                    <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>{new Date(n.createdAt).toLocaleString('en-ZA')}</div>
+                  </div>
+                  {!n.isRead && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6', flexShrink: 0, marginTop: 4 }} />}
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── Sites Map ─────────────────────────────────────────────────────────────────
 // Leaflet default icon fix (webpack/vite strips the asset references)
@@ -840,6 +904,342 @@ const SDPDocumentSummary: React.FC<{ token: string; apiUrl: string }> = ({ token
   );
 };
 
+// ── At-Risk Learners View ─────────────────────────────────────────────────────
+const AtRiskView: React.FC<{ sdpId: number; token: string; apiUrl: string }> = ({ sdpId, token, apiUrl }) => {
+  const [data, setData]       = React.useState<any | null>(null);
+  const [loading, setLoading] = React.useState(false);
+  const [threshold, setThreshold] = React.useState(80);
+  const [search, setSearch]   = React.useState('');
+
+  const load = React.useCallback(async () => {
+    if (!sdpId) return;
+    setLoading(true);
+    try {
+      const r = await fetch(`${apiUrl}/api/AttendanceTracking/at-risk?sdpId=${sdpId}&threshold=${threshold}`, { headers: { Authorization: `Bearer ${token}` } });
+      setData(await r.json());
+    } finally { setLoading(false); }
+  }, [sdpId, token, apiUrl, threshold]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const statusColor = (r: number) => r < 50 ? '#dc2626' : r < 80 ? '#d97706' : '#16a34a';
+  const statusBg    = (r: number) => r < 50 ? '#fee2e2' : r < 80 ? '#fef3c7' : '#dcfce7';
+  const statusLabel = (r: number) => r < 50 ? 'Behind' : r < 80 ? 'At Risk' : 'On Track';
+
+  const filtered = (data?.learners ?? []).filter((l: any) =>
+    !search || l.fullName.toLowerCase().includes(search.toLowerCase()) || l.idNumber.includes(search)
+  );
+  const thS: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#64748b', padding: '9px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' };
+  const tdS: React.CSSProperties = { padding: '10px 12px', fontSize: 13, verticalAlign: 'middle' };
+
+  return (
+    <div>
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+        <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', margin: 0 }}>⚠️ Attendance Exception Report</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0', fontSize: 14 }}>Learners below the attendance threshold across all projects</p>
+      </div>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: '6px 12px', fontSize: 13 }}>
+          <span style={{ color: '#64748b' }}>Threshold:</span>
+          <select value={threshold} onChange={e => setThreshold(Number(e.target.value))}
+            style={{ border: 'none', fontWeight: 700, color: '#1e293b', cursor: 'pointer', outline: 'none' }}>
+            {[60, 70, 80, 85, 90].map(t => <option key={t} value={t}>{t}%</option>)}
+          </select>
+        </div>
+        <input type="text" placeholder="Search learner..." value={search} onChange={e => setSearch(e.target.value)}
+          style={{ flex: 1, minWidth: 180, padding: '7px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }} />
+        <button onClick={load} style={{ padding: '7px 14px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#fff', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+          🔄 Refresh
+        </button>
+      </div>
+      {data && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
+          {[
+            { label: 'At Risk', val: data.totalAtRisk, color: '#d97706', bg: '#fef3c7' },
+            { label: '🔴 Behind (<50%)', val: data.critical, color: '#dc2626', bg: '#fee2e2' },
+            { label: '⚠️ At Risk (50-80%)', val: data.atRisk, color: '#d97706', bg: '#fef3c7' },
+          ].map(c => (
+            <div key={c.label} style={{ padding: '8px 18px', borderRadius: 20, background: c.bg, color: c.color, fontWeight: 700, fontSize: 13 }}>
+              {c.val} {c.label}
+            </div>
+          ))}
+        </div>
+      )}
+      {loading ? <div className="text-center py-4"><div className="spinner-border text-primary" role="status" /></div> : (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <table className="table table-hover mb-0">
+            <thead><tr>
+              {['Learner', 'ID Number', 'Project', 'Days Present', 'Attendance %', 'Status'].map(h => <th key={h} style={thS}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {filtered.length === 0
+                ? <tr><td colSpan={6} className="text-center text-muted py-4">No learners below threshold. 🎉</td></tr>
+                : filtered.map((l: any) => (
+                  <tr key={l.learnerId}>
+                    <td style={{ ...tdS, fontWeight: 600 }}>{l.fullName}</td>
+                    <td style={{ ...tdS, color: '#64748b', fontSize: 12 }}>{l.idNumber}</td>
+                    <td style={{ ...tdS, color: '#64748b', fontSize: 12 }}>{l.projectName}</td>
+                    <td style={tdS}>{l.daysPresent} / {l.totalDays}</td>
+                    <td style={{ ...tdS, minWidth: 120 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ flex: 1, background: '#f1f5f9', borderRadius: 4, height: 6, overflow: 'hidden' }}>
+                          <div style={{ width: `${Math.min(l.attendanceRate, 100)}%`, height: '100%', background: statusColor(l.attendanceRate), borderRadius: 4 }} />
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: statusColor(l.attendanceRate), minWidth: 36 }}>{l.attendanceRate}%</span>
+                      </div>
+                    </td>
+                    <td style={tdS}>
+                      <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: statusBg(l.attendanceRate), color: statusColor(l.attendanceRate) }}>
+                        {statusLabel(l.attendanceRate)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Notice Board Web View ─────────────────────────────────────────────────────
+const NoticeBoardView: React.FC<{ sdpId: number; token: string; apiUrl: string; projects: any[] }> = ({ token, apiUrl, projects }) => {
+  const [classId, setClassId]     = React.useState<number | ''>('');
+  const [classes, setClasses]     = React.useState<any[]>([]);
+  const [notices, setNotices]     = React.useState<any[]>([]);
+  const [loading, setLoading]     = React.useState(false);
+  const [title, setTitle]         = React.useState('');
+  const [body, setBody]           = React.useState('');
+  const [posting, setPosting]     = React.useState(false);
+  const [msg, setMsg]             = React.useState('');
+  const [selectedProject, setSelectedProject] = React.useState<number | ''>('');
+
+  React.useEffect(() => {
+    if (!selectedProject) return;
+    fetch(`${apiUrl}/api/SiteClasses/project/${selectedProject}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => setClasses(Array.isArray(d) ? d : [])).catch(() => {});
+  }, [selectedProject, token, apiUrl]);
+
+  React.useEffect(() => {
+    if (!classId) return;
+    setLoading(true);
+    fetch(`${apiUrl}/api/Announcements/class/${classId}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.json()).then(d => setNotices(Array.isArray(d) ? d : [])).catch(() => {})
+      .finally(() => setLoading(false));
+  }, [classId, token, apiUrl]);
+
+  const post = async () => {
+    if (!classId || !title.trim() || !body.trim()) { setMsg('Please select a class and fill in title and message.'); return; }
+    setPosting(true); setMsg('');
+    try {
+      const r = await fetch(`${apiUrl}/api/Announcements`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ classId, title, body }),
+      });
+      if (r.ok) {
+        setMsg('✅ Notice posted!'); setTitle(''); setBody('');
+        fetch(`${apiUrl}/api/Announcements/class/${classId}`, { headers: { Authorization: `Bearer ${token}` } })
+          .then(r2 => r2.json()).then(d => setNotices(Array.isArray(d) ? d : []));
+      } else { setMsg('❌ Failed to post notice.'); }
+    } finally { setPosting(false); }
+  };
+
+  return (
+    <div>
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+        <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', margin: 0 }}>📢 Class Notice Board</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0', fontSize: 14 }}>Post and view announcements for your classes</p>
+      </div>
+      <div className="row g-3">
+        <div className="col-md-4">
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 16 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#1e293b', marginBottom: 12 }}>📝 Post New Notice</div>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Project</label>
+            <select value={selectedProject} onChange={e => { setSelectedProject(Number(e.target.value) || ''); setClassId(''); }}
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, marginBottom: 10 }}>
+              <option value="">Select project...</option>
+              {projects.map((p: any) => <option key={p.id} value={p.id}>{p.projectName}</option>)}
+            </select>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Class</label>
+            <select value={classId} onChange={e => setClassId(Number(e.target.value) || '')}
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, marginBottom: 10 }}>
+              <option value="">Select class...</option>
+              {classes.map((c: any) => <option key={c.id} value={c.id}>{c.className}</option>)}
+            </select>
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Title</label>
+            <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Notice title"
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, marginBottom: 10, boxSizing: 'border-box' }} />
+            <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Message</label>
+            <textarea value={body} onChange={e => setBody(e.target.value)} rows={4} placeholder="Write your announcement..."
+              style={{ width: '100%', padding: '7px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, marginBottom: 10, boxSizing: 'border-box', resize: 'vertical' }} />
+            {msg && <div style={{ fontSize: 13, marginBottom: 8, color: msg.startsWith('✅') ? '#16a34a' : '#dc2626' }}>{msg}</div>}
+            <button onClick={post} disabled={posting}
+              style={{ width: '100%', padding: '9px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#667eea,#764ba2)', color: '#fff', fontWeight: 700, cursor: posting ? 'not-allowed' : 'pointer', opacity: posting ? 0.7 : 1 }}>
+              {posting ? 'Posting…' : '📢 Post Notice'}
+            </button>
+          </div>
+        </div>
+        <div className="col-md-8">
+          {!classId ? (
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '48px 24px', textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📢</div>
+              <div style={{ color: '#94a3b8', fontSize: 14 }}>Select a project and class to view notices</div>
+            </div>
+          ) : loading ? <div className="text-center py-4"><div className="spinner-border text-primary" role="status" /></div> : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {notices.length === 0
+                ? <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '32px', textAlign: 'center', color: '#94a3b8', fontSize: 14 }}>No notices for this class yet.</div>
+                : notices.map((n: any) => (
+                  <div key={n.id} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: '14px 16px' }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>{n.title}</div>
+                    <div style={{ fontSize: 13, color: '#475569', marginBottom: 8, lineHeight: 1.5 }}>{n.body || n.message}</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                      {n.createdAt ? new Date(n.createdAt).toLocaleString('en-ZA') : ''} · {n.authorName || 'System'}
+                    </div>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ── POPIA Data Export UI ──────────────────────────────────────────────────────
+const PopiaExportView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
+  const [learnerId, setLearnerId] = React.useState('');
+  const [loading, setLoading]     = React.useState(false);
+  const [msg, setMsg]             = React.useState('');
+
+  const download = async () => {
+    if (!learnerId.trim()) { setMsg('Please enter a Learner ID.'); return; }
+    setLoading(true); setMsg('');
+    try {
+      const r = await fetch(`${apiUrl}/api/Learners/${learnerId}/data-export`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) { setMsg('❌ Learner not found or export failed.'); return; }
+      const blob = await r.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a'); a.href = url; a.download = `POPIA_Export_Learner_${learnerId}.zip`; a.click();
+      URL.revokeObjectURL(url);
+      setMsg('✅ Export downloaded.');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div>
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+        <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', margin: 0 }}>🔒 POPIA Data Export</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0', fontSize: 14 }}>Data subject access request — export all data for a learner as a ZIP</p>
+      </div>
+      <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 24, maxWidth: 500 }}>
+        <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 16px', marginBottom: 20, fontSize: 13, color: '#92400e' }}>
+          ⚠️ This export contains personal information. Only perform this in response to a formal POPIA data subject access request.
+        </div>
+        <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 6 }}>Learner ID (database ID)</label>
+        <input type="number" value={learnerId} onChange={e => setLearnerId(e.target.value)} placeholder="e.g. 42"
+          style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', fontSize: 14, marginBottom: 16, boxSizing: 'border-box' }} />
+        {msg && <div style={{ fontSize: 13, marginBottom: 12, color: msg.startsWith('✅') ? '#16a34a' : '#dc2626' }}>{msg}</div>}
+        <button onClick={download} disabled={loading}
+          style={{ width: '100%', padding: '11px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', color: '#fff', fontWeight: 700, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
+          {loading ? <><span className="spinner-border spinner-border-sm me-2" role="status" />Generating…</> : '⬇️ Download POPIA Export ZIP'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ── Document Expiry Tracker ───────────────────────────────────────────────────
+const DocExpiryView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
+  const [expiring, setExpiring] = React.useState<any[]>([]);
+  const [expired, setExpired]   = React.useState<any[]>([]);
+  const [loading, setLoading]   = React.useState(true);
+  const [tab, setTab]           = React.useState<'expiring' | 'expired'>('expiring');
+  const [days, setDays]         = React.useState(30);
+
+  const load = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch(`${apiUrl}/api/LearnerDocuments/expiring?daysAhead=${days}`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${apiUrl}/api/LearnerDocuments/expired`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+      const d1 = await r1.json(); const d2 = await r2.json();
+      setExpiring(d1.documents ?? []); setExpired(d2.documents ?? []);
+    } finally { setLoading(false); }
+  }, [token, apiUrl, days]);
+
+  React.useEffect(() => { load(); }, [load]);
+
+  const thS: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#64748b', padding: '9px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' };
+  const tdS: React.CSSProperties = { padding: '10px 12px', fontSize: 13, verticalAlign: 'middle' };
+  const rows = tab === 'expiring' ? expiring : expired;
+
+  return (
+    <div>
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+        <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', margin: 0 }}>📅 Document Expiry Tracker</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0', fontSize: 14 }}>Track documents approaching or past their expiry date</p>
+      </div>
+      <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {(['expiring', 'expired'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ padding: '6px 16px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: tab === t ? 700 : 500, fontSize: 13,
+                background: tab === t ? (t === 'expiring' ? '#fef3c7' : '#fee2e2') : '#f1f5f9',
+                color: tab === t ? (t === 'expiring' ? '#d97706' : '#dc2626') : '#94a3b8' }}>
+              {t === 'expiring' ? `⏳ Expiring Soon (${expiring.length})` : `❌ Expired (${expired.length})`}
+            </button>
+          ))}
+        </div>
+        {tab === 'expiring' && (
+          <select value={days} onChange={e => setDays(Number(e.target.value))}
+            style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13 }}>
+            {[7, 14, 30, 60, 90].map(d => <option key={d} value={d}>Within {d} days</option>)}
+          </select>
+        )}
+        <button onClick={load} style={{ padding: '6px 14px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 12, cursor: 'pointer' }}>🔄 Refresh</button>
+      </div>
+      {loading ? <div className="text-center py-4"><div className="spinner-border text-primary" role="status" /></div> : (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <table className="table table-hover mb-0">
+            <thead><tr>
+              {['Learner', 'ID Number', 'Document Type', 'File', 'Expiry Date', tab === 'expiring' ? 'Days Left' : 'Days Expired', 'Status'].map(h => <th key={h} style={thS}>{h}</th>)}
+            </tr></thead>
+            <tbody>
+              {rows.length === 0
+                ? <tr><td colSpan={7} className="text-center text-muted py-4">No {tab === 'expiring' ? 'expiring' : 'expired'} documents found.</td></tr>
+                : rows.map((d: any) => (
+                  <tr key={d.id}>
+                    <td style={{ ...tdS, fontWeight: 600 }}>{d.learnerName}</td>
+                    <td style={{ ...tdS, color: '#64748b', fontSize: 12 }}>{d.learnerIdNumber}</td>
+                    <td style={tdS}>{d.documentType}</td>
+                    <td style={{ ...tdS, color: '#64748b', fontSize: 12 }}>{d.fileName}</td>
+                    <td style={tdS}>{d.expiryDate ? new Date(d.expiryDate).toLocaleDateString('en-ZA') : '—'}</td>
+                    <td style={tdS}>
+                      <span style={{ fontWeight: 700, color: tab === 'expiring' ? (d.daysUntilExpiry <= 7 ? '#dc2626' : '#d97706') : '#dc2626' }}>
+                        {tab === 'expiring' ? d.daysUntilExpiry : d.daysExpired}d
+                      </span>
+                    </td>
+                    <td style={tdS}>
+                      <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                        background: d.approvalStatus === 'Approved' ? '#dcfce7' : d.approvalStatus === 'Declined' ? '#fee2e2' : '#fef3c7',
+                        color: d.approvalStatus === 'Approved' ? '#16a34a' : d.approvalStatus === 'Declined' ? '#dc2626' : '#d97706' }}>
+                        {d.approvalStatus}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SDPDashboard: React.FC = () => {
   const navigate = useNavigate();
   const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
@@ -848,7 +1248,7 @@ const SDPDashboard: React.FC = () => {
   const [sdps, setSdps] = useState<SkillsDevelopmentProvider[]>([]);
   const [filteredSdps, setFilteredSdps] = useState<SkillsDevelopmentProvider[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
-  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users' | 'learner-progress' | 'bulk-import' | 'document-summary' | 'sites-map'>('overview');
+  const [activeSection, setActiveSection] = useState<'overview' | 'projects' | 'departments' | 'add-department' | 'update-project' | 'budget-management' | 'add-project' | 'users' | 'learner-progress' | 'bulk-import' | 'document-summary' | 'sites-map' | 'at-risk' | 'notice-board' | 'popia-export' | 'doc-expiry'>('overview');
   const [selectedSdp, setSelectedSdp] = useState<SkillsDevelopmentProvider | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -3757,6 +4157,7 @@ const SDPDashboard: React.FC = () => {
             <button onClick={handleLogout} className="btn btn-sm" style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:8, fontWeight:600 }}>
               Logout
             </button>
+            <NotificationBell token={localStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} userId={user?.id} />
           </div>
         </div>
       </nav>
@@ -3823,6 +4224,22 @@ const SDPDashboard: React.FC = () => {
                   onClick={() => setActiveSection('sites-map')}
                 >
                   <span>📍</span> Sites Map
+                </button>
+                <button style={{ color: activeSection === 'at-risk' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'at-risk' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'at-risk' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2" onClick={() => setActiveSection('at-risk')}>
+                  <span>⚠️</span> At-Risk Report
+                </button>
+                <button style={{ color: activeSection === 'notice-board' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'notice-board' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'notice-board' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2" onClick={() => setActiveSection('notice-board')}>
+                  <span>📢</span> Notice Board
+                </button>
+                <button style={{ color: activeSection === 'doc-expiry' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'doc-expiry' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'doc-expiry' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2" onClick={() => setActiveSection('doc-expiry')}>
+                  <span>📅</span> Doc Expiry
+                </button>
+                <button style={{ color: activeSection === 'popia-export' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'popia-export' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'popia-export' ? 700 : 400, transition:'all 0.15s' }}
+                  className="nav-link text-start border-0 rounded-2 px-3 py-2 d-flex align-items-center gap-2" onClick={() => setActiveSection('popia-export')}>
+                  <span>🔒</span> POPIA Export
                 </button>
                 <button
                   style={{ color: activeSection === 'budget-management' ? '#fff' : 'rgba(255,255,255,0.6)', background: activeSection === 'budget-management' ? 'linear-gradient(135deg,#667eea,#764ba2)' : 'transparent', fontWeight: activeSection === 'budget-management' ? 700 : 400, transition:'all 0.15s', opacity: projects.length === 0 ? 0.4 : 1 }}
@@ -3961,6 +4378,18 @@ const SDPDashboard: React.FC = () => {
                   token={localStorage.getItem('token') ?? ''}
                   apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
                 />
+              )}
+              {activeSection === 'at-risk' && (
+                <AtRiskView sdpId={user?.skillsDevelopmentProviderId ?? 0} token={localStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} />
+              )}
+              {activeSection === 'notice-board' && (
+                <NoticeBoardView sdpId={user?.skillsDevelopmentProviderId ?? 0} token={localStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} projects={projects} />
+              )}
+              {activeSection === 'doc-expiry' && (
+                <DocExpiryView token={localStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} />
+              )}
+              {activeSection === 'popia-export' && (
+                <PopiaExportView token={localStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} />
               )}
             </div>
           </div>
