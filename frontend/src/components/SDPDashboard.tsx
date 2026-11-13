@@ -1036,7 +1036,7 @@ const NoticeBoardView: React.FC<{ sdpId: number; token: string; apiUrl: string; 
       const r = await fetch(`${apiUrl}/api/Announcements`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ classId, title, body }),
+        body: JSON.stringify({ classId, title, message: body }),
       });
       if (r.ok) {
         setMsg('✅ Notice posted!'); setTitle(''); setBody('');
