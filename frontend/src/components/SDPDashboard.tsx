@@ -1313,7 +1313,9 @@ const SDPDashboard: React.FC = () => {
   const [newLineItem, setNewLineItem] = useState({
     category: '',
     description: '',
-    allocatedAmount: 0
+    allocatedAmount: 0,
+    isPerLearner: false,
+    costPerLearner: 0,
   });
 
   // Phase management state
@@ -3413,13 +3415,23 @@ const SDPDashboard: React.FC = () => {
   const handleAddLineItem = () => {
     if (!projectBudget || !activePhase || !newLineItem.category || !newLineItem.description) return;
 
+    // Learners per phase = total project learners / number of phases
+    const learnersPerPhase = Math.ceil((selectedProject?.numberOfBeneficiaries || 0) / numberOfPhases);
+    const finalAmount = newLineItem.isPerLearner
+      ? newLineItem.costPerLearner * learnersPerPhase
+      : newLineItem.allocatedAmount;
+
+    const descWithCalc = newLineItem.isPerLearner
+      ? `${newLineItem.description} (R${newLineItem.costPerLearner.toLocaleString()} × ${learnersPerPhase} learners)`
+      : newLineItem.description;
+
     const newItem: BudgetLineItem = {
       id: `custom-${Date.now()}`,
       category: newLineItem.category,
-      description: newLineItem.description,
-      allocatedAmount: newLineItem.allocatedAmount,
+      description: descWithCalc,
+      allocatedAmount: finalAmount,
       spentAmount: 0,
-      remainingAmount: newLineItem.allocatedAmount,
+      remainingAmount: finalAmount,
       isEditable: true
     };
 
@@ -3451,7 +3463,9 @@ const SDPDashboard: React.FC = () => {
     setNewLineItem({
       category: '',
       description: '',
-      allocatedAmount: 0
+      allocatedAmount: 0,
+      isPerLearner: false,
+      costPerLearner: 0,
     });
   };
 
@@ -3895,6 +3909,12 @@ const SDPDashboard: React.FC = () => {
                     <option value="Training Venue">Training Venue</option>
                     <option value="Assessment">Assessment</option>
                     <option value="Certification">Certification</option>
+                    {/* Per-learner resource categories — only show if project has them enabled */}
+                    <option value="Stipends">Stipends (per learner)</option>
+                    {selectedProject?.hasPPE && <option value="PPE">PPE (per learner)</option>}
+                    {selectedProject?.hasLearningMaterial && <option value="Learning Materials">Learning Materials (per learner)</option>}
+                    {selectedProject?.hasToolkit && <option value="Toolkit">Toolkit (per learner)</option>}
+                    {selectedProject?.hasConsumables && <option value="Consumables">Consumables (per learner)</option>}
                     <option value="Other">Other</option>
                   </select>
                 </div>
@@ -3908,31 +3928,93 @@ const SDPDashboard: React.FC = () => {
                     placeholder="Detailed description"
                   />
                 </div>
-                <div className="col-md-3">
-                  <label className="form-label text-white">Allocated Amount</label>
-                  <input
-                    type="number"
-                    className="form-control bg-light text-dark"
-                    value={newLineItem.allocatedAmount}
-                    onChange={(e) => setNewLineItem(prev => ({ ...prev, allocatedAmount: parseFloat(e.target.value) || 0 }))}
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                  />
-                </div>
+
+                {/* Per-learner toggle */}
                 <div className="col-md-2">
-                  <label className="form-label text-white">&nbsp;</label>
-                  <button
-                    onClick={handleAddLineItem}
-                    className="btn btn-success w-100"
-                    disabled={!newLineItem.category || !newLineItem.description || !activePhase || (projectBudget?.phases.find(p => p.id === activePhase)?.remainingBudget ?? 0) < newLineItem.allocatedAmount}
-                    title={!activePhase ? 'Select a phase above first' : !newLineItem.category ? 'Select a category' : !newLineItem.description ? 'Enter a description' : ''}
-                  >
-                    ➕ Add
-                  </button>
+                  <label className="form-label text-white">Cost Type</label>
+                  <div className="form-check form-switch mt-1">
+                    <input
+                      className="form-check-input"
+                      type="checkbox"
+                      id="perLearnerToggle"
+                      checked={newLineItem.isPerLearner}
+                      onChange={(e) => setNewLineItem(prev => ({ ...prev, isPerLearner: e.target.checked, allocatedAmount: 0, costPerLearner: 0 }))}
+                    />
+                    <label className="form-check-label text-white" htmlFor="perLearnerToggle" style={{ fontSize: 12 }}>
+                      Per learner
+                    </label>
+                  </div>
                 </div>
+
+                {newLineItem.isPerLearner ? (
+                  <>
+                    <div className="col-md-2">
+                      <label className="form-label text-white">Cost per Learner</label>
+                      <input
+                        type="number"
+                        className="form-control bg-light text-dark"
+                        value={newLineItem.costPerLearner || ''}
+                        onChange={(e) => {
+                          const perLearner = parseFloat(e.target.value) || 0;
+                          const learnersPerPhase = Math.ceil((selectedProject?.numberOfBeneficiaries || 0) / numberOfPhases);
+                          setNewLineItem(prev => ({
+                            ...prev,
+                            costPerLearner: perLearner,
+                            allocatedAmount: perLearner * learnersPerPhase
+                          }));
+                        }}
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                      />
+                      {newLineItem.costPerLearner > 0 && selectedProject && (
+                        <div className="form-text text-white opacity-75" style={{ fontSize: 11 }}>
+                          Total: R{(newLineItem.costPerLearner * Math.ceil(selectedProject.numberOfBeneficiaries / numberOfPhases)).toLocaleString()}
+                          {' '}({Math.ceil(selectedProject.numberOfBeneficiaries / numberOfPhases)} learners)
+                        </div>
+                      )}
+                    </div>
+                    <div className="col-md-1">
+                      <label className="form-label text-white">&nbsp;</label>
+                      <button
+                        onClick={handleAddLineItem}
+                        className="btn btn-success w-100"
+                        disabled={!newLineItem.category || !newLineItem.description || !activePhase || newLineItem.costPerLearner <= 0}
+                        title={!activePhase ? 'Select a phase first' : ''}
+                      >
+                        ➕
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="col-md-2">
+                      <label className="form-label text-white">Total Amount</label>
+                      <input
+                        type="number"
+                        className="form-control bg-light text-dark"
+                        value={newLineItem.allocatedAmount || ''}
+                        onChange={(e) => setNewLineItem(prev => ({ ...prev, allocatedAmount: parseFloat(e.target.value) || 0 }))}
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div className="col-md-1">
+                      <label className="form-label text-white">&nbsp;</label>
+                      <button
+                        onClick={handleAddLineItem}
+                        className="btn btn-success w-100"
+                        disabled={!newLineItem.category || !newLineItem.description || !activePhase || (projectBudget?.phases.find(p => p.id === activePhase)?.remainingBudget ?? 0) < newLineItem.allocatedAmount}
+                        title={!activePhase ? 'Select a phase above first' : !newLineItem.category ? 'Select a category' : !newLineItem.description ? 'Enter a description' : ''}
+                      >
+                        ➕
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
-              {activePhase && (projectBudget?.phases.find(p => p.id === activePhase)?.remainingBudget ?? 0) < newLineItem.allocatedAmount && newLineItem.allocatedAmount > 0 && (
+              {activePhase && !newLineItem.isPerLearner && (projectBudget?.phases.find(p => p.id === activePhase)?.remainingBudget ?? 0) < newLineItem.allocatedAmount && newLineItem.allocatedAmount > 0 && (
                 <div className="alert alert-warning mt-3">
                   ⚠️ This allocation would exceed the remaining phase budget of R {(projectBudget?.phases.find(p => p.id === activePhase)?.remainingBudget ?? 0).toLocaleString()}
                 </div>
