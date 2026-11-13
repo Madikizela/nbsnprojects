@@ -1090,6 +1090,75 @@ namespace backend.Controllers
             int check = (10 - (sum % 10)) % 10;
             return check == (id[12] - '0');
         }
+
+        // GET: api/Learners/{id}/data-export
+        // POPIA data subject access request — returns a ZIP with all data for a learner.
+        [HttpGet("{id}/data-export")]
+        public async Task<IActionResult> ExportLearnerData(int id)
+        {
+            try
+            {
+                var learner = await _context.Learners
+                    .Include(l => l.ClassEnrollments)
+                        .ThenInclude(ce => ce.SiteClass)
+                    .FirstOrDefaultAsync(l => l.Id == id);
+
+                if (learner == null) return NotFound(new { message = "Learner not found" });
+
+                // Build JSON data export
+                var attendanceRecords = await _context.LearnerAttendances
+                    .Where(a => a.LearnerId == id)
+                    .OrderByDescending(a => a.AttendanceDate)
+                    .Select(a => new { a.AttendanceDate, a.ClockInTime, a.ClockOutTime, a.Status })
+                    .ToListAsync();
+
+                var assessmentAnswers = await _context.LearnerAssessmentAnswers
+                    .Where(a => a.LearnerId == id)
+                    .Select(a => new { a.AssessmentType, a.AssessmentId, a.QuestionId, a.IsRemedial })
+                    .ToListAsync();
+
+                var documents = await _context.LearnerDocuments
+                    .Where(d => d.LearnerId == id)
+                    .Select(d => new { d.DocumentType, d.FileName, d.FileSize, d.UploadedAt, d.ApprovalStatus })
+                    .ToListAsync();
+
+                var exportData = new
+                {
+                    exportedAt    = DateTime.UtcNow,
+                    exportPurpose = "POPIA Data Subject Access Request",
+                    learner = new
+                    {
+                        learner.Id, learner.FirstName, learner.LastName, learner.IdNumber,
+                        learner.Email, learner.ContactNumber, learner.Gender, learner.Race,
+                        learner.DateOfBirth, learner.HomeLanguage,
+                        Address = learner.AddressLine1,
+                        learner.CreatedAt
+                    },
+                    attendanceRecords,
+                    assessmentAnswers,
+                    documents
+                };
+
+                var json     = System.Text.Json.JsonSerializer.Serialize(exportData, new System.Text.Json.JsonSerializerOptions { WriteIndented = true });
+                var jsonBytes = System.Text.Encoding.UTF8.GetBytes(json);
+
+                using var memStream = new MemoryStream();
+                using (var archive = new System.IO.Compression.ZipArchive(memStream, System.IO.Compression.ZipArchiveMode.Create, true))
+                {
+                    var entry = archive.CreateEntry($"learner_{id}_data_export_{DateTime.UtcNow:yyyyMMdd}.json");
+                    using var entryStream = entry.Open();
+                    await entryStream.WriteAsync(jsonBytes, 0, jsonBytes.Length);
+                }
+
+                _logger.LogInformation("POPIA data export generated for learner {LearnerId}", id);
+                return File(memStream.ToArray(), "application/zip", $"POPIA_Export_Learner_{id}_{DateTime.UtcNow:yyyyMMdd}.zip");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating POPIA export for learner {LearnerId}", id);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
     }
 }
 

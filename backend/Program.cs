@@ -313,7 +313,7 @@ try
         var seedingService = scope.ServiceProvider.GetRequiredService<backend.Services.IDataSeedingService>();
         await seedingService.SeedInitialDataAsync();
 
-        // ── Safe column migrations — ADD COLUMN IF NOT EXISTS ───────────────
+            // ── Safe column migrations — ADD COLUMN IF NOT EXISTS ───────────────
         // These run on every startup but are no-ops when the column already exists.
         Console.WriteLine("⏳ Running safe column migrations...");
         var migrationConn = context.Database.GetDbConnection();
@@ -336,7 +336,23 @@ try
                 ""EntityName"" varchar(200) NOT NULL DEFAULT '',
                 ""Metadata"" varchar(2000) NULL,
                 ""CreatedAt"" timestamptz NOT NULL DEFAULT NOW()
-            )"
+            )",
+            // Notifications table
+            @"CREATE TABLE IF NOT EXISTS ""notifications"" (
+                ""Id"" serial PRIMARY KEY,
+                ""UserId"" integer NULL,
+                ""Type"" varchar(50) NOT NULL DEFAULT 'GENERAL',
+                ""Title"" varchar(200) NOT NULL,
+                ""Message"" varchar(1000) NOT NULL,
+                ""ActionUrl"" varchar(500) NULL,
+                ""Metadata"" varchar(2000) NULL,
+                ""IsRead"" boolean NOT NULL DEFAULT false,
+                ""CreatedAt"" timestamptz NOT NULL DEFAULT NOW(),
+                ""ReadAt"" timestamptz NULL
+            )",
+            // LearnerDocument expiry columns
+            "ALTER TABLE \"LearnerDocuments\" ADD COLUMN IF NOT EXISTS \"ExpiryDate\" timestamptz NULL",
+            "ALTER TABLE \"LearnerDocuments\" ADD COLUMN IF NOT EXISTS \"ExpiryAlertSent\" boolean NOT NULL DEFAULT false"
         };
 
         foreach (var sql in columnMigrations)

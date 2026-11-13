@@ -1277,5 +1277,110 @@ namespace backend.Controllers
                 return StatusCode(500, new { message = "An error occurred while generating PDF" });
             }
         }
+
+        // GET: api/AttendanceTracking/at-risk?sdpId=1&threshold=80&startDate=2024-01-01&endDate=2024-12-31
+        // Returns all learners across all projects for an SDP whose attendance rate is below the threshold.
+        [HttpGet("at-risk")]
+        public async Task<IActionResult> GetAtRiskLearners(
+            [FromQuery] int sdpId,
+            [FromQuery] double threshold = 80.0,
+            [FromQuery] DateTime? startDate = null,
+            [FromQuery] DateTime? endDate = null)
+        {
+            try
+            {
+                var targetStart = startDate ?? DateTime.UtcNow.AddMonths(-3);
+                var targetEnd   = endDate   ?? DateTime.UtcNow;
+
+                // Get all project IDs for this SDP
+                var projectIds = await _context.Projects
+                    .Where(p => p.SkillsDevelopmentProviderId == sdpId)
+                    .Select(p => p.Id)
+                    .ToListAsync();
+
+                if (!projectIds.Any())
+                    return Ok(new { sdpId, threshold, totalAtRisk = 0, learners = new List<object>() });
+
+                // Get all class IDs for these projects
+                var classIds = await _context.SiteClasses
+                    .Where(sc => _context.ProjectSites
+                        .Where(ps => projectIds.Contains(ps.ProjectId))
+                        .Select(ps => ps.Id)
+                        .Contains(sc.ProjectSiteId))
+                    .Select(sc => sc.Id)
+                    .ToListAsync();
+
+                // Get active enrollments
+                var enrollments = await _context.ClassEnrollments
+                    .Where(ce => classIds.Contains(ce.SiteClassId) && ce.Status == "Active")
+                    .Include(ce => ce.Learner)
+                    .Include(ce => ce.SiteClass)
+                        .ThenInclude(sc => sc!.ProjectSite)
+                            .ThenInclude(ps => ps!.Project)
+                    .ToListAsync();
+
+                // Count total training days (distinct dates with any attendance)
+                var totalDays = await _context.LearnerAttendances
+                    .Where(a => classIds.Contains(a.ClassId) &&
+                                a.AttendanceDate >= targetStart &&
+                                a.AttendanceDate <= targetEnd)
+                    .Select(a => a.AttendanceDate.Date)
+                    .Distinct()
+                    .CountAsync();
+
+                if (totalDays == 0) totalDays = 1; // avoid divide-by-zero
+
+                // Per-learner attendance
+                var attendanceCounts = await _context.LearnerAttendances
+                    .Where(a => classIds.Contains(a.ClassId) &&
+                                a.AttendanceDate >= targetStart &&
+                                a.AttendanceDate <= targetEnd &&
+                                a.ClockInTime != null)
+                    .GroupBy(a => a.LearnerId)
+                    .Select(g => new { LearnerId = g.Key, DaysPresent = g.Count() })
+                    .ToListAsync();
+
+                var atRiskLearners = enrollments
+                    .GroupBy(e => e.LearnerId)
+                    .Select(g =>
+                    {
+                        var learner     = g.First().Learner;
+                        var daysPresent = attendanceCounts.FirstOrDefault(a => a.LearnerId == g.Key)?.DaysPresent ?? 0;
+                        var rate        = Math.Round((double)daysPresent / totalDays * 100, 1);
+                        var project     = g.First().SiteClass?.ProjectSite?.Project;
+                        return new
+                        {
+                            learnerId     = g.Key,
+                            fullName      = learner != null ? $"{learner.FirstName} {learner.LastName}" : "Unknown",
+                            idNumber      = learner?.IdNumber ?? "",
+                            daysPresent,
+                            totalDays,
+                            attendanceRate = rate,
+                            status        = rate >= 80 ? "On Track" : rate >= 50 ? "At Risk" : "Behind",
+                            projectId     = project?.Id,
+                            projectName   = project?.ProjectName ?? ""
+                        };
+                    })
+                    .Where(l => l.attendanceRate < threshold)
+                    .OrderBy(l => l.attendanceRate)
+                    .ToList();
+
+                return Ok(new
+                {
+                    sdpId,
+                    threshold,
+                    totalDays,
+                    totalAtRisk = atRiskLearners.Count,
+                    critical    = atRiskLearners.Count(l => l.attendanceRate < 50),
+                    atRisk      = atRiskLearners.Count(l => l.attendanceRate >= 50 && l.attendanceRate < 80),
+                    learners    = atRiskLearners
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching at-risk learners for SDP {SdpId}", sdpId);
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
     }
 }

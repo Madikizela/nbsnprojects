@@ -90,6 +90,9 @@ namespace backend.Models
         
         // Admin Audit Log
         public DbSet<AdminAuditLog> AdminAuditLogs { get; set; }
+
+        // Notifications
+        public DbSet<Notification> Notifications { get; set; }
         
         // Legacy Assessment System Entities
         public DbSet<AssessmentType> AssessmentTypes { get; set; }

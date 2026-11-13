@@ -122,6 +122,9 @@ interface SubUser {
 const sdpIsActive = (status: string | number) =>
   status === 'Active' || status === 1 || status === '1';
 
+const sdpIsPending = (status: string | number) =>
+  status === 'PendingApproval' || status === 4 || status === '4';
+
 const userIsActive = (status: string | number) =>
   status === 'Active' || status === 1 || status === '1';
 
@@ -141,6 +144,7 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
   const [error, setError] = React.useState('');
   const [search, setSearch] = React.useState('');
   const [togglingId, setTogglingId] = React.useState<number | null>(null);
+  const [approvingId, setApprovingId] = React.useState<number | null>(null);
   const [expandedId, setExpandedId] = React.useState<number | null>(null);
   const [subUsers, setSubUsers] = React.useState<Record<number, SubUser[]>>({});
   const [subUsersLoading, setSubUsersLoading] = React.useState<Record<number, boolean>>({});
@@ -198,6 +202,41 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
     } finally {
       setTogglingId(null);
     }
+  };
+
+  const approveSDP = async (sdp: SdpRecord) => {
+    setApprovingId(sdp.id);
+    try {
+      const r = await fetch(`${apiUrl}/api/SkillsDevelopmentProviders/${sdp.id}/approve`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      });
+      const result = await r.json();
+      if (r.ok) {
+        setSdps(prev => prev.map(s => s.id === sdp.id ? { ...s, status: 'Active' } : s));
+        showToast('success', result.message ?? `SDP '${sdp.name}' approved.`);
+      } else { showToast('error', result.message ?? 'Failed to approve SDP.'); }
+    } catch { showToast('error', 'Network error while approving SDP.'); }
+    finally { setApprovingId(null); }
+  };
+
+  const rejectSDP = async (sdp: SdpRecord) => {
+    const reason = window.prompt(`Reason for rejecting "${sdp.name}" (optional):`);
+    if (reason === null) return; // user cancelled
+    setApprovingId(sdp.id);
+    try {
+      const r = await fetch(`${apiUrl}/api/SkillsDevelopmentProviders/${sdp.id}/reject`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ rejectionReason: reason }),
+      });
+      const result = await r.json();
+      if (r.ok) {
+        setSdps(prev => prev.map(s => s.id === sdp.id ? { ...s, status: 'Inactive' } : s));
+        showToast('success', result.message ?? `SDP '${sdp.name}' rejected.`);
+      } else { showToast('error', result.message ?? 'Failed to reject SDP.'); }
+    } catch { showToast('error', 'Network error while rejecting SDP.'); }
+    finally { setApprovingId(null); }
   };
 
   const loadSubUsers = async (sdpId: number) => {
@@ -347,7 +386,9 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
                 <tr><td colSpan={6} className="text-center text-muted py-4">{search ? 'No SDPs match your search.' : 'No SDPs registered yet.'}</td></tr>
               ) : filteredSdps.map(sdp => {
                 const active = sdpIsActive(sdp.status);
+                const isPending = sdpIsPending(sdp.status);
                 const isToggling = togglingId === sdp.id;
+                const isApproving = approvingId === sdp.id;
                 const isExpanded = expandedId === sdp.id;
                 const disabledUsers = inactiveCount(sdp.id);
 
@@ -372,23 +413,35 @@ const SDPListView: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUr
                       </td>
                       <td style={{ ...tdStyle, color: '#64748b' }}>{sdp.contactPerson || '—'}</td>
                       <td style={{ ...tdStyle, color: '#64748b', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sdp.address || '—'}</td>
-                      <td style={tdStyle}><StatusBadge active={active} /></td>
+                      <td style={tdStyle}>
+                        {isPending
+                          ? <span style={{ padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:600, background:'#fef3c7', color:'#d97706' }}>⏳ Pending</span>
+                          : <StatusBadge active={active} />
+                        }
+                      </td>
                       <td style={{ ...tdStyle, color: '#64748b', fontSize: 13 }}>
                         {sdp.createdAt ? new Date(sdp.createdAt).toLocaleDateString('en-ZA') : '—'}
                       </td>
-                      <td style={tdStyle}>
-                        <button
-                          onClick={() => toggleSdpStatus(sdp)}
-                          disabled={isToggling}
-                          style={{
-                            padding: '5px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-                            cursor: isToggling ? 'not-allowed' : 'pointer', border: 'none',
-                            background: active ? '#fee2e2' : '#dcfce7',
-                            color: active ? '#dc2626' : '#16a34a', minWidth: 90
-                          }}
-                        >
-                          {isToggling ? '...' : active ? '🚫 Disable' : '✅ Enable'}
-                        </button>
+                      <td style={{ ...tdStyle }}>
+                        {isPending ? (
+                          <div style={{ display:'flex', gap:6 }}>
+                            <button onClick={() => approveSDP(sdp)} disabled={isApproving}
+                              style={{ padding:'5px 12px', borderRadius:8, fontSize:12, fontWeight:600, border:'none', background:'#dcfce7', color:'#16a34a', cursor: isApproving ? 'not-allowed' : 'pointer' }}>
+                              {isApproving ? '...' : '✅ Approve'}
+                            </button>
+                            <button onClick={() => rejectSDP(sdp)} disabled={isApproving}
+                              style={{ padding:'5px 12px', borderRadius:8, fontSize:12, fontWeight:600, border:'none', background:'#fee2e2', color:'#dc2626', cursor: isApproving ? 'not-allowed' : 'pointer' }}>
+                              {isApproving ? '...' : '❌ Reject'}
+                            </button>
+                          </div>
+                        ) : (
+                          <button onClick={() => toggleSdpStatus(sdp)} disabled={isToggling}
+                            style={{ padding:'5px 14px', borderRadius:8, fontSize:12, fontWeight:600, cursor: isToggling ? 'not-allowed' : 'pointer', border:'none',
+                              background: active ? '#fee2e2' : '#dcfce7',
+                              color: active ? '#dc2626' : '#16a34a', minWidth:90 }}>
+                            {isToggling ? '...' : active ? '🚫 Disable' : '✅ Enable'}
+                          </button>
+                        )}
                       </td>
                     </tr>
 

@@ -316,6 +316,109 @@ namespace backend.Controllers
             return _context.SkillsDevelopmentProviders.Any(e => e.Id == id);
         }
 
+        // PUT: api/SkillsDevelopmentProviders/{id}/approve
+        // Approves a PendingApproval SDP — sets it Active and activates its users.
+        [HttpPut("{id}/approve")]
+        public async Task<IActionResult> ApproveSDP(int id)
+        {
+            var sdp = await _context.SkillsDevelopmentProviders
+                .Include(s => s.Users)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (sdp == null)
+                return NotFound(new { message = "SDP not found" });
+
+            var previousStatus = sdp.Status.ToString();
+            sdp.Status    = SDPStatus.Active;
+            sdp.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+
+            foreach (var user in sdp.Users)
+            {
+                user.Status    = UserStatus.Active;
+                user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+            }
+
+            await _context.SaveChangesAsync();
+
+            var adminEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "System Admin";
+            await AuditLogHelper.LogAsync(_context, "SDP_APPROVED",
+                $"SDP '{sdp.Name}' was approved by {adminEmail}. Previous status: {previousStatus}.",
+                "SDP", sdp.Id, sdp.Name, adminEmail,
+                metadata: $"{{\"previousStatus\":\"{previousStatus}\",\"newStatus\":\"Active\"}}");
+
+            // Notify users
+            foreach (var subUser in sdp.Users.Where(u => !string.IsNullOrWhiteSpace(u.Email)))
+            {
+                try
+                {
+                    await _emailService.SendEmailAsync(subUser.Email,
+                        "✅ Your NBSN SDP has been approved",
+                        $@"<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>
+                             <h2 style='color:#16a34a'>✅ SDP Approved</h2>
+                             <p>Dear {subUser.FirstName},</p>
+                             <p>Your Skills Development Provider <strong>{sdp.Name}</strong> has been <strong>approved</strong> by a system administrator.</p>
+                             <p>You can now log in at <a href='https://nbsn-frontend-production.up.railway.app'>nbsn-frontend-production.up.railway.app</a>.</p>
+                             <p>Regards,<br/>NBSN System</p>
+                           </div>");
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Could not send approval email to {Email}", subUser.Email); }
+            }
+
+            return Ok(new { message = $"SDP '{sdp.Name}' has been approved and is now Active.", sdpStatus = "Active" });
+        }
+
+        // PUT: api/SkillsDevelopmentProviders/{id}/reject
+        // Rejects/suspends a PendingApproval SDP.
+        [HttpPut("{id}/reject")]
+        public async Task<IActionResult> RejectSDP(int id, [FromBody] ApproveSdpRequest request)
+        {
+            var sdp = await _context.SkillsDevelopmentProviders
+                .Include(s => s.Users)
+                .FirstOrDefaultAsync(s => s.Id == id);
+
+            if (sdp == null)
+                return NotFound(new { message = "SDP not found" });
+
+            var previousStatus = sdp.Status.ToString();
+            sdp.Status    = SDPStatus.Inactive;
+            sdp.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+
+            foreach (var user in sdp.Users)
+            {
+                user.Status    = UserStatus.Inactive;
+                user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+            }
+
+            await _context.SaveChangesAsync();
+
+            var adminEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "System Admin";
+            var reason = string.IsNullOrWhiteSpace(request?.RejectionReason) ? "No reason provided" : request.RejectionReason;
+            await AuditLogHelper.LogAsync(_context, "SDP_REJECTED",
+                $"SDP '{sdp.Name}' was rejected by {adminEmail}. Reason: {reason}.",
+                "SDP", sdp.Id, sdp.Name, adminEmail,
+                metadata: $"{{\"previousStatus\":\"{previousStatus}\",\"reason\":\"{reason}\"}}");
+
+            foreach (var subUser in sdp.Users.Where(u => !string.IsNullOrWhiteSpace(u.Email)))
+            {
+                try
+                {
+                    await _emailService.SendEmailAsync(subUser.Email,
+                        "❌ Your NBSN SDP registration was not approved",
+                        $@"<div style='font-family:Arial,sans-serif;max-width:600px;margin:0 auto'>
+                             <h2 style='color:#dc2626'>❌ SDP Not Approved</h2>
+                             <p>Dear {subUser.FirstName},</p>
+                             <p>Your Skills Development Provider <strong>{sdp.Name}</strong> registration was not approved.</p>
+                             <p><strong>Reason:</strong> {reason}</p>
+                             <p>Please contact NBSN for more information.</p>
+                             <p>Regards,<br/>NBSN System</p>
+                           </div>");
+                }
+                catch (Exception ex) { _logger.LogWarning(ex, "Could not send rejection email to {Email}", subUser.Email); }
+            }
+
+            return Ok(new { message = $"SDP '{sdp.Name}' has been rejected.", sdpStatus = "Inactive" });
+        }
+
         // PUT: api/SkillsDevelopmentProviders/{id}/status
         // Sets the SDP active/inactive and cascades the same status to all its sub-users.
         [HttpPut("{id}/status")]
@@ -587,5 +690,11 @@ namespace backend.Controllers
     {
         /// <summary>true = Active, false = Inactive</summary>
         public bool Active { get; set; }
+    }
+
+    // DTO for SDP approval/rejection
+    public class ApproveSdpRequest
+    {
+        public string? RejectionReason { get; set; }
     }
 }

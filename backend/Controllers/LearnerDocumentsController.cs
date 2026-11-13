@@ -350,5 +350,78 @@ namespace backend.Controllers
         {
             return Ok(AllowedDocumentTypes);
         }
+
+        // GET: api/LearnerDocuments/expiring?daysAhead=30
+        // Returns documents expiring within the specified number of days.
+        [HttpGet("expiring")]
+        public async Task<IActionResult> GetExpiringDocuments([FromQuery] int daysAhead = 30)
+        {
+            var cutoff = DateTime.UtcNow.AddDays(daysAhead);
+            var expiring = await _context.LearnerDocuments
+                .Include(d => d.Learner)
+                .Where(d => d.ExpiryDate.HasValue && d.ExpiryDate.Value <= cutoff && d.ExpiryDate.Value >= DateTime.UtcNow)
+                .OrderBy(d => d.ExpiryDate)
+                .Select(d => new
+                {
+                    d.Id,
+                    d.LearnerId,
+                    LearnerName = d.Learner != null ? $"{d.Learner.FirstName} {d.Learner.LastName}" : "Unknown",
+                    LearnerIdNumber = d.Learner != null ? d.Learner.IdNumber : "",
+                    d.DocumentType,
+                    d.FileName,
+                    d.ApprovalStatus,
+                    d.ExpiryDate,
+                    d.ExpiryAlertSent,
+                    DaysUntilExpiry = (int)(d.ExpiryDate!.Value - DateTime.UtcNow).TotalDays
+                })
+                .ToListAsync();
+
+            return Ok(new { total = expiring.Count, daysAhead, documents = expiring });
+        }
+
+        // GET: api/LearnerDocuments/expired
+        // Returns documents that have already expired.
+        [HttpGet("expired")]
+        public async Task<IActionResult> GetExpiredDocuments()
+        {
+            var expired = await _context.LearnerDocuments
+                .Include(d => d.Learner)
+                .Where(d => d.ExpiryDate.HasValue && d.ExpiryDate.Value < DateTime.UtcNow)
+                .OrderByDescending(d => d.ExpiryDate)
+                .Select(d => new
+                {
+                    d.Id,
+                    d.LearnerId,
+                    LearnerName = d.Learner != null ? $"{d.Learner.FirstName} {d.Learner.LastName}" : "Unknown",
+                    d.DocumentType,
+                    d.FileName,
+                    d.ExpiryDate,
+                    DaysExpired = (int)(DateTime.UtcNow - d.ExpiryDate!.Value).TotalDays
+                })
+                .ToListAsync();
+
+            return Ok(new { total = expired.Count, documents = expired });
+        }
+
+        // PUT: api/LearnerDocuments/{id}/expiry
+        // Set or update expiry date for a document.
+        [HttpPut("{id}/expiry")]
+        public async Task<IActionResult> SetExpiryDate(int id, [FromBody] SetExpiryRequest request)
+        {
+            var doc = await _context.LearnerDocuments.FindAsync(id);
+            if (doc == null) return NotFound(new { message = "Document not found" });
+
+            doc.ExpiryDate      = request.ExpiryDate;
+            doc.ExpiryAlertSent = false; // Reset alert so it fires again if changed
+            doc.UpdatedAt       = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Expiry date updated", expiryDate = request.ExpiryDate });
+        }
+    }
+
+    public class SetExpiryRequest
+    {
+        public DateTime? ExpiryDate { get; set; }
     }
 }

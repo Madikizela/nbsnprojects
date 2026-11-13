@@ -61,6 +61,13 @@ namespace backend.Models
         [StringLength(500)]
         public string? DeclineReason { get; set; }
 
+        // Document expiry tracking
+        /// <summary>Optional expiry date for documents that need periodic renewal (e.g. ID, Proof of Residence).</summary>
+        public DateTime? ExpiryDate { get; set; }
+
+        /// <summary>Set to true once a "document expiring soon" notification has been sent to avoid duplicates.</summary>
+        public bool ExpiryAlertSent { get; set; } = false;
+
         // Navigation properties
         [ForeignKey("LearnerId")]
         public virtual Learner? Learner { get; set; }
