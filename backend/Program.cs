@@ -352,7 +352,35 @@ try
             )",
             // LearnerDocument expiry columns
             "ALTER TABLE \"LearnerDocuments\" ADD COLUMN IF NOT EXISTS \"ExpiryDate\" timestamptz NULL",
-            "ALTER TABLE \"LearnerDocuments\" ADD COLUMN IF NOT EXISTS \"ExpiryAlertSent\" boolean NOT NULL DEFAULT false"
+            "ALTER TABLE \"LearnerDocuments\" ADD COLUMN IF NOT EXISTS \"ExpiryAlertSent\" boolean NOT NULL DEFAULT false",
+            // Budget tables
+            @"CREATE TABLE IF NOT EXISTS ""project_budget_phases"" (
+                ""Id"" serial PRIMARY KEY,
+                ""ProjectId"" integer NOT NULL,
+                ""Name"" varchar(100) NOT NULL,
+                ""Description"" varchar(500) NULL,
+                ""AllocatedBudget"" numeric(18,2) NOT NULL DEFAULT 0,
+                ""SpentBudget"" numeric(18,2) NOT NULL DEFAULT 0,
+                ""StartDate"" varchar(20) NULL,
+                ""EndDate"" varchar(20) NULL,
+                ""PhaseOrder"" integer NOT NULL DEFAULT 1,
+                ""CreatedAt"" timestamptz NOT NULL DEFAULT NOW(),
+                ""UpdatedAt"" timestamptz NOT NULL DEFAULT NOW()
+            )",
+            @"CREATE TABLE IF NOT EXISTS ""project_budget_line_items"" (
+                ""Id"" serial PRIMARY KEY,
+                ""PhaseId"" integer NOT NULL,
+                ""Category"" varchar(100) NOT NULL,
+                ""Description"" varchar(500) NOT NULL,
+                ""AllocatedAmount"" numeric(18,2) NOT NULL DEFAULT 0,
+                ""SpentAmount"" numeric(18,2) NOT NULL DEFAULT 0,
+                ""IsPerLearner"" boolean NOT NULL DEFAULT false,
+                ""CostPerLearner"" numeric(18,2) NULL,
+                ""LearnersCount"" integer NULL,
+                ""IsEditable"" boolean NOT NULL DEFAULT true,
+                ""CreatedAt"" timestamptz NOT NULL DEFAULT NOW(),
+                ""UpdatedAt"" timestamptz NOT NULL DEFAULT NOW()
+            )"
         };
 
         foreach (var sql in columnMigrations)

@@ -93,6 +93,10 @@ namespace backend.Models
 
         // Notifications
         public DbSet<Notification> Notifications { get; set; }
+
+        // Budget
+        public DbSet<ProjectBudgetPhase> ProjectBudgetPhases { get; set; }
+        public DbSet<ProjectBudgetLineItem> ProjectBudgetLineItems { get; set; }
         
         // Legacy Assessment System Entities
         public DbSet<AssessmentType> AssessmentTypes { get; set; }

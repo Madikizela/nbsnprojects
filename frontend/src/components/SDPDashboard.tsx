@@ -1310,6 +1310,8 @@ const SDPDashboard: React.FC = () => {
   // Budget management state
   const [projectBudget, setProjectBudget] = useState<ProjectBudget | null>(null);
   const [budgetLoading, setBudgetLoading] = useState(false);
+  const [budgetSaving, setBudgetSaving] = useState(false);
+  const [budgetSaveMsg, setBudgetSaveMsg] = useState<string | null>(null);
   const [newLineItem, setNewLineItem] = useState({
     category: '',
     description: '',
@@ -3163,20 +3165,113 @@ const SDPDashboard: React.FC = () => {
     return lineItems;
   };
 
-  // Load budget data for selected project
-  const loadBudgetData = () => {
-    if (!selectedProject) return;
-    
+  // Load budget data — fetch from API, fall back to local init if none saved yet
+  const loadBudgetData = async (projectOverride?: typeof selectedProject) => {
+    const project = projectOverride ?? selectedProject;
+    if (!project) return;
     setBudgetLoading(true);
-    // In a real app, this would fetch from API
-    // For now, we'll initialize with default data
-    const budget = initializeBudget(selectedProject);
-    setProjectBudget(budget);
-    setBudgetLoading(false);
+    try {
+      const token = localStorage.getItem('token');
+      const r = await fetch(`${API}/api/Budget/project/${project.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (r.ok) {
+        const data = await r.json();
+        if (data.phases && data.phases.length > 0) {
+          // Reconstruct ProjectBudget from API response
+          const phases: ProjectPhase[] = data.phases.map((ph: any) => ({
+            id: `phase-db-${ph.id}`,
+            name: ph.name,
+            description: ph.description || '',
+            allocatedBudget: ph.allocatedBudget,
+            spentBudget: ph.spentBudget,
+            remainingBudget: ph.allocatedBudget - ph.lineItems.reduce((s: number, li: any) => s + li.allocatedAmount, 0),
+            startDate: ph.startDate || '',
+            endDate: ph.endDate || '',
+            lineItems: ph.lineItems.map((li: any) => ({
+              id: `li-db-${li.id}`,
+              category: li.category,
+              description: li.description,
+              allocatedAmount: li.allocatedAmount,
+              spentAmount: li.spentAmount,
+              remainingAmount: li.allocatedAmount - li.spentAmount,
+              isEditable: li.isEditable
+            }))
+          }));
+          const totalLineItemAllocated = phases.reduce((s, ph) =>
+            s + ph.lineItems.reduce((s2, li) => s2 + li.allocatedAmount, 0), 0);
+          setProjectBudget({
+            projectId: project.id,
+            totalBudget: data.totalBudget,
+            totalAllocated: totalLineItemAllocated,
+            totalSpent: data.totalSpent,
+            remainingBudget: data.totalBudget - totalLineItemAllocated,
+            numberOfPhases: phases.length,
+            phases
+          });
+          setPhaseSetupComplete(true);
+          setNumberOfPhases(phases.length);
+          if (phases.length > 0) setActivePhase(phases[0].id);
+        } else {
+          // No saved budget — start fresh
+          setProjectBudget(initializeBudget(project));
+        }
+      }
+    } catch (err) {
+      console.error('Error loading budget:', err);
+      setProjectBudget(initializeBudget(project));
+    } finally {
+      setBudgetLoading(false);
+    }
+  };
+
+  // Save current budget state to the API — called after every mutation
+  const saveBudgetToAPI = async (budget: ProjectBudget) => {
+    if (!selectedProject) return;
+    setBudgetSaving(true);
+    setBudgetSaveMsg(null);
+    try {
+      const token = localStorage.getItem('token');
+      const payload = {
+        phases: budget.phases.map(ph => ({
+          name: ph.name,
+          description: ph.description,
+          allocatedBudget: ph.allocatedBudget,
+          spentBudget: ph.spentBudget,
+          startDate: ph.startDate,
+          endDate: ph.endDate,
+          lineItems: ph.lineItems.map(li => ({
+            category: li.category,
+            description: li.description,
+            allocatedAmount: li.allocatedAmount,
+            spentAmount: li.spentAmount,
+            isPerLearner: false,
+            costPerLearner: null,
+            learnersCount: null,
+            isEditable: li.isEditable
+          }))
+        }))
+      };
+      const r = await fetch(`${API}/api/Budget/project/${selectedProject.id}/phases`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      if (r.ok) {
+        setBudgetSaveMsg('✅ Saved');
+        setTimeout(() => setBudgetSaveMsg(null), 2000);
+      } else {
+        setBudgetSaveMsg('❌ Save failed');
+      }
+    } catch {
+      setBudgetSaveMsg('❌ Network error');
+    } finally {
+      setBudgetSaving(false);
+    }
   };
 
   // Set up project phases — start empty so user can add line items manually
-  const setupProjectPhases = () => {
+  const setupProjectPhases = async () => {
     if (!selectedProject || numberOfPhases < 1) return;
 
     const budgetPerPhase = selectedProject.budgetAmount / numberOfPhases;
@@ -3209,6 +3304,8 @@ const SDPDashboard: React.FC = () => {
     setProjectBudget(budget);
     setPhaseSetupComplete(true);
     setActivePhase(phases[0].id);
+    // Persist immediately so phases survive logout
+    await saveBudgetToAPI(budget);
   };
 
   // Add a new phase
@@ -3403,15 +3500,16 @@ const SDPDashboard: React.FC = () => {
     const totalAllocated = updatedPhases.reduce((sum, phase) => 
       sum + phase.lineItems.reduce((phaseSum, item) => phaseSum + item.allocatedAmount, 0), 0);
 
-    setProjectBudget({
+    const newBudget = {
       ...projectBudget,
       phases: updatedPhases,
       totalAllocated,
       remainingBudget: projectBudget.totalBudget - totalAllocated
-    });
+    };
+    setProjectBudget(newBudget);
+    // Debounce save — don't hammer API on every keystroke
+    setTimeout(() => saveBudgetToAPI(newBudget), 1000);
   };
-
-  // Add new budget line item to active phase
   const handleAddLineItem = () => {
     if (!projectBudget || !activePhase || !newLineItem.category || !newLineItem.description) return;
 
@@ -3452,12 +3550,14 @@ const SDPDashboard: React.FC = () => {
     const totalAllocated = updatedPhases.reduce((sum, phase) => 
       sum + phase.lineItems.reduce((phaseSum, item) => phaseSum + item.allocatedAmount, 0), 0);
 
-    setProjectBudget({
+    const newBudget = {
       ...projectBudget,
       phases: updatedPhases,
       totalAllocated,
       remainingBudget: projectBudget.totalBudget - totalAllocated
-    });
+    };
+    setProjectBudget(newBudget);
+    saveBudgetToAPI(newBudget);
 
     // Reset form
     setNewLineItem({
@@ -3490,12 +3590,14 @@ const SDPDashboard: React.FC = () => {
     const totalAllocated = updatedPhases.reduce((sum, phase) => 
       sum + phase.lineItems.reduce((phaseSum, item) => phaseSum + item.allocatedAmount, 0), 0);
 
-    setProjectBudget({
+    const newBudget = {
       ...projectBudget,
       phases: updatedPhases,
       totalAllocated,
       remainingBudget: projectBudget.totalBudget - totalAllocated
-    });
+    };
+    setProjectBudget(newBudget);
+    saveBudgetToAPI(newBudget);
   };
 
   // Render budget management section
@@ -3509,6 +3611,15 @@ const SDPDashboard: React.FC = () => {
         <div className="card-body text-center text-white py-4">
           <h2 className="mb-2" style={{ fontWeight: 700, fontSize: '1.8rem' }}>💰 Budget Management</h2>
           <p className="mb-0 opacity-75" style={{ fontSize: '1rem' }}>Manage project budget allocations and track spending</p>
+          {/* Save status indicator */}
+          {(budgetSaving || budgetSaveMsg) && (
+            <div className="mt-2" style={{ fontSize: 13 }}>
+              {budgetSaving
+                ? <span style={{ color: 'rgba(255,255,255,0.7)' }}><span className="spinner-border spinner-border-sm me-1" role="status" style={{ width: 12, height: 12 }} />Saving...</span>
+                : <span style={{ color: budgetSaveMsg?.startsWith('✅') ? '#86efac' : '#fca5a5' }}>{budgetSaveMsg}</span>
+              }
+            </div>
+          )}
         </div>
       </div>
 
@@ -3534,7 +3645,7 @@ const SDPDashboard: React.FC = () => {
                   setProjectBudget(null);
                   setNumberOfPhases(1);
                   if (project) {
-                    loadBudgetData();
+                    loadBudgetData(project);  // pass project directly — state not updated yet
                   }
                 }}
               >
@@ -4160,7 +4271,7 @@ const SDPDashboard: React.FC = () => {
                       setTimeout(() => setSidebarTip(prev => prev?.startsWith('💡') ? null : prev), 6000);
                       return;
                     }
-                    loadBudgetData();
+                    loadBudgetData(selectedProject ?? undefined);
                     setActiveSection('budget-management');
                   }}
                   disabled={projects.length === 0}
