@@ -3063,16 +3063,17 @@ const SDPDashboard: React.FC = () => {
       };
     }
 
-    // If phases are set up, use existing phase data
+    // If phases are set up, use existing phase data — recalculate from actual line items
     const phases = projectBudget?.phases || [];
-    const totalAllocated = phases.reduce((sum, phase) => sum + phase.allocatedBudget, 0);
-    
+    const totalLineItemAllocated = phases.reduce((sum, phase) =>
+      sum + phase.lineItems.reduce((ps, item) => ps + item.allocatedAmount, 0), 0);
+
     return {
       projectId: project.id,
       totalBudget: project.budgetAmount,
-      totalAllocated,
+      totalAllocated: totalLineItemAllocated,
       totalSpent: phases.reduce((sum, phase) => sum + phase.spentBudget, 0),
-      remainingBudget: project.budgetAmount - totalAllocated,
+      remainingBudget: project.budgetAmount - totalLineItemAllocated,
       numberOfPhases: numberOfPhases,
       phases: phases
     };
@@ -3172,7 +3173,7 @@ const SDPDashboard: React.FC = () => {
     setBudgetLoading(false);
   };
 
-  // Set up project phases
+  // Set up project phases — start empty so user can add line items manually
   const setupProjectPhases = () => {
     if (!selectedProject || numberOfPhases < 1) return;
 
@@ -3186,19 +3187,19 @@ const SDPDashboard: React.FC = () => {
         description: `Project phase ${i} of ${numberOfPhases}`,
         allocatedBudget: budgetPerPhase,
         spentBudget: 0,
-        remainingBudget: budgetPerPhase,
+        remainingBudget: budgetPerPhase,  // full budget available — user adds items manually
         startDate: '',
         endDate: '',
-        lineItems: createPhaseLineItems(selectedProject, budgetPerPhase)
+        lineItems: []  // empty — user builds the budget themselves
       });
     }
 
     const budget: ProjectBudget = {
       projectId: selectedProject.id,
       totalBudget: selectedProject.budgetAmount,
-      totalAllocated: selectedProject.budgetAmount,
+      totalAllocated: 0,          // nothing allocated yet
       totalSpent: 0,
-      remainingBudget: 0,
+      remainingBudget: selectedProject.budgetAmount,  // full amount available
       numberOfPhases: numberOfPhases,
       phases: phases
     };
@@ -3222,7 +3223,7 @@ const SDPDashboard: React.FC = () => {
       remainingBudget: newPhase.allocatedBudget,
       startDate: newPhase.startDate,
       endDate: newPhase.endDate,
-      lineItems: createPhaseLineItems(selectedProject, newPhase.allocatedBudget)
+      lineItems: []  // user adds items manually
     };
 
     const updatedPhases = [...projectBudget.phases, phase];
@@ -4116,16 +4117,16 @@ const SDPDashboard: React.FC = () => {
                   <button
                     onClick={handleAddLineItem}
                     className="btn btn-success w-100"
-                    disabled={!newLineItem.category || !newLineItem.description || !activePhase || (projectBudget?.remainingBudget ?? 0) < newLineItem.allocatedAmount}
+                    disabled={!newLineItem.category || !newLineItem.description || !activePhase || (projectBudget?.phases.find(p => p.id === activePhase)?.remainingBudget ?? 0) < newLineItem.allocatedAmount}
                     title={!activePhase ? 'Select a phase above first' : !newLineItem.category ? 'Select a category' : !newLineItem.description ? 'Enter a description' : ''}
                   >
                     ➕ Add
                   </button>
                 </div>
               </div>
-              {projectBudget.remainingBudget < newLineItem.allocatedAmount && newLineItem.allocatedAmount > 0 && (
+              {activePhase && (projectBudget?.phases.find(p => p.id === activePhase)?.remainingBudget ?? 0) < newLineItem.allocatedAmount && newLineItem.allocatedAmount > 0 && (
                 <div className="alert alert-warning mt-3">
-                  ⚠️ This allocation would exceed the remaining budget of R {projectBudget.remainingBudget.toLocaleString()}
+                  ⚠️ This allocation would exceed the remaining phase budget of R {(projectBudget?.phases.find(p => p.id === activePhase)?.remainingBudget ?? 0).toLocaleString()}
                 </div>
               )}
             </div>
