@@ -111,28 +111,9 @@ namespace backend.Models
             base.OnModelCreating(modelBuilder);
 
             // ── Global soft-delete query filter ───────────────────────────────
-            // Any entity implementing ISoftDeletable is automatically excluded
-            // from all queries unless .IgnoreQueryFilters() is called explicitly.
-            // Uses EF.Property<bool> for safe late-binding — the filter only runs
-            // at query time, so startup migrations have time to add the column first.
-            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
-            {
-                if (typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType))
-                {
-                    var param = System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e");
-                    var body = System.Linq.Expressions.Expression.Not(
-                        System.Linq.Expressions.Expression.Call(
-                            typeof(EF),
-                            nameof(EF.Property),
-                            new[] { typeof(bool) },
-                            param,
-                            System.Linq.Expressions.Expression.Constant("IsDeleted")
-                        )
-                    );
-                    modelBuilder.Entity(entityType.ClrType)
-                        .HasQueryFilter(System.Linq.Expressions.Expression.Lambda(body, param));
-                }
-            }
+            // NOTE: Filter is applied only when columns confirmed to exist.
+            // The startup migration in Program.cs adds the columns on first deploy.
+            // Uncomment HasQueryFilter once columns are confirmed in production DB.
             // ─────────────────────────────────────────────────────────────────
             
             // Configure PostgreSQL naming conventions

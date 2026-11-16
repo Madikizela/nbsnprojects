@@ -102,15 +102,13 @@ namespace backend.Controllers
                 _logger.LogInformation("Looking for user/admin with email: {Email}", email);
                 
                 var systemAdmin = await _context.SystemAdmins
-                    .IgnoreQueryFilters()
-                    .FirstOrDefaultAsync(sa => sa.Email != null && sa.Email.ToLower() == normalizedEmail && !sa.IsDeleted);
+                    .FirstOrDefaultAsync(sa => sa.Email != null && sa.Email.ToLower() == normalizedEmail);
 
                 var user = await _context.Users
-                    .IgnoreQueryFilters()
                     .Include(u => u.Client)
                     .Include(u => u.SkillsDevelopmentProvider)
                     .Include(u => u.Department)
-                    .FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == normalizedEmail && !u.IsDeleted);
+                    .FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == normalizedEmail);
 
                 _logger.LogInformation("DEBUG: Found admin: {AdminFound}, Found user: {UserFound}", systemAdmin != null, user != null);
 
@@ -540,11 +538,9 @@ namespace backend.Controllers
             {
                 // Accept either username or email
                 var learner = await _context.Learners
-                    .IgnoreQueryFilters()
                     .FirstOrDefaultAsync(l =>
-                        (!l.IsDeleted) &&
-                        ((l.Username != null && l.Username.ToLower() == login) ||
-                        (l.Email    != null && l.Email.ToLower()    == login)));
+                        (l.Username != null && l.Username.ToLower() == login) ||
+                        (l.Email    != null && l.Email.ToLower()    == login));
 
                 if (learner == null || string.IsNullOrWhiteSpace(learner.PasswordHash))
                     return Unauthorized(new { message = "Invalid credentials" });
