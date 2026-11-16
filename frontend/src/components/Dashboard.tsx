@@ -639,21 +639,29 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
   // Quotation form state
   const [qForm, setQForm] = React.useState({
     quoteNumber: 1, clientName: '', clientOrganisation: '', clientContact: '',
-    quoteDate: new Date().toLocaleDateString('en-ZA'),
-    validUntil: new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-ZA'),
-    projectOverview: '', scopeOfWork: '', paymentTerms: '50% deposit on acceptance. 50% balance on delivery. Payment by EFT.',
-    deliveryTimeline: '7–10 working days from receipt of signed quotation and deposit.',
+    organisationType: '', trainingCentres: '', estimatedLearners: '',
+    quoteDate: new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'long', year: 'numeric' }),
+    validUntil: new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-ZA', { day: '2-digit', month: 'long', year: 'numeric' }),
+    projectOverview: '',
+    // Prepared By (pre-populated, editable)
+    preparedByName:  'NBSN Projects',
+    preparedByTitle: 'Skills Development Solutions',
+    preparedByEmail: 'info@nbsnprojects.co.za',
+    preparedByPhone: '0733904588',
+    preparedByWeb:   'www.nbsnprojects.co.za',
+    preparedByCity:  'Durban, KwaZulu-Natal, South Africa',
+    // Subscription packages
+    starterSetup: 9000, starterMonthly: 3500,
+    growthSetup: 12500, growthMonthly: 4500,
+    proSetup: 15000,    proMonthly: 5500,
+    // Hardware rental
+    futronicMonthly: 'R350 per unit',   futronicDeposit: 'R750 per unit',
+    zktecoMonthly:   'R850–R1,100 per unit', zktecoDeposit: 'R2,500 per unit',
+    // Setup fees
+    futronicSetupFee: 'R1,500 once-off', zktecoSetupFee: 'R2,500–R4,000 once-off',
+    onsiteFee: 'From R1,500 per site',   additionalTermFee: 'R750 per device',
   });
-  const [qItems, setQItems] = React.useState<QLineItem[]>([
-    { description: 'System design and master lists', amount: 1000 },
-    { description: 'Enrolment Register', amount: 1500 },
-    { description: 'Attendance Register', amount: 1000 },
-    { description: 'Assessment Results', amount: 1500 },
-    { description: 'Verification Register', amount: 1500 },
-    { description: 'Dashboard and summaries', amount: 1000 },
-    { description: 'Protection, branding and user guide', amount: 1000 },
-    { description: 'Testing, handover and revisions', amount: 1500 },
-  ]);
+  const [qItems, setQItems] = React.useState<QLineItem[]>([]);
 
   // SLA form state
   const [sForm, setSForm] = React.useState({
@@ -808,73 +816,168 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
 
       {/* ── Tab: New Quotation ── */}
       {tab === 'quotation' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-          {/* Left — client info */}
-          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>📋 Quotation Details</div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Fill in client and project information</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            <label style={labelStyle}>Quote Number</label>
-            <input type="number" style={inputStyle} value={qForm.quoteNumber} onChange={e => setQForm(p => ({ ...p, quoteNumber: parseInt(e.target.value) || 1 }))} min={1} />
+          {/* Row 1: Client Info + Prepared By */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            {/* Client Details */}
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>👤 Client Details</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>This appears in the "Prepared For" box</div>
 
-            <label style={labelStyle}>Client Name *</label>
-            <input style={inputStyle} value={qForm.clientName} onChange={e => setQForm(p => ({ ...p, clientName: e.target.value }))} placeholder="e.g. John Smith" />
+              <label style={labelStyle}>Quote Number</label>
+              <input type="number" style={inputStyle} value={qForm.quoteNumber} min={1}
+                onChange={e => setQForm(p => ({ ...p, quoteNumber: parseInt(e.target.value) || 1 }))} />
 
-            <label style={labelStyle}>Client Organisation *</label>
-            <input style={inputStyle} value={qForm.clientOrganisation} onChange={e => setQForm(p => ({ ...p, clientOrganisation: e.target.value }))} placeholder="e.g. LMIS Training Academy" />
+              <label style={labelStyle}>Quote Date</label>
+              <input style={inputStyle} value={qForm.quoteDate}
+                onChange={e => setQForm(p => ({ ...p, quoteDate: e.target.value }))} />
 
-            <label style={labelStyle}>Client Email / Phone</label>
-            <input style={inputStyle} value={qForm.clientContact} onChange={e => setQForm(p => ({ ...p, clientContact: e.target.value }))} placeholder="e.g. john@example.com | 082 000 0000" />
+              <label style={labelStyle}>Valid Until</label>
+              <input style={inputStyle} value={qForm.validUntil}
+                onChange={e => setQForm(p => ({ ...p, validUntil: e.target.value }))} />
 
-            <label style={labelStyle}>Quote Date</label>
-            <input style={inputStyle} value={qForm.quoteDate} onChange={e => setQForm(p => ({ ...p, quoteDate: e.target.value }))} />
+              <label style={labelStyle}>Client Name *</label>
+              <input style={inputStyle} value={qForm.clientName} placeholder="e.g. John Smith"
+                onChange={e => setQForm(p => ({ ...p, clientName: e.target.value }))} />
 
-            <label style={labelStyle}>Valid Until</label>
-            <input style={inputStyle} value={qForm.validUntil} onChange={e => setQForm(p => ({ ...p, validUntil: e.target.value }))} />
+              <label style={labelStyle}>Client Organisation *</label>
+              <input style={inputStyle} value={qForm.clientOrganisation} placeholder="e.g. LMIS Training Academy"
+                onChange={e => setQForm(p => ({ ...p, clientOrganisation: e.target.value }))} />
 
-            <label style={labelStyle}>Project Overview</label>
-            <textarea rows={3} style={{ ...inputStyle, resize: 'vertical' }} value={qForm.projectOverview}
-              onChange={e => setQForm(p => ({ ...p, projectOverview: e.target.value }))}
-              placeholder="Describe the project (optional — default text used if blank)" />
+              <label style={labelStyle}>Client Email / Phone</label>
+              <input style={inputStyle} value={qForm.clientContact} placeholder="e.g. john@example.com | 082 000 0000"
+                onChange={e => setQForm(p => ({ ...p, clientContact: e.target.value }))} />
 
-            <label style={labelStyle}>Payment Terms</label>
-            <textarea rows={2} style={{ ...inputStyle, resize: 'vertical' }} value={qForm.paymentTerms}
-              onChange={e => setQForm(p => ({ ...p, paymentTerms: e.target.value }))} />
+              <label style={labelStyle}>Organisation Type</label>
+              <input style={inputStyle} value={qForm.organisationType} placeholder="e.g. SETA-accredited provider"
+                onChange={e => setQForm(p => ({ ...p, organisationType: e.target.value }))} />
 
-            <label style={labelStyle}>Delivery Timeline</label>
-            <input style={inputStyle} value={qForm.deliveryTimeline} onChange={e => setQForm(p => ({ ...p, deliveryTimeline: e.target.value }))} />
+              <label style={labelStyle}>Training Centre(s)</label>
+              <input style={inputStyle} value={qForm.trainingCentres} placeholder="e.g. Durban, Johannesburg"
+                onChange={e => setQForm(p => ({ ...p, trainingCentres: e.target.value }))} />
+
+              <label style={labelStyle}>Estimated Learners</label>
+              <input type="number" style={inputStyle} value={qForm.estimatedLearners} placeholder="e.g. 60"
+                onChange={e => setQForm(p => ({ ...p, estimatedLearners: e.target.value }))} />
+
+              <label style={labelStyle}>Project Overview</label>
+              <textarea rows={3} style={{ ...inputStyle, resize: 'vertical' }} value={qForm.projectOverview}
+                placeholder="Leave blank to use default text"
+                onChange={e => setQForm(p => ({ ...p, projectOverview: e.target.value }))} />
+            </div>
+
+            {/* Prepared By (NBSN side) */}
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>🏢 Prepared By (NBSN)</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Pre-populated — edit if needed</div>
+
+              <label style={labelStyle}>Organisation Name</label>
+              <input style={inputStyle} value={qForm.preparedByName}
+                onChange={e => setQForm(p => ({ ...p, preparedByName: e.target.value }))} />
+
+              <label style={labelStyle}>Tagline / Title</label>
+              <input style={inputStyle} value={qForm.preparedByTitle}
+                onChange={e => setQForm(p => ({ ...p, preparedByTitle: e.target.value }))} />
+
+              <label style={labelStyle}>Email</label>
+              <input style={inputStyle} value={qForm.preparedByEmail}
+                onChange={e => setQForm(p => ({ ...p, preparedByEmail: e.target.value }))} />
+
+              <label style={labelStyle}>Phone</label>
+              <input style={inputStyle} value={qForm.preparedByPhone}
+                onChange={e => setQForm(p => ({ ...p, preparedByPhone: e.target.value }))} />
+
+              <label style={labelStyle}>Website</label>
+              <input style={inputStyle} value={qForm.preparedByWeb}
+                onChange={e => setQForm(p => ({ ...p, preparedByWeb: e.target.value }))} />
+
+              <label style={labelStyle}>City / Location</label>
+              <input style={inputStyle} value={qForm.preparedByCity}
+                onChange={e => setQForm(p => ({ ...p, preparedByCity: e.target.value }))} />
+            </div>
           </div>
 
-          {/* Right — line items */}
+          {/* Row 2: Subscription Packages */}
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>💰 Line Items</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-              {qItems.map((item, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input style={{ flex: 1, ...inputStyle, marginTop: 0 }} value={item.description}
-                    onChange={e => setQItems(prev => prev.map((it, idx) => idx === i ? { ...it, description: e.target.value } : it))} />
-                  <input type="number" style={{ width: 100, ...inputStyle, marginTop: 0 }} value={item.amount}
-                    onChange={e => setQItems(prev => prev.map((it, idx) => idx === i ? { ...it, amount: parseFloat(e.target.value) || 0 } : it))} />
-                  <button onClick={() => setQItems(prev => prev.filter((_, idx) => idx !== i))}
-                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fee2e2', background: '#fff', color: '#dc2626', cursor: 'pointer', fontSize: 12 }}>✕</button>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>📦 Subscription Package Pricing</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+              {([
+                ['Starter (30–50 learners)', 'starterSetup', 'starterMonthly'],
+                ['Growth (51–75 learners)',  'growthSetup',  'growthMonthly'],
+                ['Professional (76–100)',    'proSetup',     'proMonthly'],
+              ] as [string, keyof typeof qForm, keyof typeof qForm][]).map(([label, setupKey, monthlyKey]) => (
+                <div key={label} style={{ background: '#f8fafc', borderRadius: 10, padding: 14, border: '1px solid #e2e8f0' }}>
+                  <div style={{ fontWeight: 600, fontSize: 12, color: '#475569', marginBottom: 10 }}>{label}</div>
+                  <label style={{ ...labelStyle, marginTop: 0 }}>Setup Fee (once-off)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ color: '#64748b', fontSize: 13 }}>R</span>
+                    <input type="number" style={{ ...inputStyle, flex: 1 }} value={qForm[setupKey] as number}
+                      onChange={e => setQForm(p => ({ ...p, [setupKey]: parseFloat(e.target.value) || 0 }))} />
+                  </div>
+                  <label style={labelStyle}>Monthly Subscription</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ color: '#64748b', fontSize: 13 }}>R</span>
+                    <input type="number" style={{ ...inputStyle, flex: 1 }} value={qForm[monthlyKey] as number}
+                      onChange={e => setQForm(p => ({ ...p, [monthlyKey]: parseFloat(e.target.value) || 0 }))} />
+                  </div>
                 </div>
               ))}
             </div>
-            <button onClick={() => setQItems(prev => [...prev, { description: '', amount: 0 }])}
-              style={{ padding: '6px 14px', borderRadius: 8, border: '1px dashed #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: 12, cursor: 'pointer', width: '100%' }}>
-              + Add Line Item
-            </button>
+          </div>
 
-            <div style={{ marginTop: 12, padding: '10px 12px', background: '#f0fdf4', borderRadius: 8, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
-              <span style={{ color: '#16a34a' }}>Total (excl. VAT)</span>
-              <span style={{ color: '#16a34a' }}>R {qItems.reduce((s, i) => s + i.amount, 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}</span>
+          {/* Row 3: Hardware & Setup Fees */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            {/* Hardware Rental */}
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>🖥️ Hardware Rental Rates</div>
+
+              <div style={{ fontWeight: 600, fontSize: 12, color: '#475569', marginBottom: 6 }}>Futronic FS88H</div>
+              <label style={{ ...labelStyle, marginTop: 0 }}>Monthly Rental</label>
+              <input style={inputStyle} value={qForm.futronicMonthly}
+                onChange={e => setQForm(p => ({ ...p, futronicMonthly: e.target.value }))} />
+              <label style={labelStyle}>Refundable Deposit</label>
+              <input style={inputStyle} value={qForm.futronicDeposit}
+                onChange={e => setQForm(p => ({ ...p, futronicDeposit: e.target.value }))} />
+
+              <div style={{ fontWeight: 600, fontSize: 12, color: '#475569', margin: '14px 0 6px' }}>ZKTeco Standalone Terminal</div>
+              <label style={{ ...labelStyle, marginTop: 0 }}>Monthly Rental</label>
+              <input style={inputStyle} value={qForm.zktecoMonthly}
+                onChange={e => setQForm(p => ({ ...p, zktecoMonthly: e.target.value }))} />
+              <label style={labelStyle}>Refundable Deposit</label>
+              <input style={inputStyle} value={qForm.zktecoDeposit}
+                onChange={e => setQForm(p => ({ ...p, zktecoDeposit: e.target.value }))} />
             </div>
 
+            {/* Setup / Integration Fees */}
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>🔧 Setup &amp; Integration Fees</div>
+
+              <label style={labelStyle}>Futronic FS88H Setup / Integration</label>
+              <input style={inputStyle} value={qForm.futronicSetupFee}
+                onChange={e => setQForm(p => ({ ...p, futronicSetupFee: e.target.value }))} />
+
+              <label style={labelStyle}>ZKTeco Configuration / Integration</label>
+              <input style={inputStyle} value={qForm.zktecoSetupFee}
+                onChange={e => setQForm(p => ({ ...p, zktecoSetupFee: e.target.value }))} />
+
+              <label style={labelStyle}>Onsite Installation / Commissioning</label>
+              <input style={inputStyle} value={qForm.onsiteFee}
+                onChange={e => setQForm(p => ({ ...p, onsiteFee: e.target.value }))} />
+
+              <label style={labelStyle}>Additional Terminal Configuration</label>
+              <input style={inputStyle} value={qForm.additionalTermFee}
+                onChange={e => setQForm(p => ({ ...p, additionalTermFee: e.target.value }))} />
+            </div>
+          </div>
+
+          {/* Generate button */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
             <button onClick={() => generate('quotation')} disabled={generating || !qForm.clientName || !qForm.clientOrganisation}
-              style={{ marginTop: 20, width: '100%', padding: '12px', borderRadius: 10, border: 'none',
-                background: generating || !qForm.clientName ? '#e2e8f0' : 'linear-gradient(135deg,#0d9488,#0284c7)',
+              style={{ width: '100%', padding: '14px', borderRadius: 10, border: 'none',
+                background: generating || !qForm.clientName ? '#e2e8f0' : 'linear-gradient(135deg,#0d2240,#0d7377)',
                 color: generating || !qForm.clientName ? '#94a3b8' : '#fff',
-                fontWeight: 700, fontSize: 14, cursor: generating || !qForm.clientName ? 'not-allowed' : 'pointer' }}>
+                fontWeight: 700, fontSize: 15, cursor: generating || !qForm.clientName ? 'not-allowed' : 'pointer' }}>
               {generating ? <><span className="spinner-border spinner-border-sm me-2" role="status" />Generating…</> : '📄 Generate Quotation PDF'}
             </button>
           </div>

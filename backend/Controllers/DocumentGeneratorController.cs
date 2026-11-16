@@ -238,11 +238,11 @@ namespace backend.Controllers
                                     .FontSize(8).Bold().FontColor(tealDark).LetterSpacing(0.1f);
                                 c.Item().Padding(10).Column(inner =>
                                 {
-                                    inner.Item().Text("Sbusiso Madikizela").Bold().FontSize(12).FontColor(navyDark);
-                                    inner.Item().PaddingTop(2).Text("NBSN Projects");
-                                    inner.Item().Text("Durban, KwaZulu-Natal, South Africa");
-                                    inner.Item().Text("info@nbsnprojects.co.za  |  0733904588");
-                                    inner.Item().Text("www.nbsnprojects.co.za");
+                                    inner.Item().Text(d.PreparedByName).Bold().FontSize(12).FontColor(navyDark);
+                                    inner.Item().PaddingTop(2).Text(d.PreparedByTitle).FontColor(bodyText);
+                                    inner.Item().Text(d.PreparedByCity).FontColor(bodyText);
+                                    inner.Item().Text($"{d.PreparedByEmail}  |  {d.PreparedByPhone}").FontColor(bodyText);
+                                    inner.Item().Text(d.PreparedByWeb).FontColor(bodyText);
                                 });
                             });
                         });
@@ -352,9 +352,9 @@ namespace backend.Controllers
                                         table.Cell().Background(navyDark).Padding(7).Text(h).Bold().FontColor("#ffffff").FontSize(9);
                                     var pkgs = new[]
                                     {
-                                        ("Starter",      "30–50",   "R9 000",    "R3,500", "Shared cloud hosting; standard remote support"),
-                                        ("Growth",       "51–75",   "R12 500",   "R4,500", "Shared cloud hosting; standard remote support"),
-                                        ("Professional", "76–100",  "R15 000",   "R5,500", "Shared cloud hosting; standard remote support"),
+                                        ("Starter",      "30–50",   $"R{d.StarterSetup:N0}",   $"R{d.StarterMonthly:N0}", "Shared cloud hosting; standard remote support"),
+                                        ("Growth",       "51–75",   $"R{d.GrowthSetup:N0}",    $"R{d.GrowthMonthly:N0}", "Shared cloud hosting; standard remote support"),
+                                        ("Professional", "76–100",  $"R{d.ProSetup:N0}",       $"R{d.ProMonthly:N0}",    "Shared cloud hosting; standard remote support"),
                                     };
                                     for (int i = 0; i < pkgs.Length; i++)
                                     {
@@ -395,8 +395,8 @@ namespace backend.Controllers
                                         table.Cell().Background(navyDark).Padding(7).Text(h).Bold().FontColor("#ffffff").FontSize(9);
                                     var devices = new[]
                                     {
-                                        ("Futronic FS88H",             "R350 per unit",         "R750 per unit",   "12 months"),
-                                        ("ZKTeco standalone terminal", "R850–R1,100 per unit",   "R2,500 per unit", "12 months"),
+                                        ("Futronic FS88H",             d.FutronicMonthly, d.FutronicDeposit, "12 months"),
+                                        ("ZKTeco standalone terminal", d.ZKTecoMonthly,   d.ZKTecoDeposit,   "12 months"),
                                     };
                                     for (int i = 0; i < devices.Length; i++)
                                     {
@@ -436,10 +436,10 @@ namespace backend.Controllers
                                     table.Cell().Background(navyDark).Padding(7).Text(h).Bold().FontColor("#ffffff").FontSize(9);
                                 var fees = new[]
                                 {
-                                    ("Futronic FS88H setup /\nintegration",      "R1,500 once-off",         "Subject to final implementation scope."),
-                                    ("ZKTeco configuration /\nintegration",       "R2,500–R4,000 once-off",  "Subject to selected model and compatibility."),
-                                    ("Onsite installation /\ncommissioning",      "From R1,500 per site",    "Travel/accommodation, if applicable, quoted separately."),
-                                    ("Additional terminal\nconfiguration",        "R750 per device",         "For additional devices at the same site."),
+                                    ("Futronic FS88H setup /\nintegration",      d.FutronicSetupFee,  "Subject to final implementation scope."),
+                                    ("ZKTeco configuration /\nintegration",       d.ZKTecoSetupFee,    "Subject to selected model and compatibility."),
+                                    ("Onsite installation /\ncommissioning",      d.OnsiteFee,         "Travel/accommodation, if applicable, quoted separately."),
+                                    ("Additional terminal\nconfiguration",        d.AdditionalTermFee, "For additional devices at the same site."),
                                     ("Delivery / courier",                        "At cost / quoted separately", "Based on destination and supplier."),
                                 };
                                 for (int i = 0; i < fees.Length; i++)
@@ -512,7 +512,7 @@ namespace backend.Controllers
                                     table.Cell().Border(0.4f).BorderColor("#e2e8f0").Padding(10)
                                         .Text($"Name: {(string.IsNullOrWhiteSpace(d.ClientName) ? "" : d.ClientName)}").FontSize(9).FontColor(mutedText);
                                     table.Cell().Border(0.4f).BorderColor("#e2e8f0").Padding(10)
-                                        .Text("Name: Sbusiso Madikizela").FontSize(9).FontColor(mutedText);
+                                        .Text($"Name: {d.PreparedByName}").FontSize(9).FontColor(mutedText);
                                     // Signature row
                                     table.Cell().Border(0.4f).BorderColor("#e2e8f0").MinHeight(40).Padding(10)
                                         .Text("Signature:").FontSize(9).FontColor(mutedText);
@@ -719,6 +719,34 @@ namespace backend.Controllers
         public string? DeliveryTimeline { get; set; }
         public List<QuotationLineItem>? LineItems { get; set; }
         public List<ScopeItem>? ScopeItems { get; set; }
+
+        // ── Prepared By (NBSN side) ──
+        public string PreparedByName  { get; set; } = "NBSN Projects";
+        public string PreparedByTitle { get; set; } = "Skills Development Solutions";
+        public string PreparedByEmail { get; set; } = "info@nbsnprojects.co.za";
+        public string PreparedByPhone { get; set; } = "0733904588";
+        public string PreparedByWeb   { get; set; } = "www.nbsnprojects.co.za";
+        public string PreparedByCity  { get; set; } = "Durban, KwaZulu-Natal, South Africa";
+
+        // ── Subscription package pricing (editable) ──
+        public decimal StarterSetup    { get; set; } = 9000;
+        public decimal StarterMonthly  { get; set; } = 3500;
+        public decimal GrowthSetup     { get; set; } = 12500;
+        public decimal GrowthMonthly   { get; set; } = 4500;
+        public decimal ProSetup        { get; set; } = 15000;
+        public decimal ProMonthly      { get; set; } = 5500;
+
+        // ── Hardware rental pricing (editable) ──
+        public string FutronicMonthly   { get; set; } = "R350 per unit";
+        public string FutronicDeposit   { get; set; } = "R750 per unit";
+        public string ZKTecoMonthly     { get; set; } = "R850–R1,100 per unit";
+        public string ZKTecoDeposit     { get; set; } = "R2,500 per unit";
+
+        // ── Setup / integration fees (editable) ──
+        public string FutronicSetupFee  { get; set; } = "R1,500 once-off";
+        public string ZKTecoSetupFee    { get; set; } = "R2,500–R4,000 once-off";
+        public string OnsiteFee         { get; set; } = "From R1,500 per site";
+        public string AdditionalTermFee { get; set; } = "R750 per device";
     }
 
     public class SLAFormData
