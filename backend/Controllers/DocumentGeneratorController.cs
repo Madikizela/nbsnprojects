@@ -892,6 +892,7 @@ namespace backend.Controllers
             const string mutedText= "#64748b";
             const string lightBg  = "#f0fdfa";
             const string white    = "#ffffff";
+            const string rowAlt   = "#f8fafc";
 
             var logoPath = GetLogoPath();
 
@@ -947,50 +948,66 @@ namespace backend.Controllers
                         });
 
                         // ── Summary card ──────────────────────────────────────
-                        col.Item().PaddingTop(16).Background(lightBg).Border(0.4f).BorderColor("#b2dfdb")
-                            .Padding(16).Table(table =>
+                        col.Item().PaddingTop(16).Background(lightBg).Border(0.5f).BorderColor("#b2dfdb")
+                            .Padding(0).Table(table =>
                             {
-                                table.ColumnsDefinition(c => { c.ConstantColumn(160); c.RelativeColumn(); });
+                                table.ColumnsDefinition(c => { c.ConstantColumn(170); c.RelativeColumn(); });
 
-                                void SRow(string label, string value)
+                                void SRow(string label, string value, bool last = false)
                                 {
-                                    table.Cell().PaddingVertical(5).Text(label).Bold().FontSize(10).FontColor(teal);
-                                    table.Cell().PaddingVertical(5).Text(value).FontSize(10).FontColor(bodyText);
+                                    var bot = last ? 0f : 0.4f;
+                                    table.Cell().BorderBottom(bot).BorderColor("#cce8e4")
+                                        .PaddingHorizontal(14).PaddingVertical(9)
+                                        .Text(label).Bold().FontSize(10).FontColor(teal);
+                                    table.Cell().BorderBottom(bot).BorderColor("#cce8e4")
+                                        .PaddingHorizontal(14).PaddingVertical(9)
+                                        .Text(value).FontSize(10).FontColor(bodyText);
                                 }
 
-                                SRow("Client",               d.ClientName);
-                                SRow("Supplier",             "NBSN PROJECTS");
-                                SRow("Effective Date",       effectiveDate);
-                                SRow("Initial Term",         d.InitialTerm ?? "12 months");
-                                SRow("Agreement Reference",  refNo);
-                                SRow("Version",              d.Version ?? "1.0");
+                                SRow("Client",              d.ClientName);
+                                SRow("Supplier",            "NBSN Projects (Pty) Ltd.");
+                                SRow("Effective Date",      effectiveDate);
+                                SRow("Initial Term",        d.InitialTerm ?? "12 months");
+                                SRow("Agreement Reference", refNo);
+                                SRow("Version",             d.Version ?? "1.0", true);
                             });
 
-                        // ── Agreement Particulars ─────────────────────────────
-                        col.Item().PaddingTop(18).Column(ap =>
+                        // ── Agreement Particulars — 2-column table ────────────
+                        col.Item().PaddingTop(20).Column(ap =>
                         {
-                            ap.Item().Text("Agreement Particulars").Bold().FontSize(12).FontColor(bodyText);
-                            ap.Item().PaddingTop(1).LineHorizontal(0.5f).LineColor("#e2e8f0");
-                            ap.Item().PaddingTop(8).Column(inner =>
+                            ap.Item().Row(hr =>
                             {
-                                void P(string label, string value)
+                                hr.ConstantItem(3).Background(navy);
+                                hr.ConstantItem(8);
+                                hr.RelativeItem().Text("Agreement Particulars").Bold().FontSize(12).FontColor(navy);
+                            });
+                            ap.Item().PaddingTop(4).Table(table =>
+                            {
+                                table.ColumnsDefinition(c => { c.ConstantColumn(185); c.RelativeColumn(); });
+
+                                void PRow(string label, string value, bool hl = false)
                                 {
-                                    inner.Item().PaddingBottom(2).Text(txt =>
-                                    {
-                                        txt.Span($"{label}: ").Bold().FontSize(9).FontColor(mutedText);
-                                        txt.Span(value).FontSize(9).FontColor(bodyText);
-                                    });
+                                    table.Cell()
+                                        .Background(hl ? rowAlt : white)
+                                        .Border(0.3f).BorderColor("#e2e8f0")
+                                        .Padding(8).Text(label).Bold().FontSize(9).FontColor(mutedText);
+                                    table.Cell()
+                                        .Background(hl ? rowAlt : white)
+                                        .Border(0.3f).BorderColor("#e2e8f0")
+                                        .Padding(8).Text(value).FontSize(9).FontColor(bodyText);
                                 }
-                                P("Supplier legal name",    "NBSN PROJECTS");
-                                P("Supplier address",       "Durban, KwaZulu-Natal, South Africa");
-                                P("Supplier service owner", "Sbusiso Madikizela — info@nbsnprojects.co.za");
-                                P("Client legal name",      d.ClientName);
+
+                                PRow("Supplier legal name",    "NBSN Projects (Pty) Ltd.",                      true);
+                                PRow("Supplier registration",  "2023 / 200156 / 07");
+                                PRow("Supplier address",       "Durban, KwaZulu-Natal, South Africa",            true);
+                                PRow("Supplier service owner", "Sbusiso Madikizela  —  info@nbsnprojects.co.za");
+                                PRow("Client legal name",      d.ClientName,                                     true);
                                 if (!string.IsNullOrWhiteSpace(d.ClientRegistrationNumber))
-                                    P("Client registration number", d.ClientRegistrationNumber);
+                                    PRow("Client registration", d.ClientRegistrationNumber);
                                 if (!string.IsNullOrWhiteSpace(d.ClientAddress))
-                                    P("Client address",     d.ClientAddress);
+                                    PRow("Client address",     d.ClientAddress, true);
                                 if (!string.IsNullOrWhiteSpace(d.ClientContractOwner))
-                                    P("Client contract owner", d.ClientContractOwner);
+                                    PRow("Client contract owner", d.ClientContractOwner);
                             });
                         });
 
@@ -1007,7 +1024,7 @@ namespace backend.Controllers
                                     r.RelativeItem().Text(title).Bold().FontSize(12).FontColor(navy);
                                 });
                                 sc.Item().PaddingTop(3).LineHorizontal(0.5f).LineColor("#e2e8f0");
-                                sc.Item().PaddingTop(5).Element(content);
+                                sc.Item().PaddingTop(6).Element(content);
                             });
                         }
 
@@ -1016,7 +1033,7 @@ namespace backend.Controllers
                             c.Column(bc =>
                             {
                                 foreach (var item in items)
-                                    bc.Item().PaddingBottom(3).Row(r =>
+                                    bc.Item().PaddingBottom(4).Row(r =>
                                     {
                                         r.ConstantItem(16).PaddingTop(1).Text("•").Bold().FontColor(teal).FontSize(10);
                                         r.RelativeItem().Text(item).FontSize(10).FontColor(bodyText);
@@ -1026,24 +1043,45 @@ namespace backend.Controllers
 
                         // ── 1. Purpose ────────────────────────────────────────
                         Section("1", "Purpose", c => c.Text(
-                            "This Service Level Agreement records the operational service levels applicable to the Supplier's provision of the NBSN PROJECT " +
-                            "Learner Management System to the Client. It supplements the SaaS Subscription and Software Licence Agreement signed by the parties.")
+                            "This Service Level Agreement records the operational service levels applicable to the Supplier's provision of the " +
+                            "NBSN Projects Learner Management System to the Client. It supplements the SaaS Subscription and Software Licence " +
+                            "Agreement signed by the parties.")
                             .FontSize(10).FontColor(bodyText));
 
                         // ── 2. Availability ───────────────────────────────────
-                        Section("2", "Availability Commitment", c => c.Text(
-                            "The Supplier targets monthly availability of 99.5% for the Production Service, measured 24/7 per Service Month. " +
-                            "Planned maintenance window: Sundays 20:00–23:00 SAST with at least 48 hours advance notice.")
-                            .FontSize(10).FontColor(teal));
+                        Section("2", "Availability Commitment", c => c.Column(bc =>
+                        {
+                            bc.Item().Text(
+                                "The Supplier targets monthly availability of 99.5% for the Production Service, measured 24/7 per Service Month.")
+                                .FontSize(10).FontColor(bodyText);
+                            bc.Item().PaddingTop(4).Text(
+                                "Planned maintenance window: Sundays 20:00–23:00 SAST with at least 48 hours advance notice.")
+                                .FontSize(10).FontColor(bodyText);
+                        }));
 
                         // ── 3. Support ────────────────────────────────────────
-                        Section("3", "Support Service", c => Bullets(c, new[]
+                        Section("3", "Support Service", c => c.Table(table =>
                         {
-                            "P1 Critical: 30-minute response, 4-hour resolution target, 24/7.",
-                            "P2 High: 2-business-hour response, 1 Business Day resolution.",
-                            "P3 Medium: 1 Business Day response, 3 Business Day resolution.",
-                            "P4 Low: 2 Business Days response, 5 Business Day resolution.",
-                            "Support channels: support@nbsnprojects.co.za and in-system ticketing.",
+                            table.ColumnsDefinition(tc => { tc.ConstantColumn(80); tc.RelativeColumn(); tc.RelativeColumn(); });
+                            foreach (var h in new[] { "Priority", "Response Target", "Resolution Target" })
+                                table.Cell().Background(navy).Padding(7).Text(h).Bold().FontColor(white).FontSize(9);
+                            var rows = new[]
+                            {
+                                ("P1 Critical", "30 minutes", "4 hours — 24/7"),
+                                ("P2 High",     "2 business hours", "1 Business Day"),
+                                ("P3 Medium",   "1 Business Day", "3 Business Days"),
+                                ("P4 Low",      "2 Business Days", "5 Business Days"),
+                            };
+                            for (int i = 0; i < rows.Length; i++)
+                            {
+                                var bg = i % 2 == 0 ? rowAlt : white;
+                                table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                    .Text(rows[i].Item1).Bold().FontSize(9).FontColor(navy);
+                                table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                    .Text(rows[i].Item2).FontSize(9).FontColor(bodyText);
+                                table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                    .Text(rows[i].Item3).FontSize(9).FontColor(bodyText);
+                            }
                         }));
 
                         // ── 4. Subscription ───────────────────────────────────
@@ -1051,15 +1089,34 @@ namespace backend.Controllers
                         {
                             c.Column(col2 =>
                             {
-                                if (!string.IsNullOrWhiteSpace(d.SubscriptionPackage))
-                                    col2.Item().Text($"Package: {d.SubscriptionPackage}").FontSize(10).FontColor(bodyText);
-                                if (!string.IsNullOrWhiteSpace(d.MonthlyFee))
-                                    col2.Item().PaddingTop(4).Text($"Monthly fee: {d.MonthlyFee}").FontSize(10).FontColor(bodyText);
-                                if (!string.IsNullOrWhiteSpace(d.ImplementationFee))
-                                    col2.Item().PaddingTop(4).Text($"Implementation fee: {d.ImplementationFee}").FontSize(10).FontColor(bodyText);
-                                col2.Item().PaddingTop(8).Text(
+                                bool hasData = !string.IsNullOrWhiteSpace(d.SubscriptionPackage)
+                                           || !string.IsNullOrWhiteSpace(d.MonthlyFee)
+                                           || !string.IsNullOrWhiteSpace(d.ImplementationFee);
+
+                                if (hasData)
+                                {
+                                    col2.Item().Table(table =>
+                                    {
+                                        table.ColumnsDefinition(tc => { tc.ConstantColumn(185); tc.RelativeColumn(); });
+                                        void FRow(string label, string value, bool hl = false)
+                                        {
+                                            table.Cell().Background(hl ? rowAlt : white).Border(0.3f).BorderColor("#e2e8f0")
+                                                .Padding(8).Text(label).Bold().FontSize(9).FontColor(mutedText);
+                                            table.Cell().Background(hl ? rowAlt : white).Border(0.3f).BorderColor("#e2e8f0")
+                                                .Padding(8).Text(value).FontSize(10).FontColor(bodyText);
+                                        }
+                                        if (!string.IsNullOrWhiteSpace(d.SubscriptionPackage))
+                                            FRow("Package", d.SubscriptionPackage, true);
+                                        if (!string.IsNullOrWhiteSpace(d.MonthlyFee))
+                                            FRow("Monthly subscription fee", $"R {d.MonthlyFee}  (excl. VAT)");
+                                        if (!string.IsNullOrWhiteSpace(d.ImplementationFee))
+                                            FRow("Implementation fee", $"R {d.ImplementationFee}  (once-off, excl. VAT)", true);
+                                    });
+                                }
+                                col2.Item().PaddingTop(8).Background("#fff8e1").Border(0.4f).BorderColor("#e9c46a")
+                                    .PaddingHorizontal(10).PaddingVertical(7).Text(
                                     "Fees are subject to annual review. Any increase will be notified at least 30 days in advance. " +
-                                    "Fees exclude VAT unless stated otherwise.")
+                                    "All fees exclude VAT unless stated otherwise.")
                                     .FontSize(9).FontColor(mutedText).Italic();
                             });
                         });
@@ -1121,7 +1178,10 @@ namespace backend.Controllers
                             });
                             table.Cell().Border(0.4f).BorderColor("#e2e8f0").MinHeight(80).Padding(12).Column(c =>
                             {
-                                c.Item().Text($"Name: {(string.IsNullOrWhiteSpace(d.ClientContractOwner) ? "___________________________" : d.ClientContractOwner)}").FontSize(9).FontColor(mutedText);
+                                var clientSig = string.IsNullOrWhiteSpace(d.ClientContractOwner)
+                                    ? "Name: ___________________________"
+                                    : $"Name: {d.ClientContractOwner}";
+                                c.Item().Text(clientSig).FontSize(9).FontColor(mutedText);
                                 c.Item().PaddingTop(14).Text("Signature: ___________________________").FontSize(9).FontColor(mutedText);
                                 c.Item().PaddingTop(10).Text("Date: _____________________________").FontSize(9).FontColor(mutedText);
                             });
