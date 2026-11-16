@@ -870,27 +870,27 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
                 onChange={e => setQForm(p => ({ ...p, validUntil: e.target.value }))} />
 
               <label style={labelStyle}>Client Name *</label>
-              <input style={inputStyle} value={qForm.clientName} placeholder="e.g. John Smith"
+              <input style={inputStyle} value={qForm.clientName} placeholder="Client full name"
                 onChange={e => setQForm(p => ({ ...p, clientName: e.target.value }))} />
 
               <label style={labelStyle}>Client Organisation *</label>
-              <input style={inputStyle} value={qForm.clientOrganisation} placeholder="e.g. LMIS Training Academy"
+              <input style={inputStyle} value={qForm.clientOrganisation} placeholder="Organisation name"
                 onChange={e => setQForm(p => ({ ...p, clientOrganisation: e.target.value }))} />
 
               <label style={labelStyle}>Client Email / Phone</label>
-              <input style={inputStyle} value={qForm.clientContact} placeholder="e.g. john@example.com | 082 000 0000"
+              <input style={inputStyle} value={qForm.clientContact} placeholder="Email address or phone number"
                 onChange={e => setQForm(p => ({ ...p, clientContact: e.target.value }))} />
 
               <label style={labelStyle}>Organisation Type</label>
-              <input style={inputStyle} value={qForm.organisationType} placeholder="e.g. SETA-accredited provider"
+              <input style={inputStyle} value={qForm.organisationType} placeholder="SETA-accredited provider, NPO, college, etc."
                 onChange={e => setQForm(p => ({ ...p, organisationType: e.target.value }))} />
 
               <label style={labelStyle}>Training Centre(s)</label>
-              <input style={inputStyle} value={qForm.trainingCentres} placeholder="e.g. Durban, Johannesburg"
+              <input style={inputStyle} value={qForm.trainingCentres} placeholder="City or town names where training is delivered"
                 onChange={e => setQForm(p => ({ ...p, trainingCentres: e.target.value }))} />
 
               <label style={labelStyle}>Estimated Learners</label>
-              <input type="number" style={inputStyle} value={qForm.estimatedLearners} placeholder="e.g. 60"
+              <input type="number" style={inputStyle} value={qForm.estimatedLearners} placeholder="Number of learners"
                 onChange={e => setQForm(p => ({ ...p, estimatedLearners: e.target.value }))} />
 
               <label style={labelStyle}>Project Overview</label>
@@ -1028,22 +1028,22 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
             <input type="number" style={inputStyle} value={sForm.slaNumber} onChange={e => setSForm(p => ({ ...p, slaNumber: parseInt(e.target.value) || 1 }))} min={1} />
 
             <label style={labelStyle}>Client Name *</label>
-            <input style={inputStyle} value={sForm.clientName} onChange={e => setSForm(p => ({ ...p, clientName: e.target.value }))} placeholder="e.g. Nomaku Training" />
+            <input style={inputStyle} value={sForm.clientName} onChange={e => setSForm(p => ({ ...p, clientName: e.target.value }))} placeholder="Client organisation name" />
 
             <label style={labelStyle}>Client Registration Number</label>
-            <input style={inputStyle} value={sForm.clientRegistrationNumber} onChange={e => setSForm(p => ({ ...p, clientRegistrationNumber: e.target.value }))} placeholder="e.g. 2020/123456/07" />
+            <input style={inputStyle} value={sForm.clientRegistrationNumber} onChange={e => setSForm(p => ({ ...p, clientRegistrationNumber: e.target.value }))} placeholder="CIPC registration number" />
 
             <label style={labelStyle}>Client Address</label>
-            <input style={inputStyle} value={sForm.clientAddress} onChange={e => setSForm(p => ({ ...p, clientAddress: e.target.value }))} placeholder="e.g. 123 Main Street, Johannesburg" />
+            <input style={inputStyle} value={sForm.clientAddress} onChange={e => setSForm(p => ({ ...p, clientAddress: e.target.value }))} placeholder="Registered or physical address" />
 
             <label style={labelStyle}>Client Contract Owner</label>
-            <input style={inputStyle} value={sForm.clientContractOwner} onChange={e => setSForm(p => ({ ...p, clientContractOwner: e.target.value }))} placeholder="Name of designated representative" />
+            <input style={inputStyle} value={sForm.clientContractOwner} onChange={e => setSForm(p => ({ ...p, clientContractOwner: e.target.value }))} placeholder="Name of the authorised signatory" />
 
             <label style={labelStyle}>Effective Date</label>
             <input style={inputStyle} value={sForm.effectiveDate} onChange={e => setSForm(p => ({ ...p, effectiveDate: e.target.value }))} />
 
             <label style={labelStyle}>Initial Term</label>
-            <input style={inputStyle} value={sForm.initialTerm} onChange={e => setSForm(p => ({ ...p, initialTerm: e.target.value }))} placeholder="e.g. 12 months" />
+            <input style={inputStyle} value={sForm.initialTerm} onChange={e => setSForm(p => ({ ...p, initialTerm: e.target.value }))} placeholder="Duration, e.g. 12 months" />
 
             <label style={labelStyle}>Version</label>
             <input style={inputStyle} value={sForm.version} onChange={e => setSForm(p => ({ ...p, version: e.target.value }))} placeholder="1.0" />
@@ -1054,13 +1054,13 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
             <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>💼 Commercial Terms</div>
 
             <label style={labelStyle}>Subscription Package</label>
-            <input style={inputStyle} value={sForm.subscriptionPackage} onChange={e => setSForm(p => ({ ...p, subscriptionPackage: e.target.value }))} placeholder="e.g. Standard — up to 200 learners" />
+            <input style={inputStyle} value={sForm.subscriptionPackage} onChange={e => setSForm(p => ({ ...p, subscriptionPackage: e.target.value }))} placeholder="Package name and learner limit" />
 
             <label style={labelStyle}>Monthly Fee</label>
-            <input style={inputStyle} value={sForm.monthlyFee} onChange={e => setSForm(p => ({ ...p, monthlyFee: e.target.value }))} placeholder="e.g. R 2,500.00 excl. VAT" />
+            <input style={inputStyle} value={sForm.monthlyFee} onChange={e => setSForm(p => ({ ...p, monthlyFee: e.target.value }))} placeholder="Monthly amount excluding VAT" />
 
             <label style={labelStyle}>Implementation Fee</label>
-            <input style={inputStyle} value={sForm.implementationFee} onChange={e => setSForm(p => ({ ...p, implementationFee: e.target.value }))} placeholder="e.g. R 5,000.00 once-off" />
+            <input style={inputStyle} value={sForm.implementationFee} onChange={e => setSForm(p => ({ ...p, implementationFee: e.target.value }))} placeholder="Once-off setup amount" />
 
             <label style={labelStyle}>Additional Agreed Clauses (optional)</label>
             <textarea rows={6} style={{ ...inputStyle, resize: 'vertical' }} value={sForm.additionalClauses}
@@ -1099,15 +1099,15 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
                 onChange={e => setLForm(p => ({ ...p, licenceNumber: parseInt(e.target.value) || 1 }))} />
 
               <label style={labelStyle}>Client Name *</label>
-              <input style={inputStyle} value={lForm.clientName} placeholder="e.g. Nomaku Training"
+              <input style={inputStyle} value={lForm.clientName} placeholder="Client organisation name"
                 onChange={e => setLForm(p => ({ ...p, clientName: e.target.value }))} />
 
               <label style={labelStyle}>Client Registration Number</label>
-              <input style={inputStyle} value={lForm.clientRegNumber} placeholder="e.g. 2020/123456/07"
+              <input style={inputStyle} value={lForm.clientRegNumber} placeholder="CIPC registration number"
                 onChange={e => setLForm(p => ({ ...p, clientRegNumber: e.target.value }))} />
 
               <label style={labelStyle}>Client Verification Contact</label>
-              <input style={inputStyle} value={lForm.clientVerificationContact} placeholder="Name and phone of client contact"
+              <input style={inputStyle} value={lForm.clientVerificationContact} placeholder="Name and contact number for verification"
                 onChange={e => setLForm(p => ({ ...p, clientVerificationContact: e.target.value }))} />
 
               <label style={labelStyle}>Effective Date</label>
@@ -1115,7 +1115,7 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
                 onChange={e => setLForm(p => ({ ...p, effectiveDate: e.target.value }))} />
 
               <label style={labelStyle}>Expiry / Renewal Date</label>
-              <input style={inputStyle} value={lForm.expiryDate} placeholder="e.g. 31/12/2026"
+              <input style={inputStyle} value={lForm.expiryDate} placeholder="DD/MM/YYYY"
                 onChange={e => setLForm(p => ({ ...p, expiryDate: e.target.value }))} />
 
               <label style={labelStyle}>Licence Status</label>
@@ -1153,11 +1153,11 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
               </div>
 
               <label style={labelStyle}>Related Invoice Number</label>
-              <input style={inputStyle} value={lForm.relatedInvoice} placeholder="e.g. INV-2026-001"
+              <input style={inputStyle} value={lForm.relatedInvoice} placeholder="Invoice reference number"
                 onChange={e => setLForm(p => ({ ...p, relatedInvoice: e.target.value }))} />
 
               <label style={labelStyle}>Related SLA Reference</label>
-              <input style={inputStyle} value={lForm.relatedSLA} placeholder="e.g. SLA/NBSN/NOMAKU/2026/001"
+              <input style={inputStyle} value={lForm.relatedSLA} placeholder="SLA reference number"
                 onChange={e => setLForm(p => ({ ...p, relatedSLA: e.target.value }))} />
 
               <label style={labelStyle}>Document Version</label>

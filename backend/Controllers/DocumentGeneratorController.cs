@@ -258,10 +258,10 @@ namespace backend.Controllers
                                     .FontSize(8).Bold().FontColor(tealDark).LetterSpacing(0.1f);
                                 c.Item().Padding(10).Column(inner =>
                                 {
-                                    inner.Item().Text(string.IsNullOrWhiteSpace(d.ClientName) ? "[Client Name]" : d.ClientName)
+                                    inner.Item().Text(string.IsNullOrWhiteSpace(d.ClientName) ? "—" : d.ClientName)
                                         .Bold().FontSize(12).FontColor(navyDark);
-                                    inner.Item().PaddingTop(2).Text(string.IsNullOrWhiteSpace(d.ClientOrganisation) ? "[Client Organisation]" : d.ClientOrganisation).FontColor(bodyText);
-                                    inner.Item().Text(string.IsNullOrWhiteSpace(d.ClientContact) ? "[Client Email / Phone]" : d.ClientContact).FontColor(bodyText);
+                                    inner.Item().PaddingTop(2).Text(string.IsNullOrWhiteSpace(d.ClientOrganisation) ? "" : d.ClientOrganisation).FontColor(bodyText);
+                                    inner.Item().Text(string.IsNullOrWhiteSpace(d.ClientContact) ? "" : d.ClientContact).FontColor(bodyText);
                                     inner.Item().PaddingTop(6).Text($"Organisation type:   {(string.IsNullOrWhiteSpace(d.OrganisationType) ? "" : d.OrganisationType)}").FontSize(9).FontColor(mutedText);
                                     inner.Item().Text($"Training centre(s):  {(string.IsNullOrWhiteSpace(d.TrainingCentres) ? "" : d.TrainingCentres)}").FontSize(9).FontColor(mutedText);
                                     inner.Item().Text($"Estimated learners:  {(d.EstimatedLearners.HasValue ? d.EstimatedLearners.ToString() : "")}").FontSize(9).FontColor(mutedText);
