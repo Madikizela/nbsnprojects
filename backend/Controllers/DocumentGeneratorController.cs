@@ -356,29 +356,33 @@ namespace backend.Controllers
                                 new() { Description = "12-month hosting, maintenance and support", Amount = 6000 },
                             };
                             var total = items.Sum(x => x.Amount);
-                            c.Table(table =>
+                            // Wrap in Column so we can place table + footnote in one single-child container
+                            c.Column(col2 =>
                             {
-                                table.ColumnsDefinition(tc => { tc.ConstantColumn(30); tc.RelativeColumn(); tc.ConstantColumn(110); });
-                                table.Header(header =>
+                                col2.Item().Table(table =>
                                 {
-                                    header.Cell().Background(navyDark).Padding(7).Text("#").Bold().FontColor("#ffffff").FontSize(9);
-                                    header.Cell().Background(navyDark).Padding(7).Text("DESCRIPTION").Bold().FontColor("#ffffff").FontSize(9);
-                                    header.Cell().Background(navyDark).Padding(7).Text("AMOUNT (ZAR)").Bold().FontColor("#ffffff").FontSize(9);
+                                    table.ColumnsDefinition(tc => { tc.ConstantColumn(30); tc.RelativeColumn(); tc.ConstantColumn(110); });
+                                    table.Header(header =>
+                                    {
+                                        header.Cell().Background(navyDark).Padding(7).Text("#").Bold().FontColor("#ffffff").FontSize(9);
+                                        header.Cell().Background(navyDark).Padding(7).Text("DESCRIPTION").Bold().FontColor("#ffffff").FontSize(9);
+                                        header.Cell().Background(navyDark).Padding(7).Text("AMOUNT (ZAR)").Bold().FontColor("#ffffff").FontSize(9);
+                                    });
+                                    for (int i = 0; i < items.Count; i++)
+                                    {
+                                        var bg = i % 2 == 0 ? "#f8fafc" : "#ffffff";
+                                        table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7).Text($"{i + 1}").FontSize(9);
+                                        table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7).Text(items[i].Description).FontSize(9);
+                                        table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                            .Text($"R {items[i].Amount:N2}").FontSize(9);
+                                    }
+                                    table.Cell().ColumnSpan(2).Background(tealDark).Padding(7)
+                                        .Text("TOTAL (excl. VAT)").Bold().FontColor("#ffffff").FontSize(10);
+                                    table.Cell().Background(tealDark).Padding(7)
+                                        .Text($"R {total:N2}").Bold().FontColor("#ffffff").FontSize(10);
                                 });
-                                for (int i = 0; i < items.Count; i++)
-                                {
-                                    var bg = i % 2 == 0 ? "#f8fafc" : "#ffffff";
-                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7).Text($"{i + 1}").FontSize(9);
-                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7).Text(items[i].Description).FontSize(9);
-                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7)
-                                        .Text($"R {items[i].Amount:N2}").FontSize(9);
-                                }
-                                table.Cell().ColumnSpan(2).Background(tealDark).Padding(7)
-                                    .Text("TOTAL (excl. VAT)").Bold().FontColor("#ffffff").FontSize(10);
-                                table.Cell().Background(tealDark).Padding(7)
-                                    .Text($"R {total:N2}").Bold().FontColor("#ffffff").FontSize(10);
+                                col2.Item().PaddingTop(6).Text("All amounts in South African Rand and exclude VAT.").FontSize(9).FontColor(mutedText).Italic();
                             });
-                            c.PaddingTop(6).Text("All amounts in South African Rand and exclude VAT.").FontSize(9).FontColor(mutedText).Italic();
                         });
 
                         // ── 4. Payment Terms ──────────────────────────────────
