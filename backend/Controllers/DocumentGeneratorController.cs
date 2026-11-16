@@ -207,6 +207,41 @@ namespace backend.Controllers
             }
         }
 
+        // POST: api/DocumentGenerator/invoice
+        [HttpPost("invoice")]
+        public async Task<IActionResult> GenerateInvoice([FromBody] InvoiceFormData data)
+        {
+            try
+            {
+                var refNo = $"INV-NBSN-{DateTime.UtcNow:yyyy}-{data.InvoiceNumber:D4}";
+                var pdfBytes = GenerateInvoicePdf(data, refNo);
+                var base64   = Convert.ToBase64String(pdfBytes);
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var doc = new GeneratedDocument
+                {
+                    DocumentType      = "INVOICE",
+                    DocumentTitle     = $"Invoice — {data.BillToName}",
+                    ReferenceNumber   = refNo,
+                    ClientName        = data.BillToName,
+                    FormDataJson      = JsonSerializer.Serialize(data),
+                    PdfBase64         = base64,
+                    GeneratedByUserId = userId != null ? int.Parse(userId) : null,
+                    GeneratedAt       = DateTime.UtcNow,
+                    Status            = "Draft"
+                };
+                _context.GeneratedDocuments.Add(doc);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { id = doc.Id, referenceNumber = refNo, message = "Invoice generated successfully." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating invoice");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         // ── PDF Generation ────────────────────────────────────────────────────
 
         private string GetLogoPath()
@@ -906,6 +941,270 @@ namespace backend.Controllers
             }).GeneratePdf();
         }
 
+        private byte[] GenerateInvoicePdf(InvoiceFormData d, string refNo)
+        {
+            const string navy     = "#0d2240";
+            const string teal     = "#0d7377";
+            const string bodyText = "#1e293b";
+            const string mutedText= "#64748b";
+            const string lightBg  = "#f8fafc";
+            const string white    = "#ffffff";
+            const string rowAlt   = "#f0f4f8";
+
+            var invoiceDate = d.InvoiceDate ?? DateTime.Now.ToString("dd MMMM yyyy");
+            var dueDate     = d.DueDate     ?? DateTime.Now.AddDays(7).ToString("dd MMMM yyyy");
+            var logoPath    = GetLogoPath();
+
+            var items    = d.LineItems ?? new List<InvoiceLineItem>();
+            var subtotal = items.Sum(x => x.Quantity * x.UnitPrice);
+            var vatAmt   = d.IncludeVat ? Math.Round(subtotal * (d.VatRate / 100m), 2) : 0m;
+            var total    = subtotal + vatAmt;
+
+            return QuestDocument.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.MarginHorizontal(0);
+                    page.MarginTop(0);
+                    page.MarginBottom(32);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial").FontColor(bodyText));
+
+                    // ── Header — navy band with logo ──────────────────────────
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Background(navy).PaddingHorizontal(36).PaddingVertical(14).Row(row =>
+                        {
+                            row.RelativeItem().Row(lr =>
+                            {
+                                if (!string.IsNullOrEmpty(logoPath))
+                                {
+                                    lr.ConstantItem(48).Image(logoPath).FitArea();
+                                    lr.ConstantItem(10);
+                                }
+                                lr.RelativeItem().Column(c =>
+                                {
+                                    c.Item().Text("NBSN PROJECTS").Bold().FontSize(14).FontColor(white);
+                                    c.Item().Text("Skills Development Solutions").FontSize(8).FontColor("#94c5cc").LetterSpacing(0.08f);
+                                });
+                            });
+                            row.AutoItem().AlignMiddle().Column(c =>
+                            {
+                                c.Item().AlignRight().Text("INVOICE").Bold().FontSize(22).FontColor(white);
+                                c.Item().AlignRight().Text(refNo).FontSize(8).FontColor("#94c5cc");
+                            });
+                        });
+                        col.Item().Height(4).Background(teal);
+                    });
+
+                    page.Content().PaddingHorizontal(36).PaddingTop(20).Column(col =>
+                    {
+                        // ── Invoice metadata row ──────────────────────────────
+                        col.Item().Row(row =>
+                        {
+                            // Bill To
+                            row.RelativeItem().Border(0.5f).BorderColor("#dde3ea").Column(c =>
+                            {
+                                c.Item().Background(navy).PaddingHorizontal(10).PaddingVertical(7)
+                                    .Text("BILL TO").Bold().FontSize(8).FontColor(white).LetterSpacing(0.1f);
+                                c.Item().Padding(10).Column(inner =>
+                                {
+                                    inner.Item().Text(string.IsNullOrWhiteSpace(d.BillToName) ? "—" : d.BillToName)
+                                        .Bold().FontSize(12).FontColor(navy);
+                                    if (!string.IsNullOrWhiteSpace(d.BillToOrganisation))
+                                        inner.Item().PaddingTop(2).Text(d.BillToOrganisation).FontColor(bodyText);
+                                    if (!string.IsNullOrWhiteSpace(d.BillToAddress))
+                                        inner.Item().Text(d.BillToAddress).FontColor(bodyText);
+                                    if (!string.IsNullOrWhiteSpace(d.BillToEmail))
+                                        inner.Item().Text(d.BillToEmail).FontColor(mutedText).FontSize(9);
+                                });
+                            });
+
+                            row.ConstantItem(14);
+
+                            // Invoice details
+                            row.ConstantItem(200).Border(0.5f).BorderColor("#dde3ea").Column(c =>
+                            {
+                                c.Item().Background(teal).PaddingHorizontal(10).PaddingVertical(7)
+                                    .Text("INVOICE DETAILS").Bold().FontSize(8).FontColor(white).LetterSpacing(0.1f);
+                                c.Item().Padding(10).Table(table =>
+                                {
+                                    table.ColumnsDefinition(tc => { tc.RelativeColumn(); tc.RelativeColumn(); });
+                                    void DR(string label, string value)
+                                    {
+                                        table.Cell().PaddingBottom(4).Text(label).Bold().FontSize(9).FontColor(mutedText);
+                                        table.Cell().PaddingBottom(4).Text(value).FontSize(9).FontColor(bodyText);
+                                    }
+                                    DR("Invoice No:",  refNo);
+                                    DR("Invoice Date:", invoiceDate);
+                                    DR("Due Date:",    dueDate);
+                                    if (!string.IsNullOrWhiteSpace(d.PurchaseOrderNo))
+                                        DR("PO Number:", d.PurchaseOrderNo);
+                                    if (!string.IsNullOrWhiteSpace(d.RelatedQuotation))
+                                        DR("Quotation Ref:", d.RelatedQuotation);
+                                    if (!string.IsNullOrWhiteSpace(d.RelatedSLA))
+                                        DR("SLA Ref:", d.RelatedSLA);
+                                });
+                            });
+                        });
+
+                        // ── Line items table ──────────────────────────────────
+                        col.Item().PaddingTop(20).Table(table =>
+                        {
+                            table.ColumnsDefinition(tc =>
+                            {
+                                tc.ConstantColumn(30);    // #
+                                tc.RelativeColumn();       // Description
+                                tc.ConstantColumn(60);    // Qty
+                                tc.ConstantColumn(100);   // Unit Price
+                                tc.ConstantColumn(110);   // Amount
+                            });
+
+                            // Header
+                            foreach (var h in new[] { "#", "DESCRIPTION", "QTY", "UNIT PRICE", "AMOUNT (ZAR)" })
+                                table.Cell().Background(navy).Padding(8).Text(h).Bold().FontColor(white).FontSize(9);
+
+                            if (items.Count == 0)
+                            {
+                                table.Cell().ColumnSpan(5).Background(lightBg).Padding(12)
+                                    .Text("No line items added.").FontSize(9).FontColor(mutedText).Italic();
+                            }
+                            else
+                            {
+                                for (int i = 0; i < items.Count; i++)
+                                {
+                                    var bg = i % 2 == 0 ? lightBg : white;
+                                    var lineTotal = items[i].Quantity * items[i].UnitPrice;
+                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(8)
+                                        .Text($"{i + 1}").FontSize(9);
+                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(8)
+                                        .Text(items[i].Description).FontSize(9);
+                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(8)
+                                        .Text($"{items[i].Quantity:G}").FontSize(9);
+                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(8)
+                                        .Text($"R {items[i].UnitPrice:N2}").FontSize(9);
+                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(8)
+                                        .Text($"R {lineTotal:N2}").FontSize(9);
+                                }
+                            }
+                        });
+
+                        // ── Totals block ──────────────────────────────────────
+                        col.Item().PaddingTop(4).AlignRight().Column(tc =>
+                        {
+                            tc.Item().Width(240).Table(table =>
+                            {
+                                table.ColumnsDefinition(c => { c.RelativeColumn(); c.ConstantColumn(110); });
+
+                                void TRow(string label, string value, bool bold = false, string? bg = null)
+                                {
+                                    var background = bg ?? white;
+                                    var labelCell = table.Cell().Background(background).Border(0.3f).BorderColor("#e2e8f0")
+                                        .PaddingHorizontal(10).PaddingVertical(6);
+                                    var valueCell = table.Cell().Background(background).Border(0.3f).BorderColor("#e2e8f0")
+                                        .PaddingHorizontal(10).PaddingVertical(6);
+                                    if (bold)
+                                    {
+                                        labelCell.Text(label).FontSize(9).Bold().FontColor(navy);
+                                        valueCell.Text(value).FontSize(9).Bold().FontColor(navy);
+                                    }
+                                    else
+                                    {
+                                        labelCell.Text(label).FontSize(9).FontColor(mutedText);
+                                        valueCell.Text(value).FontSize(9).FontColor(bodyText);
+                                    }
+                                }
+
+                                TRow("Subtotal (excl. VAT)", $"R {subtotal:N2}");
+                                if (d.IncludeVat)
+                                    TRow($"VAT ({d.VatRate:G}%)", $"R {vatAmt:N2}");
+
+                                // Total row — teal background, white text, special rendering
+                                table.Cell().Background(teal).Border(0.3f).BorderColor("#e2e8f0")
+                                    .PaddingHorizontal(10).PaddingVertical(8)
+                                    .Text("TOTAL DUE").Bold().FontSize(10).FontColor(white);
+                                table.Cell().Background(teal).Border(0.3f).BorderColor("#e2e8f0")
+                                    .PaddingHorizontal(10).PaddingVertical(8)
+                                    .Text($"R {total:N2}").Bold().FontSize(10).FontColor(white);
+                            });
+                        });
+
+                        // ── Banking details ───────────────────────────────────
+                        col.Item().PaddingTop(20).Column(bc =>
+                        {
+                            bc.Item().Row(r =>
+                            {
+                                r.ConstantItem(3).Background(teal);
+                                r.ConstantItem(8);
+                                r.RelativeItem().Text("Banking Details").Bold().FontSize(11).FontColor(navy);
+                            });
+                            bc.Item().PaddingTop(6).Table(table =>
+                            {
+                                table.ColumnsDefinition(c => { c.ConstantColumn(140); c.RelativeColumn(); c.ConstantColumn(140); c.RelativeColumn(); });
+                                void BRow(string l1, string v1, string l2, string v2)
+                                {
+                                    table.Cell().Background(lightBg).Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                        .Text(l1).Bold().FontSize(9).FontColor(mutedText);
+                                    table.Cell().Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                        .Text(v1).FontSize(9).FontColor(bodyText);
+                                    table.Cell().Background(lightBg).Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                        .Text(l2).Bold().FontSize(9).FontColor(mutedText);
+                                    table.Cell().Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                        .Text(v2).FontSize(9).FontColor(bodyText);
+                                }
+                                BRow("Bank",           d.BankName,      "Account Name", d.AccountName);
+                                BRow("Account Number", d.AccountNumber,  "Account Type", d.AccountType);
+                                BRow("Branch Code",    d.BranchCode,    "Reference",    string.IsNullOrWhiteSpace(d.Reference) ? refNo : d.Reference);
+                            });
+                        });
+
+                        // ── Payment terms + notes ─────────────────────────────
+                        col.Item().PaddingTop(16).Column(nc =>
+                        {
+                            if (!string.IsNullOrWhiteSpace(d.PaymentTerms))
+                            {
+                                nc.Item().Background("#fff8e1").Border(0.4f).BorderColor("#e9c46a")
+                                    .PaddingHorizontal(12).PaddingVertical(8).Column(pc =>
+                                    {
+                                        pc.Item().Text("Payment Terms").Bold().FontSize(9).FontColor("#92400e");
+                                        pc.Item().PaddingTop(2).Text(d.PaymentTerms).FontSize(9).FontColor(bodyText);
+                                    });
+                            }
+                            if (!string.IsNullOrWhiteSpace(d.Notes))
+                            {
+                                nc.Item().PaddingTop(8).Background(lightBg).Border(0.4f).BorderColor("#dde3ea")
+                                    .PaddingHorizontal(12).PaddingVertical(8).Column(oc =>
+                                    {
+                                        oc.Item().Text("Notes").Bold().FontSize(9).FontColor(mutedText);
+                                        oc.Item().PaddingTop(2).Text(d.Notes).FontSize(9).FontColor(bodyText);
+                                    });
+                            }
+                        });
+
+                        // ── Thank you line ────────────────────────────────────
+                        col.Item().PaddingTop(20).AlignCenter()
+                            .Text("Thank you for your business with NBSN Projects.")
+                            .Italic().FontSize(9).FontColor(mutedText);
+                    });
+
+                    // ── Footer ────────────────────────────────────────────────
+                    page.Footer().Column(fc =>
+                    {
+                        fc.Item().PaddingHorizontal(36).LineHorizontal(0.4f).LineColor("#dde3ea");
+                        fc.Item().PaddingHorizontal(36).PaddingTop(5).Row(row =>
+                        {
+                            row.RelativeItem().Text(txt =>
+                            {
+                                txt.Span("NBSN Projects  •  info@nbsnprojects.co.za  •  www.nbsnprojects.co.za  •  Reg: 2023 / 200156 / 07  •  Page ")
+                                    .FontSize(7).FontColor(mutedText);
+                                txt.CurrentPageNumber().FontSize(7).FontColor(mutedText);
+                            });
+                        });
+                    });
+                });
+            }).GeneratePdf();
+        }
+
         private byte[] GenerateSLAPdf(SLAFormData d, string refNo)
         {
             var effectiveDate = d.EffectiveDate ?? DateTime.Now.ToString("dd MMMM yyyy");
@@ -1317,6 +1616,44 @@ namespace backend.Controllers
         public int?    AuthorisedLearners         { get; set; }
         public int?    AuthorisedSites            { get; set; }
         public int?    AuthorisedProjects         { get; set; }
+    }
+
+    public class InvoiceFormData
+    {
+        public int     InvoiceNumber     { get; set; } = 1;
+        public string? InvoiceDate       { get; set; }
+        public string? DueDate           { get; set; }
+        // Bill To
+        public string  BillToName        { get; set; } = string.Empty;
+        public string? BillToOrganisation { get; set; }
+        public string? BillToAddress     { get; set; }
+        public string? BillToEmail       { get; set; }
+        // Related documents
+        public string? RelatedQuotation  { get; set; }
+        public string? RelatedSLA        { get; set; }
+        public string? PurchaseOrderNo   { get; set; }
+        // Line items
+        public List<InvoiceLineItem>? LineItems { get; set; }
+        // Financial
+        public bool    IncludeVat        { get; set; } = false;
+        public decimal VatRate           { get; set; } = 15m;
+        // Banking details (pre-populated from NBSN)
+        public string  BankName          { get; set; } = "First National Bank (FNB)";
+        public string  AccountName       { get; set; } = "NBSN Projects";
+        public string  AccountNumber     { get; set; } = "";
+        public string  AccountType       { get; set; } = "Business Cheque";
+        public string  BranchCode        { get; set; } = "250655";
+        public string  Reference         { get; set; } = "";
+        // Notes
+        public string? Notes             { get; set; }
+        public string  PaymentTerms      { get; set; } = "Payment due within 7 days of invoice date.";
+    }
+
+    public class InvoiceLineItem
+    {
+        public string  Description { get; set; } = string.Empty;
+        public decimal Quantity    { get; set; } = 1;
+        public decimal UnitPrice   { get; set; }
     }
 
     public class SLAFormData

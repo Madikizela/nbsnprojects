@@ -613,7 +613,7 @@ const NotificationBell: React.FC<{ token: string; apiUrl: string; userId?: numbe
 type Toast = { id:number; type:'success'|'error'|'info'; text:string };
 
 // ── Document Generator ────────────────────────────────────────────────────────
-type DocTab = 'list' | 'quotation' | 'sla' | 'licence';
+type DocTab = 'list' | 'quotation' | 'sla' | 'licence' | 'invoice';
 
 interface SavedDoc {
   id: number; documentType: string; documentTitle: string;
@@ -701,6 +701,29 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
     documentVersion: '1.0',
   });
 
+  interface ILineItem { description: string; quantity: number; unitPrice: number; }
+
+  // Invoice form state
+  const [iForm, setIForm] = React.useState({
+    invoiceNumber: 1,
+    invoiceDate: new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'long', year: 'numeric' }),
+    dueDate: new Date(Date.now() + 7 * 86400000).toLocaleDateString('en-ZA', { day: '2-digit', month: 'long', year: 'numeric' }),
+    billToName: '', billToOrganisation: '', billToAddress: '', billToEmail: '',
+    relatedQuotation: '', relatedSLA: '', purchaseOrderNo: '',
+    includeVat: false, vatRate: 15,
+    bankName: 'First National Bank (FNB)',
+    accountName: 'NBSN Projects',
+    accountNumber: '',
+    accountType: 'Business Cheque',
+    branchCode: '250655',
+    reference: '',
+    paymentTerms: 'Payment due within 7 days of invoice date.',
+    notes: '',
+  });
+  const [iItems, setIItems] = React.useState<ILineItem[]>([
+    { description: '', quantity: 1, unitPrice: 0 },
+  ]);
+
   const loadDocs = React.useCallback(async () => {
     setDocsLoading(true);
     try {
@@ -730,9 +753,10 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
     setQForm(p => ({ ...p, clientName: s.contactPerson || s.name, clientOrganisation: s.name, clientContact: contact }));
     setSForm(p => ({ ...p, clientName: s.name, clientAddress: s.address || '', clientContractOwner: s.contactPerson || '' }));
     setLForm(p => ({ ...p, clientName: s.name }));
+    setIForm(p => ({ ...p, billToName: s.contactPerson || s.name, billToOrganisation: s.name, billToAddress: s.address || '', billToEmail: s.contactEmail || '' }));
   };
 
-  const generate = async (type: 'quotation' | 'sla' | 'licence') => {
+  const generate = async (type: 'quotation' | 'sla' | 'licence' | 'invoice') => {
     setGenerating(true); setMsg(null);
     let body: object;
     if (type === 'quotation') {
@@ -745,6 +769,8 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
         lForm.authorisedProjects ? `${lForm.authorisedProjects} Projects` : '',
       ].filter(Boolean).join(' | ');
       body = { ...lForm, authorisedUsage };
+    } else if (type === 'invoice') {
+      body = { ...iForm, lineItems: iItems };
     } else {
       body = sForm;
     }
@@ -811,7 +837,7 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {([['list', '📋 Saved Documents'], ['quotation', '💰 New Quotation'], ['sla', '📄 New SLA'], ['licence', '🔑 New Licence']] as [DocTab, string][]).map(([t, label]) => (
+        {([['list', '📋 Saved Documents'], ['quotation', '💰 New Quotation'], ['sla', '📄 New SLA'], ['licence', '🔑 New Licence'], ['invoice', '🧾 New Invoice']] as [DocTab, string][]).map(([t, label]) => (
           <button key={t} onClick={() => { setTab(t); if (t !== 'list') loadSdps(); }}
             style={{ padding: '8px 20px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: tab === t ? 700 : 500, fontSize: 13,
               background: tab === t ? 'linear-gradient(135deg,#0f172a,#1e3a5f)' : '#f1f5f9',
@@ -843,8 +869,8 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
                         <td style={{ ...tdS, fontWeight: 600, fontSize: 12 }}>{doc.referenceNumber}</td>
                         <td style={tdS}>
                           <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                            background: doc.documentType === 'QUOTATION' ? '#eff6ff' : doc.documentType === 'LICENCE' ? '#fefce8' : '#f0fdf4',
-                            color: doc.documentType === 'QUOTATION' ? '#2563eb' : doc.documentType === 'LICENCE' ? '#854d0e' : '#16a34a' }}>
+                            background: doc.documentType === 'QUOTATION' ? '#eff6ff' : doc.documentType === 'LICENCE' ? '#fefce8' : doc.documentType === 'INVOICE' ? '#fdf4ff' : '#f0fdf4',
+                            color: doc.documentType === 'QUOTATION' ? '#2563eb' : doc.documentType === 'LICENCE' ? '#854d0e' : doc.documentType === 'INVOICE' ? '#7e22ce' : '#16a34a' }}>
                             {doc.documentType}
                           </span>
                         </td>
@@ -1296,6 +1322,185 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
                 color: generating || !lForm.clientName ? '#94a3b8' : '#fff',
                 fontWeight: 700, fontSize: 15, cursor: generating || !lForm.clientName ? 'not-allowed' : 'pointer' }}>
               {generating ? <><span className="spinner-border spinner-border-sm me-2" role="status" />Generating…</> : '🔑 Generate Licence Certificate PDF'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab: New Invoice ── */}
+      {tab === 'invoice' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* SDP Picker */}
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '14px 18px' }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#1d4ed8', marginBottom: 8 }}>
+              🔗 Auto-fill from existing SDP <span style={{ fontWeight: 400, color: '#3b82f6', fontSize: 12 }}>— optional.</span>
+            </div>
+            <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #bfdbfe', fontSize: 13, background: '#fff' }}
+              value={selectedSdpId}
+              onChange={e => applySdp(e.target.value === '' ? '' : parseInt(e.target.value))}>
+              <option value="">— New / external client (type manually) —</option>
+              {sdps.map(s => <option key={s.id} value={s.id}>{s.name}{s.contactPerson ? ` — ${s.contactPerson}` : ''}</option>)}
+            </select>
+            {selectedSdpId !== '' && (
+              <button onClick={() => applySdp('')}
+                style={{ marginTop: 6, padding: '2px 8px', borderRadius: 4, border: '1px solid #bfdbfe', background: '#fff', color: '#3b82f6', cursor: 'pointer', fontSize: 11 }}>
+                Clear selection
+              </button>
+            )}
+          </div>
+
+          {/* Row 1: Bill To + Invoice Details */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+
+            {/* Bill To */}
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>👤 Bill To</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Client receiving this invoice</div>
+
+              <label style={labelStyle}>Invoice Number</label>
+              <input type="number" style={inputStyle} min={1} value={iForm.invoiceNumber}
+                onChange={e => setIForm(p => ({ ...p, invoiceNumber: parseInt(e.target.value) || 1 }))} />
+
+              <label style={labelStyle}>Invoice Date</label>
+              <input style={inputStyle} value={iForm.invoiceDate}
+                onChange={e => setIForm(p => ({ ...p, invoiceDate: e.target.value }))} />
+
+              <label style={labelStyle}>Due Date</label>
+              <input style={inputStyle} value={iForm.dueDate}
+                onChange={e => setIForm(p => ({ ...p, dueDate: e.target.value }))} />
+
+              <label style={labelStyle}>Client Name *</label>
+              <input style={inputStyle} value={iForm.billToName} placeholder="Contact person or representative"
+                onChange={e => setIForm(p => ({ ...p, billToName: e.target.value }))} />
+
+              <label style={labelStyle}>Client Organisation</label>
+              <input style={inputStyle} value={iForm.billToOrganisation} placeholder="Organisation name"
+                onChange={e => setIForm(p => ({ ...p, billToOrganisation: e.target.value }))} />
+
+              <label style={labelStyle}>Address</label>
+              <input style={inputStyle} value={iForm.billToAddress} placeholder="Physical or postal address"
+                onChange={e => setIForm(p => ({ ...p, billToAddress: e.target.value }))} />
+
+              <label style={labelStyle}>Email</label>
+              <input style={inputStyle} value={iForm.billToEmail} placeholder="Billing email address"
+                onChange={e => setIForm(p => ({ ...p, billToEmail: e.target.value }))} />
+            </div>
+
+            {/* Invoice Details */}
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>📎 Reference Numbers</div>
+
+              <label style={labelStyle}>Related Quotation Reference</label>
+              <input style={inputStyle} value={iForm.relatedQuotation} placeholder="Quotation reference number"
+                onChange={e => setIForm(p => ({ ...p, relatedQuotation: e.target.value }))} />
+
+              <label style={labelStyle}>Related SLA Reference</label>
+              <input style={inputStyle} value={iForm.relatedSLA} placeholder="SLA reference number"
+                onChange={e => setIForm(p => ({ ...p, relatedSLA: e.target.value }))} />
+
+              <label style={labelStyle}>Purchase Order Number</label>
+              <input style={inputStyle} value={iForm.purchaseOrderNo} placeholder="Client PO number if applicable"
+                onChange={e => setIForm(p => ({ ...p, purchaseOrderNo: e.target.value }))} />
+
+              <label style={labelStyle}>Payment Terms</label>
+              <input style={inputStyle} value={iForm.paymentTerms}
+                onChange={e => setIForm(p => ({ ...p, paymentTerms: e.target.value }))} />
+
+              <label style={labelStyle}>Notes (optional)</label>
+              <textarea rows={3} style={{ ...inputStyle, resize: 'vertical' }} value={iForm.notes}
+                placeholder="Any additional information for the client"
+                onChange={e => setIForm(p => ({ ...p, notes: e.target.value }))} />
+
+              <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input type="checkbox" id="vatCheck" checked={iForm.includeVat}
+                  onChange={e => setIForm(p => ({ ...p, includeVat: e.target.checked }))} />
+                <label htmlFor="vatCheck" style={{ fontSize: 13, fontWeight: 600, color: '#374151', cursor: 'pointer' }}>
+                  Include VAT ({iForm.vatRate}%)
+                </label>
+                {iForm.includeVat && (
+                  <input type="number" style={{ width: 80, ...inputStyle, marginTop: 0 }} value={iForm.vatRate}
+                    onChange={e => setIForm(p => ({ ...p, vatRate: parseFloat(e.target.value) || 15 }))} />
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Line Items */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>💰 Line Items</div>
+
+            {/* Header row */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 110px 32px', gap: 8, marginBottom: 6 }}>
+              {['Description', 'Qty', 'Unit Price (R)', ''].map(h =>
+                <div key={h} style={{ fontSize: 11, fontWeight: 600, color: '#64748b' }}>{h}</div>)}
+            </div>
+
+            {iItems.map((item, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 80px 110px 32px', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                <input style={{ ...inputStyle, marginTop: 0 }} value={item.description}
+                  placeholder="Service or item description"
+                  onChange={e => setIItems(prev => prev.map((it, idx) => idx === i ? { ...it, description: e.target.value } : it))} />
+                <input type="number" style={{ ...inputStyle, marginTop: 0 }} value={item.quantity} min={0.01} step={0.01}
+                  onChange={e => setIItems(prev => prev.map((it, idx) => idx === i ? { ...it, quantity: parseFloat(e.target.value) || 1 } : it))} />
+                <input type="number" style={{ ...inputStyle, marginTop: 0 }} value={item.unitPrice} min={0}
+                  onChange={e => setIItems(prev => prev.map((it, idx) => idx === i ? { ...it, unitPrice: parseFloat(e.target.value) || 0 } : it))} />
+                <button onClick={() => setIItems(prev => prev.filter((_, idx) => idx !== i))}
+                  style={{ padding: '6px', borderRadius: 6, border: '1px solid #fee2e2', background: '#fff', color: '#dc2626', cursor: 'pointer', fontSize: 12, lineHeight: 1 }}>✕</button>
+              </div>
+            ))}
+
+            <button onClick={() => setIItems(prev => [...prev, { description: '', quantity: 1, unitPrice: 0 }])}
+              style={{ padding: '7px 14px', borderRadius: 8, border: '1px dashed #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: 12, cursor: 'pointer', width: '100%', marginTop: 4 }}>
+              + Add Line Item
+            </button>
+
+            {/* Running total */}
+            {(() => {
+              const sub = iItems.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
+              const vat = iForm.includeVat ? sub * (iForm.vatRate / 100) : 0;
+              return (
+                <div style={{ marginTop: 14, padding: '12px 16px', background: '#0d7377', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ color: '#e0f4f4', fontSize: 13 }}>
+                    {iForm.includeVat ? `Subtotal: R ${sub.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}  •  VAT: R ${vat.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}` : ''}
+                  </div>
+                  <div style={{ color: '#fff', fontWeight: 800, fontSize: 15 }}>
+                    TOTAL: R {(sub + vat).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          {/* Row 3: Banking Details */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>🏦 Banking Details</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+              {([
+                ['Bank Name',       'bankName',      'Bank name'],
+                ['Account Name',    'accountName',   'Account holder name'],
+                ['Account Number',  'accountNumber', 'Account number'],
+                ['Account Type',    'accountType',   'e.g. Business Cheque'],
+                ['Branch Code',     'branchCode',    'Universal / branch code'],
+                ['Payment Reference', 'reference',   'Leave blank to use invoice number'],
+              ] as [string, keyof typeof iForm, string][]).map(([label, key, ph]) => (
+                <div key={key}>
+                  <label style={{ ...labelStyle, marginTop: 0 }}>{label}</label>
+                  <input style={inputStyle} value={iForm[key] as string} placeholder={ph}
+                    onChange={e => setIForm(p => ({ ...p, [key]: e.target.value }))} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Generate button */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+            <button onClick={() => generate('invoice')} disabled={generating || !iForm.billToName}
+              style={{ width: '100%', padding: '14px', borderRadius: 10, border: 'none',
+                background: generating || !iForm.billToName ? '#e2e8f0' : 'linear-gradient(135deg,#0d2240,#0d7377)',
+                color: generating || !iForm.billToName ? '#94a3b8' : '#fff',
+                fontWeight: 700, fontSize: 15, cursor: generating || !iForm.billToName ? 'not-allowed' : 'pointer' }}>
+              {generating ? <><span className="spinner-border spinner-border-sm me-2" role="status" />Generating…</> : '🧾 Generate Invoice PDF'}
             </button>
           </div>
         </div>
