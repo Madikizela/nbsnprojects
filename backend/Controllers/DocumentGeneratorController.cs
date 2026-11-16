@@ -16,11 +16,13 @@ namespace backend.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly ILogger<DocumentGeneratorController> _logger;
+        private readonly IWebHostEnvironment _environment;
 
-        public DocumentGeneratorController(ApplicationDbContext context, ILogger<DocumentGeneratorController> logger)
+        public DocumentGeneratorController(ApplicationDbContext context, ILogger<DocumentGeneratorController> logger, IWebHostEnvironment environment)
         {
             _context = context;
             _logger = logger;
+            _environment = environment;
         }
 
         // GET: api/DocumentGenerator
@@ -144,145 +146,294 @@ namespace backend.Controllers
 
         // ── PDF Generation ────────────────────────────────────────────────────
 
-        private static byte[] GenerateQuotationPdf(QuotationFormData d, string refNo)
+        private string GetLogoPath()
         {
-            var quoteDate  = d.QuoteDate ?? DateTime.Now.ToString("dd MMMM yyyy");
+            // Try multiple known locations
+            var paths = new[]
+            {
+                Path.Combine(_environment.ContentRootPath, "..", "frontend", "src", "assets", "nbsn-logo.png"),
+                Path.Combine(_environment.ContentRootPath, "wwwroot", "nbsn-logo.png"),
+                Path.Combine(Directory.GetCurrentDirectory(), "..", "frontend", "src", "assets", "nbsn-logo.png"),
+            };
+            return paths.FirstOrDefault(System.IO.File.Exists) ?? "";
+        }
+
+        private byte[] GenerateQuotationPdf(QuotationFormData d, string refNo)
+        {
+            var quoteDate  = d.QuoteDate  ?? DateTime.Now.ToString("dd MMMM yyyy");
             var validUntil = d.ValidUntil ?? DateTime.Now.AddDays(30).ToString("dd MMMM yyyy");
+            var logoPath   = GetLogoPath();
+
+            // Colour palette matching the screenshot
+            const string navyDark  = "#0d2240";   // dark navy for headers
+            const string tealDark  = "#0d7377";   // teal for section headings
+            const string tealLight = "#e0f4f4";   // light teal for prepared-for bg
+            const string greyBg    = "#f1f5f9";   // grey for prepared-by bg
+            const string bodyText  = "#1e293b";
+            const string mutedText = "#64748b";
 
             return QuestDocument.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    page.Margin(40);
-                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial"));
+                    page.MarginHorizontal(45);
+                    page.MarginVertical(36);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial").FontColor(bodyText));
 
+                    // ── Header ────────────────────────────────────────────────
                     page.Header().Column(col =>
                     {
                         col.Item().Row(row =>
                         {
-                            row.RelativeItem().Column(c =>
+                            // Logo + NBSN PROJECTS wordmark
+                            row.RelativeItem().Row(logoRow =>
                             {
-                                c.Item().Text("QUOTATION").FontSize(22).Bold().FontColor("#0d9488");
-                                c.Item().Text($"Quote No: {refNo}").FontSize(10).FontColor("#64748b");
+                                if (!string.IsNullOrEmpty(logoPath))
+                                {
+                                    logoRow.ConstantItem(60).Image(logoPath).FitArea();
+                                    logoRow.ConstantItem(8);
+                                }
+                                logoRow.RelativeItem().Column(c =>
+                                {
+                                    c.Item().Text("NBSN").FontSize(26).Bold().FontColor(navyDark);
+                                    c.Item().Text("PROJECTS").FontSize(10).Bold().FontColor(tealDark).LetterSpacing(0.15f);
+                                });
                             });
+
+                            // QUOTATION title + ref
                             row.RelativeItem().AlignRight().Column(c =>
                             {
-                                c.Item().Text("NBSN PROJECTS").Bold().FontSize(12);
-                                c.Item().Text("Durban, KwaZulu-Natal, South Africa").FontColor("#64748b");
-                                c.Item().Text("info@nbsnprojects.co.za  |  0733904588").FontColor("#64748b");
+                                c.Item().Text("QUOTATION").FontSize(28).Bold().FontColor(navyDark);
+                                c.Item().AlignRight().Text($"Quote No: {refNo}").FontSize(9).FontColor(mutedText);
                             });
                         });
-                        col.Item().PaddingTop(8).LineHorizontal(1.5f).LineColor("#0d9488");
+
+                        col.Item().PaddingTop(10).LineHorizontal(2).LineColor(tealDark);
+                        col.Item().PaddingTop(2).LineHorizontal(0.4f).LineColor(tealDark);
                     });
 
-                    page.Content().PaddingTop(16).Column(col =>
+                    // ── Content ───────────────────────────────────────────────
+                    page.Content().PaddingTop(18).Column(col =>
                     {
-                        // Prepared for / by
+                        // ── Prepared For / By boxes ──────────────────────────
                         col.Item().Row(row =>
                         {
-                            row.RelativeItem().Column(c =>
+                            // Prepared FOR
+                            row.RelativeItem().Border(0.5f).BorderColor("#cbd5e1").Column(c =>
                             {
-                                c.Item().Background("#f0fdfa").Padding(10).Column(inner =>
+                                c.Item().Background(tealLight).Padding(8).Text("PREPARED FOR")
+                                    .FontSize(8).Bold().FontColor(tealDark).LetterSpacing(0.1f);
+                                c.Item().Padding(10).Column(inner =>
                                 {
-                                    inner.Item().Text("PREPARED FOR").Bold().FontColor("#0d9488").FontSize(9);
-                                    inner.Item().Text(d.ClientName).Bold().FontSize(11);
-                                    inner.Item().Text(d.ClientOrganisation).FontColor("#475569");
-                                    inner.Item().Text(d.ClientContact).FontColor("#475569");
+                                    inner.Item().Text(string.IsNullOrWhiteSpace(d.ClientName) ? "[Client Name]" : d.ClientName)
+                                        .Bold().FontSize(12).FontColor(navyDark);
+                                    inner.Item().PaddingTop(2).Text(string.IsNullOrWhiteSpace(d.ClientOrganisation) ? "[Client Organisation]" : d.ClientOrganisation)
+                                        .FontColor(bodyText);
+                                    inner.Item().Text(string.IsNullOrWhiteSpace(d.ClientContact) ? "[Client Email / Phone]" : d.ClientContact)
+                                        .FontColor(bodyText);
+                                    if (!string.IsNullOrWhiteSpace(d.OrganisationType))
+                                    {
+                                        inner.Item().PaddingTop(6).Text($"Organisation type:   {d.OrganisationType}").FontSize(9).FontColor(mutedText);
+                                    }
+                                    if (!string.IsNullOrWhiteSpace(d.TrainingCentres))
+                                    {
+                                        inner.Item().Text($"Training centre(s):  {d.TrainingCentres}").FontSize(9).FontColor(mutedText);
+                                    }
+                                    if (d.EstimatedLearners.HasValue)
+                                    {
+                                        inner.Item().Text($"Estimated learners:  {d.EstimatedLearners}").FontSize(9).FontColor(mutedText);
+                                    }
                                 });
                             });
-                            row.ConstantItem(16);
-                            row.RelativeItem().Column(c =>
+
+                            row.ConstantItem(10);
+
+                            // Prepared BY
+                            row.RelativeItem().Border(0.5f).BorderColor("#cbd5e1").Column(c =>
                             {
-                                c.Item().Background("#f8fafc").Padding(10).Column(inner =>
+                                c.Item().Background(greyBg).Padding(8).Text("PREPARED BY")
+                                    .FontSize(8).Bold().FontColor(tealDark).LetterSpacing(0.1f);
+                                c.Item().Padding(10).Column(inner =>
                                 {
-                                    inner.Item().Text("PREPARED BY").Bold().FontColor("#0d9488").FontSize(9);
-                                    inner.Item().Text("Sbusiso Madikizela").Bold().FontSize(11);
-                                    inner.Item().Text("NBSN Projects").FontColor("#475569");
-                                    inner.Item().Text($"Quote Date: {quoteDate}").FontColor("#475569");
-                                    inner.Item().Text($"Valid Until: {validUntil}").FontColor("#475569");
-                                    inner.Item().Text("Currency: South African Rand (ZAR)").FontColor("#475569");
+                                    inner.Item().Text("Sbusiso Madikizela").Bold().FontSize(12).FontColor(navyDark);
+                                    inner.Item().PaddingTop(2).Text("NBSN Projects");
+                                    inner.Item().Text("Durban, KwaZulu-Natal, South Africa");
+                                    inner.Item().Text("info@nbsnprojects.co.za  |  0733904588");
+                                    inner.Item().Text("www.nbsnprojects.co.za");
                                 });
                             });
                         });
 
-                        col.Item().PaddingTop(16).Text("1  Project Overview").Bold().FontSize(12).FontColor("#0f172a");
-                        col.Item().PaddingTop(4).Text(d.ProjectOverview ?? "NBSN Projects is pleased to submit this quotation for the design and delivery of a Learner Management Information System.").FontColor("#475569");
-
-                        // Scope
-                        col.Item().PaddingTop(14).Text("2  Scope of Work").Bold().FontSize(12).FontColor("#0f172a");
-                        col.Item().PaddingTop(4).Text(d.ScopeOfWork ?? "As per the agreed scope of work.").FontColor("#475569");
-
-                        // Pricing table
-                        col.Item().PaddingTop(14).Text("3  Pricing").Bold().FontSize(12).FontColor("#0f172a");
-                        col.Item().PaddingTop(6).Table(table =>
+                        // ── Metadata table (Quote Date / Valid Until / Currency / System) ──
+                        col.Item().PaddingTop(14).Table(table =>
                         {
-                            table.ColumnsDefinition(cols => { cols.ConstantColumn(30); cols.RelativeColumn(); cols.ConstantColumn(100); });
-                            table.Header(header =>
+                            table.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); c.RelativeColumn(); c.RelativeColumn(); });
+                            foreach (var h in new[] { "Quote Date", "Valid Until", "Currency", "System" })
+                                table.Cell().Background(navyDark).Padding(7).Text(h).Bold().FontColor("#ffffff").FontSize(9);
+
+                            foreach (var v in new[]
                             {
-                                foreach (var h in new[] { "#", "Description", "Amount (ZAR)" })
-                                    header.Cell().Background("#0d9488").Padding(6).Text(h).Bold().FontColor("#ffffff").FontSize(9);
+                                quoteDate,
+                                validUntil,
+                                "South African Rand (ZAR)",
+                                d.SystemName ?? "Training Management & Compliance System"
+                            })
+                                table.Cell().Border(0.4f).BorderColor("#e2e8f0").Padding(7).Text(v).FontSize(9);
+                        });
+
+                        // ── Section helper ───────────────────────────────────
+                        void Section(string number, string title, System.Action<QuestPDF.Infrastructure.IContainer> body)
+                        {
+                            col.Item().PaddingTop(16).Column(sc =>
+                            {
+                                sc.Item().Row(r =>
+                                {
+                                    r.ConstantItem(2).Background(tealDark);
+                                    r.ConstantItem(6);
+                                    r.RelativeItem().Text($"{number}. {title}").Bold().FontSize(12).FontColor(tealDark);
+                                });
+                                sc.Item().PaddingTop(2).LineHorizontal(0.5f).LineColor(tealDark);
+                                sc.Item().PaddingTop(6).Element(body);
                             });
+                        }
+
+                        // ── 1. Overview ───────────────────────────────────────
+                        Section("1", "Overview", c =>
+                            c.Text(d.ProjectOverview ??
+                                "NBSN Projects is pleased to submit this quotation for its Training Management & Compliance System. " +
+                                "The platform is designed to help training providers and skills development organisations manage learner " +
+                                "records, attendance evidence, portfolios of evidence (POEs), supporting documents and compliance " +
+                                "reporting in one secure system.").FontSize(10).FontColor(bodyText));
+
+                        // ── 2. Proposed System Scope ──────────────────────────
+                        Section("2", "Proposed System Scope", c =>
+                        {
+                            var scopeItems = d.ScopeItems ?? new List<ScopeItem>
+                            {
+                                new() { Area = "Learner Management", Description = "Register and manage learner records, ID verification, enrolment tracking and profile management." },
+                                new() { Area = "Attendance Management", Description = "Biometric and manual attendance capture, geolocation clocking, offline sync and attendance calendars." },
+                                new() { Area = "Portfolio of Evidence (POE)", Description = "Compile, manage and export learner portfolios of evidence per qualification and unit standard." },
+                                new() { Area = "Assessments & Moderation", Description = "Formative and summative assessments, marking, moderation workflow and competency tracking." },
+                                new() { Area = "Document Management", Description = "Encrypted learner document upload, approval workflow and compliance document tracking." },
+                                new() { Area = "Reporting & Compliance", Description = "Funder reports, attendance exports, stipend schedules, QA overview and document compliance reports." },
+                                new() { Area = "Mobile Application", Description = "Flutter mobile app for teachers and field staff with offline capability, biometric clocking and document scanning." },
+                                new() { Area = "Learner Portal", Description = "Self-service portal for learners to view attendance, upload documents, complete assessments and track progress." },
+                            };
+                            c.Table(table =>
+                            {
+                                table.ColumnsDefinition(tc => { tc.ConstantColumn(160); tc.RelativeColumn(); });
+                                table.Header(header =>
+                                {
+                                    header.Cell().Background(navyDark).Padding(7).Text("FUNCTIONAL AREA").Bold().FontColor("#ffffff").FontSize(9);
+                                    header.Cell().Background(navyDark).Padding(7).Text("DESCRIPTION").Bold().FontColor("#ffffff").FontSize(9);
+                                });
+                                for (int i = 0; i < scopeItems.Count; i++)
+                                {
+                                    var bg = i % 2 == 0 ? "#f8fafc" : "#ffffff";
+                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                        .Text(scopeItems[i].Area).Bold().FontSize(9).FontColor(navyDark);
+                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                        .Text(scopeItems[i].Description).FontSize(9).FontColor(bodyText);
+                                }
+                            });
+                        });
+
+                        // ── 3. Pricing ────────────────────────────────────────
+                        Section("3", "Pricing", c =>
+                        {
                             var items = d.LineItems ?? new List<QuotationLineItem>
                             {
-                                new() { Description = "System design and master lists", Amount = 1000 },
-                                new() { Description = "Enrolment Register", Amount = 1500 },
-                                new() { Description = "Attendance Register", Amount = 1000 },
-                                new() { Description = "Assessment Results", Amount = 1500 },
-                                new() { Description = "Verification Register", Amount = 1500 },
-                                new() { Description = "Dashboard and summaries", Amount = 1000 },
-                                new() { Description = "Protection, branding and user guide", Amount = 1000 },
-                                new() { Description = "Testing, handover and revisions", Amount = 1500 },
+                                new() { Description = "System setup, configuration and customisation", Amount = 5000 },
+                                new() { Description = "Learner management and enrolment module", Amount = 3000 },
+                                new() { Description = "Attendance management (biometric + manual)", Amount = 3500 },
+                                new() { Description = "POE compilation and document management", Amount = 3000 },
+                                new() { Description = "Assessments, marking and moderation", Amount = 3000 },
+                                new() { Description = "Reporting, compliance exports and dashboards", Amount = 2500 },
+                                new() { Description = "Mobile application (teacher + field staff)", Amount = 4000 },
+                                new() { Description = "Learner self-service portal", Amount = 2500 },
+                                new() { Description = "Training, onboarding and user guides", Amount = 2000 },
+                                new() { Description = "12-month hosting, maintenance and support", Amount = 6000 },
                             };
-                            for (int i = 0; i < items.Count; i++)
-                            {
-                                var bg = i % 2 == 0 ? "#f0fdfa" : "#ffffff";
-                                table.Cell().Background(bg).Padding(6).Text($"{i + 1}").FontSize(9);
-                                table.Cell().Background(bg).Padding(6).Text(items[i].Description).FontSize(9);
-                                table.Cell().Background(bg).Padding(6).Text($"R {items[i].Amount:N2}").FontSize(9);
-                            }
                             var total = items.Sum(x => x.Amount);
-                            table.Cell().ColumnSpan(2).Background("#0d9488").Padding(6).Text("TOTAL (excl. VAT)").Bold().FontColor("#ffffff").FontSize(9);
-                            table.Cell().Background("#0d9488").Padding(6).Text($"R {total:N2}").Bold().FontColor("#ffffff").FontSize(9);
+                            c.Table(table =>
+                            {
+                                table.ColumnsDefinition(tc => { tc.ConstantColumn(30); tc.RelativeColumn(); tc.ConstantColumn(110); });
+                                table.Header(header =>
+                                {
+                                    header.Cell().Background(navyDark).Padding(7).Text("#").Bold().FontColor("#ffffff").FontSize(9);
+                                    header.Cell().Background(navyDark).Padding(7).Text("DESCRIPTION").Bold().FontColor("#ffffff").FontSize(9);
+                                    header.Cell().Background(navyDark).Padding(7).Text("AMOUNT (ZAR)").Bold().FontColor("#ffffff").FontSize(9);
+                                });
+                                for (int i = 0; i < items.Count; i++)
+                                {
+                                    var bg = i % 2 == 0 ? "#f8fafc" : "#ffffff";
+                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7).Text($"{i + 1}").FontSize(9);
+                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7).Text(items[i].Description).FontSize(9);
+                                    table.Cell().Background(bg).Border(0.3f).BorderColor("#e2e8f0").Padding(7)
+                                        .Text($"R {items[i].Amount:N2}").FontSize(9);
+                                }
+                                table.Cell().ColumnSpan(2).Background(tealDark).Padding(7)
+                                    .Text("TOTAL (excl. VAT)").Bold().FontColor("#ffffff").FontSize(10);
+                                table.Cell().Background(tealDark).Padding(7)
+                                    .Text($"R {total:N2}").Bold().FontColor("#ffffff").FontSize(10);
+                            });
+                            c.PaddingTop(6).Text("All amounts in South African Rand and exclude VAT.").FontSize(9).FontColor(mutedText).Italic();
                         });
 
-                        // Payment terms
-                        col.Item().PaddingTop(14).Text("4  Payment Terms").Bold().FontSize(12).FontColor("#0f172a");
-                        col.Item().PaddingTop(4).Text(d.PaymentTerms ?? "50% deposit on acceptance. 50% balance on delivery. Payment by EFT.").FontColor("#475569");
+                        // ── 4. Payment Terms ──────────────────────────────────
+                        Section("4", "Payment Terms", c =>
+                            c.Text(d.PaymentTerms ?? "50% deposit on acceptance of this quotation. 50% balance on delivery and sign-off.\nPayment by EFT. Banking details will appear on the invoice.")
+                                .FontSize(10).FontColor(bodyText));
 
-                        // Delivery
-                        col.Item().PaddingTop(14).Text("5  Delivery Timeline").Bold().FontSize(12).FontColor("#0f172a");
-                        col.Item().PaddingTop(4).Text(d.DeliveryTimeline ?? "7–10 working days from receipt of signed quotation and deposit.").FontColor("#475569");
+                        // ── 5. Delivery Timeline ──────────────────────────────
+                        Section("5", "Delivery Timeline", c =>
+                            c.Text(d.DeliveryTimeline ?? "The system will be deployed and ready for use within 10–15 working days of receiving the signed quotation and deposit payment.")
+                                .FontSize(10).FontColor(bodyText));
 
-                        // Acceptance
-                        col.Item().PaddingTop(20).LineHorizontal(0.5f).LineColor("#e2e8f0");
-                        col.Item().PaddingTop(10).Row(row =>
+                        // ── Acceptance / Signatures ───────────────────────────
+                        col.Item().PaddingTop(20).LineHorizontal(1).LineColor(navyDark);
+                        col.Item().PaddingTop(12).Row(row =>
                         {
                             row.RelativeItem().Column(c =>
                             {
-                                c.Item().Text("FOR NBSN PROJECTS").Bold().FontSize(9).FontColor("#0d9488");
-                                c.Item().PaddingTop(16).Text("Signature: _______________________").FontSize(9);
+                                c.Item().Text("FOR NBSN PROJECTS").Bold().FontSize(9).FontColor(tealDark);
+                                c.Item().PaddingTop(18).Text("Signature: _________________________").FontSize(9);
                                 c.Item().PaddingTop(4).Text("Name: Sbusiso Madikizela").FontSize(9);
                                 c.Item().PaddingTop(4).Text($"Date: {DateTime.Now:dd/MM/yyyy}").FontSize(9);
+                                c.Item().PaddingTop(4).Text("Stamp:").FontSize(9);
                             });
-                            row.ConstantItem(32);
+                            row.ConstantItem(40);
                             row.RelativeItem().Column(c =>
                             {
-                                c.Item().Text("ACCEPTED BY CLIENT").Bold().FontSize(9).FontColor("#0d9488");
-                                c.Item().PaddingTop(16).Text("Signature: _______________________").FontSize(9);
-                                c.Item().PaddingTop(4).Text($"Name: {d.ClientName}").FontSize(9);
+                                c.Item().Text("ACCEPTED BY CLIENT").Bold().FontSize(9).FontColor(tealDark);
+                                c.Item().PaddingTop(18).Text("Signature: _________________________").FontSize(9);
+                                c.Item().PaddingTop(4).Text($"Name: {(string.IsNullOrWhiteSpace(d.ClientName) ? "______________________" : d.ClientName)}").FontSize(9);
+                                c.Item().PaddingTop(4).Text("Title: ______________________").FontSize(9);
                                 c.Item().PaddingTop(4).Text("Date: ______________________").FontSize(9);
                             });
                         });
-                        col.Item().PaddingTop(16).AlignCenter().Text("Thank you for the opportunity to work with you.").Italic().FontColor("#64748b");
+                        col.Item().PaddingTop(14).AlignCenter()
+                            .Text("Thank you for the opportunity to work with you.")
+                            .Italic().FontColor(mutedText).FontSize(9);
                     });
 
-                    page.Footer().AlignCenter().Text(txt =>
+                    // ── Footer ────────────────────────────────────────────────
+                    page.Footer().Column(fc =>
                     {
-                        txt.Span("NBSN Projects  |  info@nbsnprojects.co.za  |  0733904588  |  ").FontColor("#94a3b8").FontSize(8);
-                        txt.CurrentPageNumber().FontColor("#94a3b8").FontSize(8);
-                        txt.Span(" / ").FontColor("#94a3b8").FontSize(8);
-                        txt.TotalPages().FontColor("#94a3b8").FontSize(8);
+                        fc.Item().LineHorizontal(0.5f).LineColor("#cbd5e1");
+                        fc.Item().PaddingTop(4).Row(row =>
+                        {
+                            row.RelativeItem().Text("NBSN Projects  |  info@nbsnprojects.co.za  |  0733904588  |  www.nbsnprojects.co.za")
+                                .FontSize(8).FontColor(mutedText);
+                            row.AutoItem().Text(txt =>
+                            {
+                                txt.Span("Page ").FontSize(8).FontColor(mutedText);
+                                txt.CurrentPageNumber().FontSize(8).FontColor(mutedText);
+                                txt.Span(" of ").FontSize(8).FontColor(mutedText);
+                                txt.TotalPages().FontSize(8).FontColor(mutedText);
+                            });
+                        });
                     });
                 });
             }).GeneratePdf();
@@ -430,12 +581,22 @@ namespace backend.Controllers
         public decimal Amount { get; set; }
     }
 
+    public class ScopeItem
+    {
+        public string Area { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+    }
+
     public class QuotationFormData
     {
         public int QuoteNumber { get; set; } = 1;
         public string ClientName { get; set; } = string.Empty;
         public string ClientOrganisation { get; set; } = string.Empty;
         public string ClientContact { get; set; } = string.Empty;
+        public string? OrganisationType { get; set; }
+        public string? TrainingCentres { get; set; }
+        public int? EstimatedLearners { get; set; }
+        public string? SystemName { get; set; }
         public string? QuoteDate { get; set; }
         public string? ValidUntil { get; set; }
         public string? ProjectOverview { get; set; }
@@ -443,6 +604,7 @@ namespace backend.Controllers
         public string? PaymentTerms { get; set; }
         public string? DeliveryTimeline { get; set; }
         public List<QuotationLineItem>? LineItems { get; set; }
+        public List<ScopeItem>? ScopeItems { get; set; }
     }
 
     public class SLAFormData
