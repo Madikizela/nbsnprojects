@@ -620,6 +620,11 @@ interface SavedDoc {
   referenceNumber: string; clientName: string; generatedAt: string; status: string;
 }
 
+interface SdpOption {
+  id: number; name: string; address: string;
+  contactPerson: string; contactEmail: string; contactPhone: string;
+}
+
 interface QLineItem { description: string; amount: number; }
 
 const statusColors: Record<string, { bg: string; color: string }> = {
@@ -635,6 +640,11 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
   const [docsLoading, setDocsLoading] = React.useState(true);
   const [generating, setGenerating]   = React.useState(false);
   const [msg, setMsg]           = React.useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  // SDP picker
+  const [sdps, setSdps]           = React.useState<SdpOption[]>([]);
+  const [sdpsLoaded, setSdpsLoaded] = React.useState(false);
+  const [selectedSdpId, setSelectedSdpId] = React.useState<number | ''>('');
 
   // Quotation form state
   const [qForm, setQForm] = React.useState({
@@ -700,7 +710,27 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
     } finally { setDocsLoading(false); }
   }, [token, apiUrl]);
 
+  const loadSdps = React.useCallback(async () => {
+    if (sdpsLoaded) return;
+    try {
+      const r = await fetch(`${apiUrl}/api/DocumentGenerator/sdps`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) { setSdps(await r.json()); setSdpsLoaded(true); }
+    } catch { /* non-fatal */ }
+  }, [token, apiUrl, sdpsLoaded]);
+
   React.useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  // Auto-fill client fields from selected SDP
+  const applySdp = (id: number | '') => {
+    setSelectedSdpId(id);
+    if (id === '') return;
+    const s = sdps.find(x => x.id === id);
+    if (!s) return;
+    const contact = [s.contactEmail, s.contactPhone].filter(Boolean).join('  |  ');
+    setQForm(p => ({ ...p, clientName: s.contactPerson || s.name, clientOrganisation: s.name, clientContact: contact }));
+    setSForm(p => ({ ...p, clientName: s.name, clientAddress: s.address || '', clientContractOwner: s.contactPerson || '' }));
+    setLForm(p => ({ ...p, clientName: s.name }));
+  };
 
   const generate = async (type: 'quotation' | 'sla' | 'licence') => {
     setGenerating(true); setMsg(null);
@@ -782,7 +812,7 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {([['list', '📋 Saved Documents'], ['quotation', '💰 New Quotation'], ['sla', '📄 New SLA'], ['licence', '🔑 New Licence']] as [DocTab, string][]).map(([t, label]) => (
-          <button key={t} onClick={() => setTab(t)}
+          <button key={t} onClick={() => { setTab(t); if (t !== 'list') loadSdps(); }}
             style={{ padding: '8px 20px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: tab === t ? 700 : 500, fontSize: 13,
               background: tab === t ? 'linear-gradient(135deg,#0f172a,#1e3a5f)' : '#f1f5f9',
               color: tab === t ? '#fff' : '#64748b' }}>
@@ -849,6 +879,28 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
       {/* ── Tab: New Quotation ── */}
       {tab === 'quotation' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* SDP Picker */}
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '14px 18px' }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#1d4ed8', marginBottom: 8 }}>
+              🔗 Auto-fill from existing SDP <span style={{ fontWeight: 400, color: '#3b82f6', fontSize: 12 }}>— optional. Leave blank to type client details manually.</span>
+            </div>
+            <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #bfdbfe', fontSize: 13, background: '#fff' }}
+              value={selectedSdpId}
+              onChange={e => applySdp(e.target.value === '' ? '' : parseInt(e.target.value))}>
+              <option value="">— New / external client (type manually) —</option>
+              {sdps.map(s => <option key={s.id} value={s.id}>{s.name}{s.contactPerson ? ` — ${s.contactPerson}` : ''}</option>)}
+            </select>
+            {selectedSdpId !== '' && (
+              <div style={{ marginTop: 8, fontSize: 12, color: '#3b82f6' }}>
+                Client fields pre-filled from SDP. You can still edit them below.
+                <button onClick={() => applySdp('')}
+                  style={{ marginLeft: 10, padding: '2px 8px', borderRadius: 4, border: '1px solid #bfdbfe', background: '#fff', color: '#3b82f6', cursor: 'pointer', fontSize: 11 }}>
+                  Clear
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Row 1: Client Info + Prepared By */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
@@ -1019,6 +1071,24 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
       {/* ── Tab: New SLA ── */}
       {tab === 'sla' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          {/* SDP Picker — full width above the two columns */}
+          <div style={{ gridColumn: '1 / -1', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '14px 18px' }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#1d4ed8', marginBottom: 8 }}>
+              🔗 Auto-fill from existing SDP <span style={{ fontWeight: 400, color: '#3b82f6', fontSize: 12 }}>— optional.</span>
+            </div>
+            <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #bfdbfe', fontSize: 13, background: '#fff' }}
+              value={selectedSdpId}
+              onChange={e => applySdp(e.target.value === '' ? '' : parseInt(e.target.value))}>
+              <option value="">— New / external client (type manually) —</option>
+              {sdps.map(s => <option key={s.id} value={s.id}>{s.name}{s.contactPerson ? ` — ${s.contactPerson}` : ''}</option>)}
+            </select>
+            {selectedSdpId !== '' && (
+              <button onClick={() => applySdp('')}
+                style={{ marginTop: 6, padding: '2px 8px', borderRadius: 4, border: '1px solid #bfdbfe', background: '#fff', color: '#3b82f6', cursor: 'pointer', fontSize: 11 }}>
+                Clear selection
+              </button>
+            )}
+          </div>
           {/* Left */}
           <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
             <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>📄 SLA — Client Details</div>
@@ -1085,6 +1155,25 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
       {/* ── Tab: New Licence Certificate ── */}
       {tab === 'licence' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* SDP Picker */}
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '14px 18px' }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#1d4ed8', marginBottom: 8 }}>
+              🔗 Auto-fill from existing SDP <span style={{ fontWeight: 400, color: '#3b82f6', fontSize: 12 }}>— optional.</span>
+            </div>
+            <select style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #bfdbfe', fontSize: 13, background: '#fff' }}
+              value={selectedSdpId}
+              onChange={e => applySdp(e.target.value === '' ? '' : parseInt(e.target.value))}>
+              <option value="">— New / external client (type manually) —</option>
+              {sdps.map(s => <option key={s.id} value={s.id}>{s.name}{s.contactPerson ? ` — ${s.contactPerson}` : ''}</option>)}
+            </select>
+            {selectedSdpId !== '' && (
+              <button onClick={() => applySdp('')}
+                style={{ marginTop: 6, padding: '2px 8px', borderRadius: 4, border: '1px solid #bfdbfe', background: '#fff', color: '#3b82f6', cursor: 'pointer', fontSize: 11 }}>
+                Clear selection
+              </button>
+            )}
+          </div>
 
           {/* Row 1: Client + Usage */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>

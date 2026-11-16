@@ -25,6 +25,33 @@ namespace backend.Controllers
             _environment = environment;
         }
 
+        // GET: api/DocumentGenerator/sdps  — lightweight SDP list for auto-fill
+        [HttpGet("sdps")]
+        public async Task<IActionResult> GetSdpList()
+        {
+            var sdps = await _context.SkillsDevelopmentProviders
+                .Where(s => s.Status == SDPStatus.Active)
+                .OrderBy(s => s.Name)
+                .Select(s => new
+                {
+                    s.Id,
+                    s.Name,
+                    s.Address,
+                    s.ContactPerson,
+                    ContactEmail = s.Users
+                        .OrderBy(u => u.Id)
+                        .Select(u => u.Email)
+                        .FirstOrDefault() ?? "",
+                    ContactPhone = s.Users
+                        .OrderBy(u => u.Id)
+                        .Select(u => u.PhoneNumber)
+                        .FirstOrDefault() ?? "",
+                })
+                .ToListAsync();
+
+            return Ok(sdps);
+        }
+
         // GET: api/DocumentGenerator
         [HttpGet]
         public async Task<IActionResult> GetDocuments([FromQuery] string? type = null)
