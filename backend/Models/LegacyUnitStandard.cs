@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("legacy_unit_standards")]
-    public class LegacyUnitStandard
+    public class LegacyUnitStandard : ISoftDeletable
     {
         [Key]
         [Column("id")]
@@ -29,5 +29,10 @@ namespace backend.Models
         
         [Column("synced")]
         public int? Synced { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

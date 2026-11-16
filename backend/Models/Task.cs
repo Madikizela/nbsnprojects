@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
@@ -20,7 +20,7 @@ namespace backend.Models
         Critical = 4
     }
 
-    public class ProjectTask
+    public class ProjectTask : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -76,5 +76,10 @@ namespace backend.Models
         public string? CompletionNotes { get; set; }
 
         public DateTime? CompletedAt { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

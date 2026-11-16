@@ -1,9 +1,9 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
-    public class ProjectQualification
+    public class ProjectQualification : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -35,5 +35,10 @@ namespace backend.Models
         
         [ForeignKey("LegacyQualificationId")]
         public virtual LegacyQualification? LegacyQualification { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

@@ -166,7 +166,8 @@ namespace backend.Controllers
         {
             var doc = await _context.GeneratedDocuments.FindAsync(id);
             if (doc == null) return NotFound();
-            _context.GeneratedDocuments.Remove(doc);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            doc.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
             return Ok();
         }

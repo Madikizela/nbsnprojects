@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("LearnerAssessmentProgress")]
-    public class LearnerAssessmentProgress
+    public class LearnerAssessmentProgress : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -54,5 +54,10 @@ namespace backend.Models
         // Navigation properties
         public virtual Learner? Learner { get; set; }
         public virtual ProjectQualificationUnitStandard? ProjectQualificationUnitStandard { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

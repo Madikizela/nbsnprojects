@@ -335,8 +335,9 @@ namespace backend.Controllers
                     System.IO.File.Delete(fullPath);
                 }
 
-                // Remove from database
-                _context.LearnerAssessmentAnswers.Remove(answer);
+                // Soft-delete from database
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                answer.SoftDelete(userId != null ? int.Parse(userId) : null);
                 await _context.SaveChangesAsync();
 
                 // Update progress (might need to mark assessment as incomplete)

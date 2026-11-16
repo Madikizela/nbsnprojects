@@ -95,7 +95,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.Courses.Remove(course);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            course.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();

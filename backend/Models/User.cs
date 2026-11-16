@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Text.RegularExpressions;
 
 namespace backend.Models
 {
-    public class User
+    public class User : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -89,6 +89,11 @@ namespace backend.Models
 
         [ForeignKey("DepartmentId")]
         public virtual Department? Department { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 
     public enum UserRole

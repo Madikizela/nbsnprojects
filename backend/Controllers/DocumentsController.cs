@@ -359,8 +359,8 @@ namespace backend.Controllers
                     await _encryptionService.SecureDeleteFileAsync(document.FilePath);
                 }
 
-                // Remove from database
-                _context.Documents.Remove(document);
+                // Soft-delete from database (record kept for restore; physical file already securely deleted above)
+                document.SoftDelete(userId);
                 await _context.SaveChangesAsync();
 
                 return NoContent();

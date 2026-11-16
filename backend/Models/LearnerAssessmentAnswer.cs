@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("LearnerAssessmentAnswers")]
-    public class LearnerAssessmentAnswer
+    public class LearnerAssessmentAnswer : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -70,6 +70,11 @@ namespace backend.Models
 
         [ForeignKey("ModeratorId")]
         public virtual User? Moderator { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 
     public enum MarkStatus

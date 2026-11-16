@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("SummativeAssessmentQuestions")]
-    public class SummativeAssessmentQuestion
+    public class SummativeAssessmentQuestion : ISoftDeletable
     {
         [Key]
         [Column("Id")]
@@ -35,5 +35,10 @@ namespace backend.Models
         // Navigation property
         [ForeignKey("SummativeAssessmentId")]
         public SummativeAssessment? SummativeAssessment { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

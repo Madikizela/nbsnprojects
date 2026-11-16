@@ -691,7 +691,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.Projects.Remove(project);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            project.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();

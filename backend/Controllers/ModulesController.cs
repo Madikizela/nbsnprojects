@@ -104,7 +104,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.Modules.Remove(module);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            module.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();

@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("AssessmentTypes")]
-    public class AssessmentType
+    public class AssessmentType : ISoftDeletable
     {
         [Key]
         [Column("Id")]
@@ -27,5 +27,10 @@ namespace backend.Models
 
         // Navigation property
         public virtual ICollection<UnitStandardAssessment> UnitStandardAssessments { get; set; } = new List<UnitStandardAssessment>();
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

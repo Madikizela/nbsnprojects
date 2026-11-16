@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("AssessmentQuestions")]
-    public class AssessmentQuestion
+    public class AssessmentQuestion : ISoftDeletable
     {
         [Key]
         [Column("Id")]
@@ -39,5 +39,10 @@ namespace backend.Models
         // Navigation properties
         [ForeignKey("UnitStandardAssessmentId")]
         public UnitStandardAssessment? UnitStandardAssessment { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

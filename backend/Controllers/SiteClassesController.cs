@@ -241,7 +241,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.SiteClasses.Remove(siteClass);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            siteClass.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();

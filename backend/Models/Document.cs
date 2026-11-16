@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using backend.Services.Interfaces;
 
@@ -7,7 +7,7 @@ namespace backend.Models
     /// <summary>
     /// Document entity for secure file storage with comprehensive security features
     /// </summary>
-    public class Document
+    public class Document : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }

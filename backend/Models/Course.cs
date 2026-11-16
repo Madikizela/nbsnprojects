@@ -1,10 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace backend.Models
 {
-    public class Course
+    public class Course : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -22,5 +22,10 @@ namespace backend.Models
         
         // Navigation properties
         public ICollection<Module> Modules { get; set; } = new List<Module>();
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

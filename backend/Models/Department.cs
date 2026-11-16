@@ -1,9 +1,9 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
-    public class Department
+    public class Department : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -47,6 +47,11 @@ namespace backend.Models
         public virtual SkillsDevelopmentProvider? SkillsDevelopmentProvider { get; set; }
 
         public virtual ICollection<User> Users { get; set; } = new List<User>();
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 
     public enum DepartmentType

@@ -300,7 +300,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.Departments.Remove(department);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            department.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();

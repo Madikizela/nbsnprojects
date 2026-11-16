@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
@@ -9,7 +9,7 @@ namespace backend.Models
     /// and also pushed to each learner via WhatsApp and email on creation.
     /// </summary>
     [Table("Announcements")]
-    public class Announcement
+    public class Announcement : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -45,5 +45,10 @@ namespace backend.Models
 
         [ForeignKey("CreatedByUserId")]
         public virtual User? CreatedByUser { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("LearnerDocuments")]
-    public class LearnerDocument
+    public class LearnerDocument : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -77,5 +77,10 @@ namespace backend.Models
 
         [ForeignKey("ApprovedByUserId")]
         public virtual User? ApprovedByUser { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

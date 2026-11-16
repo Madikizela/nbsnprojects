@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
 
 namespace backend.Models
@@ -6,7 +6,7 @@ namespace backend.Models
     /// <summary>
     /// System Administrator model - separate from regular users
     /// </summary>
-    public class SystemAdmin
+    public class SystemAdmin : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -74,6 +74,11 @@ namespace backend.Models
         /// Check if account is currently locked
         /// </summary>
         public bool IsLocked => LockedUntil.HasValue && LockedUntil.Value > DateTime.UtcNow;
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 
     /// <summary>

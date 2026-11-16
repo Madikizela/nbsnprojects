@@ -113,7 +113,8 @@ namespace backend.Controllers
         {
             var n = await _context.Notifications.FindAsync(id);
             if (n == null) return NotFound();
-            _context.Notifications.Remove(n);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            n.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
             return Ok();
         }

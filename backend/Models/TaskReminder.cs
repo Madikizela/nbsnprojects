@@ -1,4 +1,4 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
@@ -10,7 +10,7 @@ namespace backend.Models
         Both = 3
     }
 
-    public class TaskReminder
+    public class TaskReminder : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -37,5 +37,10 @@ namespace backend.Models
 
         // Audit Fields
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

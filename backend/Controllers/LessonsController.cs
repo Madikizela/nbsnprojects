@@ -102,7 +102,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.Lessons.Remove(lesson);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            lesson.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();

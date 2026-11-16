@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("ProjectSites")]
-    public class ProjectSite
+    public class ProjectSite : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -77,5 +77,10 @@ namespace backend.Models
         public virtual User? CreatedByUser { get; set; }
         
         public virtual ICollection<SiteClass> SiteClasses { get; set; } = new List<SiteClass>();
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("LogbookEntries")]
-    public class LogbookEntry
+    public class LogbookEntry : ISoftDeletable
     {
         [Key]
         [Column("Id")]
@@ -62,5 +62,10 @@ namespace backend.Models
         // Navigation property
         [ForeignKey("ProjectQualificationUnitStandardId")]
         public virtual ProjectQualificationUnitStandard? ProjectQualificationUnitStandard { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

@@ -198,7 +198,8 @@ namespace backend.Controllers
             if (ann.CreatedByUserId != requesterId && !isAdmin)
                 return Forbid();
 
-            _context.Announcements.Remove(ann);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            ann.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
             return Ok(new { message = "Announcement deleted." });
         }

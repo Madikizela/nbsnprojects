@@ -329,8 +329,9 @@ namespace backend.Controllers
                 // Delete encrypted file from disk
                 await _encryptionService.DeleteEncryptedFileAsync(document.EncryptedFilePath);
 
-                // Delete database record
-                _context.LearnerDocuments.Remove(document);
+                // Soft-delete database record
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                document.SoftDelete(userId != null ? int.Parse(userId) : null);
                 await _context.SaveChangesAsync();
 
                 _logger.LogInformation($"Document deleted: ID={id}, LearnerId={document.LearnerId}, Type={document.DocumentType}");

@@ -1,9 +1,9 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
-    public class Learner
+    public class Learner : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -140,5 +140,10 @@ namespace backend.Models
 
         public virtual ICollection<ClassEnrollment> ClassEnrollments { get; set; } = new List<ClassEnrollment>();
         public virtual ICollection<LearnerDocument> LearnerDocuments { get; set; } = new List<LearnerDocument>();
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

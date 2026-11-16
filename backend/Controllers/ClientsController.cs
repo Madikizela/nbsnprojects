@@ -356,7 +356,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.Clients.Remove(client);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            client.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();

@@ -253,8 +253,10 @@ namespace backend.Controllers
                 return NotFound(new { message = "External user not found" });
 
             var access = await _context.ExternalUserAccess.Where(a => a.UserId == id).ToListAsync();
-            _context.ExternalUserAccess.RemoveRange(access);
-            _context.Users.Remove(user);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var uid = userId != null ? int.Parse(userId) : (int?)null;
+            foreach (var item in access) item.SoftDelete(uid);
+            user.SoftDelete(uid);
             await _context.SaveChangesAsync();
             return Ok(new { message = "External user deleted successfully" });
         }

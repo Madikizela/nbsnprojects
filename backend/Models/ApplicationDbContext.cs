@@ -109,6 +109,29 @@ namespace backend.Models
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            // ── Global soft-delete query filter ───────────────────────────────
+            // Any entity implementing ISoftDeletable is automatically excluded
+            // from all queries unless .IgnoreQueryFilters() is called explicitly.
+            foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+            {
+                if (typeof(ISoftDeletable).IsAssignableFrom(entityType.ClrType))
+                {
+                    modelBuilder.Entity(entityType.ClrType)
+                        .HasQueryFilter(
+                            System.Linq.Expressions.Expression.Lambda(
+                                System.Linq.Expressions.Expression.Not(
+                                    System.Linq.Expressions.Expression.Property(
+                                        System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e"),
+                                        "IsDeleted"
+                                    )
+                                ),
+                                System.Linq.Expressions.Expression.Parameter(entityType.ClrType, "e")
+                            )
+                        );
+                }
+            }
+            // ─────────────────────────────────────────────────────────────────
             
             // Configure PostgreSQL naming conventions
             foreach (var entity in modelBuilder.Model.GetEntityTypes())

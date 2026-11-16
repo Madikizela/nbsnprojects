@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("LearningMaterials")]
-    public class LearningMaterial
+    public class LearningMaterial : ISoftDeletable
     {
         [Key]
         [Column("Id")]
@@ -85,5 +85,10 @@ namespace backend.Models
 
         [ForeignKey("UploadedByUserId")]
         public virtual User? UploadedByUser { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

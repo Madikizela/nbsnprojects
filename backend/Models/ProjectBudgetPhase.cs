@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("project_budget_phases")]
-    public class ProjectBudgetPhase
+    public class ProjectBudgetPhase : ISoftDeletable
     {
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -39,5 +39,10 @@ namespace backend.Models
         public virtual Project? Project { get; set; }
 
         public virtual ICollection<ProjectBudgetLineItem> LineItems { get; set; } = new List<ProjectBudgetLineItem>();
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

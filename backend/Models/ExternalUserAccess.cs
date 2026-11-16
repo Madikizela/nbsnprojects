@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("ExternalUserAccess")]
-    public class ExternalUserAccess
+    public class ExternalUserAccess : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -31,5 +31,10 @@ namespace backend.Models
 
         [ForeignKey("ProjectId")]
         public virtual Project? Project { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

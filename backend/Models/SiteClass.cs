@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("SiteClasses")]
-    public class SiteClass
+    public class SiteClass : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -50,5 +50,10 @@ namespace backend.Models
         public virtual User? CreatedByUser { get; set; }
         
         public virtual ICollection<ClassEnrollment> ClassEnrollments { get; set; } = new List<ClassEnrollment>();
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

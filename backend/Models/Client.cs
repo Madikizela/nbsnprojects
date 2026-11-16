@@ -1,8 +1,8 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 
 namespace backend.Models
 {
-    public class Client
+    public class Client : ISoftDeletable
     {
         [Key]
         public int Id { get; set; }
@@ -40,6 +40,11 @@ namespace backend.Models
         public virtual ICollection<User> Users { get; set; } = new List<User>();
         // SkillsDevelopmentProviders navigation property temporarily removed due to database schema mismatch
         // public virtual ICollection<SkillsDevelopmentProvider> SkillsDevelopmentProviders { get; set; } = new List<SkillsDevelopmentProvider>();
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 
     public enum ClientStatus

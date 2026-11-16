@@ -478,11 +478,13 @@ namespace backend.Controllers
                     return Forbid("You don't have permission to delete this task");
                 }
 
-                // Remove reminders first
-                _context.TaskReminders.RemoveRange(task.Reminders);
+                // Soft-delete reminders, then soft-delete the task
+                var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var uid = userId != null ? int.Parse(userId) : (int?)null;
+                foreach (var r in task.Reminders) r.SoftDelete(uid);
                 
-                // Remove task
-                _context.Tasks.Remove(task);
+                // Soft-delete the task
+                task.SoftDelete(uid);
                 
                 await _context.SaveChangesAsync();
 

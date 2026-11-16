@@ -147,7 +147,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.FormativeAssessments.Remove(assessment);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            assessment.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -254,7 +255,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.SummativeAssessments.Remove(assessment);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            assessment.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -347,7 +349,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.LogbookEntries.Remove(entry);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            entry.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();

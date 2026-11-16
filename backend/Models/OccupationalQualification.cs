@@ -1,10 +1,10 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("occupational_qualifications")]
-    public class OccupationalQualification
+    public class OccupationalQualification : ISoftDeletable
     {
         [Key]
         [Column("qualification_id")]
@@ -48,5 +48,10 @@ namespace backend.Models
         
         // Navigation properties
         public virtual ICollection<ProjectQualification> ProjectQualifications { get; set; } = new List<ProjectQualification>();
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

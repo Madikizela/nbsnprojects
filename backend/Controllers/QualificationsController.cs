@@ -84,7 +84,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.OccupationalQualifications.Remove(oq);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            oq.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -165,7 +166,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.OccupationalUnitStandards.Remove(ous);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            ous.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -251,7 +253,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.LegacyQualifications.Remove(lq);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            lq.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();
@@ -325,7 +328,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.LegacyUnitStandards.Remove(lus);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            lus.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();

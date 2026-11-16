@@ -1,11 +1,11 @@
-using System;
+﻿using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
     [Table("ProjectQualificationUnitStandards")]
-    public class ProjectQualificationUnitStandard
+    public class ProjectQualificationUnitStandard : ISoftDeletable
     {
         [Key]
         [Column("Id")]
@@ -33,5 +33,10 @@ namespace backend.Models
         // Navigation property
         [ForeignKey("ProjectQualificationId")]
         public virtual ProjectQualification? ProjectQualification { get; set; }
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

@@ -1,9 +1,9 @@
-using System.ComponentModel.DataAnnotations;
+﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace backend.Models
 {
-    public class LearningPathway
+    public class LearningPathway : ISoftDeletable
     {
         [Key]
         public int PathwayId { get; set; }
@@ -16,5 +16,10 @@ namespace backend.Models
         
         // Navigation properties
         public virtual ICollection<ProjectLearningPathway> ProjectLearningPathways { get; set; } = new List<ProjectLearningPathway>();
+
+        // ---- Soft Delete ------------------------------------------------
+        public bool      IsDeleted       { get; set; } = false;
+        public DateTime? DeletedAt       { get; set; }
+        public int?      DeletedByUserId { get; set; }
     }
 }

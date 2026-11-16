@@ -529,7 +529,8 @@ namespace backend.Controllers
                 return NotFound();
             }
 
-            _context.ClassEnrollments.Remove(enrollment);
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            enrollment.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
             return NoContent();
