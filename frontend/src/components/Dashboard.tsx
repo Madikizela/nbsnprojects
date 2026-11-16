@@ -721,7 +721,16 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
     notes: '',
   });
   const [iItems, setIItems] = React.useState<ILineItem[]>([
-    { description: '', quantity: 1, unitPrice: 0 },
+    { description: 'System setup, configuration and customisation', quantity: 1, unitPrice: 5000 },
+    { description: 'Learner management and enrolment module',       quantity: 1, unitPrice: 3000 },
+    { description: 'Attendance management (biometric + manual)',    quantity: 1, unitPrice: 3500 },
+    { description: 'POE compilation and document management',       quantity: 1, unitPrice: 3000 },
+    { description: 'Assessments, marking and moderation',          quantity: 1, unitPrice: 3000 },
+    { description: 'Reporting, compliance exports and dashboards',  quantity: 1, unitPrice: 2500 },
+    { description: 'Mobile application (teacher + field staff)',    quantity: 1, unitPrice: 4000 },
+    { description: 'Learner self-service portal',                   quantity: 1, unitPrice: 2500 },
+    { description: 'Training, onboarding and user guides',          quantity: 1, unitPrice: 2000 },
+    { description: '12-month hosting, maintenance and support',     quantity: 1, unitPrice: 6000 },
   ]);
 
   const loadDocs = React.useCallback(async () => {
