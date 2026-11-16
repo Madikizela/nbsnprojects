@@ -715,12 +715,9 @@ namespace backend.Controllers
                         // Licensed service scope
                         col.Item().PaddingTop(14).Column(sc =>
                         {
-                            sc.Item().Background(navy).PaddingHorizontal(10).PaddingVertical(7).Row(r =>
-                            {
-                                r.AutoItem().Text("▶ ").FontSize(9).FontColor(teal);
-                                r.RelativeItem().Text("Licensed service scope")
-                                    .Bold().FontSize(9).FontColor("#ffffff").LetterSpacing(0.06f);
-                            });
+                            sc.Item().Background(navy).PaddingHorizontal(10).PaddingVertical(7)
+                                .Text("Licensed service scope")
+                                .Bold().FontSize(9).FontColor("#ffffff").LetterSpacing(0.06f);
                             sc.Item().Border(0.4f).BorderColor("#dde3ea").Padding(10)
                                 .Text(d.ServiceScope ??
                                     "NBSN-Projects web and mobile access; learner registration and administration; " +
@@ -755,13 +752,13 @@ namespace backend.Controllers
                         col.Item().PaddingTop(10).Background("#fff8e1").Border(0.4f).BorderColor(gold)
                             .PaddingHorizontal(12).PaddingVertical(7).Text(txt =>
                             {
-                                txt.Span("⚠  ").FontColor(gold).Bold().FontSize(9);
+                                txt.Span("Note: ").FontColor(gold).Bold().FontSize(9);
                                 txt.Span("This certificate is evidence of a contractual software licence. " +
                                     "It is not SETA, QCTO or government accreditation.")
                                     .Italic().FontSize(8).FontColor(muted);
                             });
 
-                        // ── Page break → Schedule ─────────────────────────────
+                        // ── Page break → Schedule on page 2 ──────────────────
                         col.Item().PageBreak();
 
                         // Schedule heading with logo
