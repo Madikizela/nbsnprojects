@@ -613,7 +613,7 @@ const NotificationBell: React.FC<{ token: string; apiUrl: string; userId?: numbe
 type Toast = { id:number; type:'success'|'error'|'info'; text:string };
 
 // ── Document Generator ────────────────────────────────────────────────────────
-type DocTab = 'list' | 'quotation' | 'sla';
+type DocTab = 'list' | 'quotation' | 'sla' | 'licence';
 
 interface SavedDoc {
   id: number; documentType: string; documentTitle: string;
@@ -672,6 +672,25 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
     additionalClauses: '',
   });
 
+  // Licence form state
+  const [lForm, setLForm] = React.useState({
+    licenceNumber: 1,
+    clientName: '', clientRegNumber: '',
+    supplierName: 'NBSN Projects (Pty) Ltd.',
+    supplierRegNumber: '2023 / 200156 / 07',
+    licenceType: 'Non-exclusive, non-transferable SaaS subscription licence',
+    licenceStatus: 'ACTIVE - subject to payment and agreement compliance',
+    effectiveDate: new Date().toLocaleDateString('en-ZA'),
+    expiryDate: '',
+    authorisedUsers: '', authorisedLearners: '', authorisedSites: '', authorisedProjects: '',
+    relatedInvoice: '', relatedSLA: '',
+    serviceScope: '',
+    supplierSignatoryName: 'Sbusiso Madikizela - Director',
+    supplierPhone: '0733904588',
+    clientVerificationContact: '',
+    documentVersion: '1.0',
+  });
+
   const loadDocs = React.useCallback(async () => {
     setDocsLoading(true);
     try {
@@ -683,9 +702,22 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
 
   React.useEffect(() => { loadDocs(); }, [loadDocs]);
 
-  const generate = async (type: 'quotation' | 'sla') => {
+  const generate = async (type: 'quotation' | 'sla' | 'licence') => {
     setGenerating(true); setMsg(null);
-    const body = type === 'quotation' ? { ...qForm, lineItems: qItems } : sForm;
+    let body: object;
+    if (type === 'quotation') {
+      body = { ...qForm, lineItems: qItems };
+    } else if (type === 'licence') {
+      const authorisedUsage = [
+        lForm.authorisedUsers    ? `${lForm.authorisedUsers} users`    : '',
+        lForm.authorisedLearners ? `${lForm.authorisedLearners} learners` : '',
+        lForm.authorisedSites    ? `${lForm.authorisedSites} sites`    : '',
+        lForm.authorisedProjects ? `${lForm.authorisedProjects} Projects` : '',
+      ].filter(Boolean).join(' | ');
+      body = { ...lForm, authorisedUsage };
+    } else {
+      body = sForm;
+    }
     try {
       const r = await fetch(`${apiUrl}/api/DocumentGenerator/${type}`, {
         method: 'POST',
@@ -749,7 +781,7 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
 
       {/* Tab bar */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {([['list', '📋 Saved Documents'], ['quotation', '💰 New Quotation'], ['sla', '📄 New SLA']] as [DocTab, string][]).map(([t, label]) => (
+        {([['list', '📋 Saved Documents'], ['quotation', '💰 New Quotation'], ['sla', '📄 New SLA'], ['licence', '🔑 New Licence']] as [DocTab, string][]).map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)}
             style={{ padding: '8px 20px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: tab === t ? 700 : 500, fontSize: 13,
               background: tab === t ? 'linear-gradient(135deg,#0f172a,#1e3a5f)' : '#f1f5f9',
@@ -781,8 +813,8 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
                         <td style={{ ...tdS, fontWeight: 600, fontSize: 12 }}>{doc.referenceNumber}</td>
                         <td style={tdS}>
                           <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                            background: doc.documentType === 'QUOTATION' ? '#eff6ff' : '#f0fdf4',
-                            color: doc.documentType === 'QUOTATION' ? '#2563eb' : '#16a34a' }}>
+                            background: doc.documentType === 'QUOTATION' ? '#eff6ff' : doc.documentType === 'LICENCE' ? '#fefce8' : '#f0fdf4',
+                            color: doc.documentType === 'QUOTATION' ? '#2563eb' : doc.documentType === 'LICENCE' ? '#854d0e' : '#16a34a' }}>
                             {doc.documentType}
                           </span>
                         </td>
@@ -1045,6 +1077,136 @@ const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token,
                 color: generating || !sForm.clientName ? '#94a3b8' : '#fff',
                 fontWeight: 700, fontSize: 14, cursor: generating || !sForm.clientName ? 'not-allowed' : 'pointer' }}>
               {generating ? <><span className="spinner-border spinner-border-sm me-2" role="status" />Generating…</> : '📄 Generate SLA PDF'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab: New Licence Certificate ── */}
+      {tab === 'licence' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+
+          {/* Row 1: Client + Usage */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+
+            {/* Client Details */}
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>👤 Licensed Client</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Appears in the certificate header and body</div>
+
+              <label style={labelStyle}>Licence Number</label>
+              <input type="number" style={inputStyle} min={1} value={lForm.licenceNumber}
+                onChange={e => setLForm(p => ({ ...p, licenceNumber: parseInt(e.target.value) || 1 }))} />
+
+              <label style={labelStyle}>Client Name *</label>
+              <input style={inputStyle} value={lForm.clientName} placeholder="e.g. Nomaku Training"
+                onChange={e => setLForm(p => ({ ...p, clientName: e.target.value }))} />
+
+              <label style={labelStyle}>Client Registration Number</label>
+              <input style={inputStyle} value={lForm.clientRegNumber} placeholder="e.g. 2020/123456/07"
+                onChange={e => setLForm(p => ({ ...p, clientRegNumber: e.target.value }))} />
+
+              <label style={labelStyle}>Client Verification Contact</label>
+              <input style={inputStyle} value={lForm.clientVerificationContact} placeholder="Name and phone of client contact"
+                onChange={e => setLForm(p => ({ ...p, clientVerificationContact: e.target.value }))} />
+
+              <label style={labelStyle}>Effective Date</label>
+              <input style={inputStyle} value={lForm.effectiveDate}
+                onChange={e => setLForm(p => ({ ...p, effectiveDate: e.target.value }))} />
+
+              <label style={labelStyle}>Expiry / Renewal Date</label>
+              <input style={inputStyle} value={lForm.expiryDate} placeholder="e.g. 31/12/2026"
+                onChange={e => setLForm(p => ({ ...p, expiryDate: e.target.value }))} />
+
+              <label style={labelStyle}>Licence Status</label>
+              <select style={inputStyle} value={lForm.licenceStatus}
+                onChange={e => setLForm(p => ({ ...p, licenceStatus: e.target.value }))}>
+                <option>ACTIVE - subject to payment and agreement compliance</option>
+                <option>SUSPENDED - pending payment</option>
+                <option>EXPIRED</option>
+                <option>CANCELLED</option>
+              </select>
+
+              <label style={labelStyle}>Licence Type</label>
+              <input style={inputStyle} value={lForm.licenceType}
+                onChange={e => setLForm(p => ({ ...p, licenceType: e.target.value }))} />
+            </div>
+
+            {/* Authorised Usage + Related docs */}
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>📊 Authorised Usage</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Combines into "X users | Y learners | Z sites | N Projects"</div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {([
+                  ['Users',    'authorisedUsers',    'e.g. 6'],
+                  ['Learners', 'authorisedLearners', 'e.g. 100'],
+                  ['Sites',    'authorisedSites',    'e.g. 3'],
+                  ['Projects', 'authorisedProjects', 'e.g. 2'],
+                ] as [string, keyof typeof lForm, string][]).map(([label, key, ph]) => (
+                  <div key={key}>
+                    <label style={{ ...labelStyle, marginTop: 0 }}>Authorised {label}</label>
+                    <input type="number" style={inputStyle} value={lForm[key] as string} placeholder={ph}
+                      onChange={e => setLForm(p => ({ ...p, [key]: e.target.value }))} />
+                  </div>
+                ))}
+              </div>
+
+              <label style={labelStyle}>Related Invoice Number</label>
+              <input style={inputStyle} value={lForm.relatedInvoice} placeholder="e.g. INV-2026-001"
+                onChange={e => setLForm(p => ({ ...p, relatedInvoice: e.target.value }))} />
+
+              <label style={labelStyle}>Related SLA Reference</label>
+              <input style={inputStyle} value={lForm.relatedSLA} placeholder="e.g. SLA/NBSN/NOMAKU/2026/001"
+                onChange={e => setLForm(p => ({ ...p, relatedSLA: e.target.value }))} />
+
+              <label style={labelStyle}>Document Version</label>
+              <input style={inputStyle} value={lForm.documentVersion}
+                onChange={e => setLForm(p => ({ ...p, documentVersion: e.target.value }))} />
+            </div>
+          </div>
+
+          {/* Row 2: Supplier + Service Scope */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>🏢 Supplier Details (NBSN)</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Pre-populated — edit if needed</div>
+
+              <label style={labelStyle}>Supplier Name</label>
+              <input style={inputStyle} value={lForm.supplierName}
+                onChange={e => setLForm(p => ({ ...p, supplierName: e.target.value }))} />
+
+              <label style={labelStyle}>Supplier Registration Number</label>
+              <input style={inputStyle} value={lForm.supplierRegNumber}
+                onChange={e => setLForm(p => ({ ...p, supplierRegNumber: e.target.value }))} />
+
+              <label style={labelStyle}>Signatory Name &amp; Title</label>
+              <input style={inputStyle} value={lForm.supplierSignatoryName}
+                onChange={e => setLForm(p => ({ ...p, supplierSignatoryName: e.target.value }))} />
+
+              <label style={labelStyle}>Supplier Phone (Verification)</label>
+              <input style={inputStyle} value={lForm.supplierPhone}
+                onChange={e => setLForm(p => ({ ...p, supplierPhone: e.target.value }))} />
+            </div>
+
+            <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>📋 Licensed Service Scope</div>
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Leave blank to use the default scope text</div>
+              <textarea rows={12} style={{ ...inputStyle, resize: 'vertical' }} value={lForm.serviceScope}
+                placeholder="NBSN-Projects web and mobile access; learner registration and administration; attendance management; agreed biometric and location functions; learner document and POE management; assessment, moderation, quality-assurance workflows; reporting; hosting; backups; and support, only to the extent selected in the signed SLA or order form."
+                onChange={e => setLForm(p => ({ ...p, serviceScope: e.target.value }))} />
+            </div>
+          </div>
+
+          {/* Generate button */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+            <button onClick={() => generate('licence')} disabled={generating || !lForm.clientName}
+              style={{ width: '100%', padding: '14px', borderRadius: 10, border: 'none',
+                background: generating || !lForm.clientName ? '#e2e8f0' : 'linear-gradient(135deg,#0d2240,#0d7377)',
+                color: generating || !lForm.clientName ? '#94a3b8' : '#fff',
+                fontWeight: 700, fontSize: 15, cursor: generating || !lForm.clientName ? 'not-allowed' : 'pointer' }}>
+              {generating ? <><span className="spinner-border spinner-border-sm me-2" role="status" />Generating…</> : '🔑 Generate Licence Certificate PDF'}
             </button>
           </div>
         </div>

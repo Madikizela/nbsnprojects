@@ -144,6 +144,42 @@ namespace backend.Controllers
             return Ok();
         }
 
+        // POST: api/DocumentGenerator/licence
+        [HttpPost("licence")]
+        public async Task<IActionResult> GenerateLicence([FromBody] LicenceFormData data)
+        {
+            try
+            {
+                var clientCode = data.ClientName.ToUpper().Replace(" ", "").Replace("-", "").Substring(0, Math.Min(8, data.ClientName.Length));
+                var refNo = $"NBSN-Projects-{clientCode}-{DateTime.UtcNow:yyyy}-{data.LicenceNumber:D3}";
+                var pdfBytes = GenerateLicencePdf(data, refNo);
+                var base64   = Convert.ToBase64String(pdfBytes);
+
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                var doc = new GeneratedDocument
+                {
+                    DocumentType      = "LICENCE",
+                    DocumentTitle     = $"Licence Certificate — {data.ClientName}",
+                    ReferenceNumber   = refNo,
+                    ClientName        = data.ClientName,
+                    FormDataJson      = JsonSerializer.Serialize(data),
+                    PdfBase64         = base64,
+                    GeneratedByUserId = userId != null ? int.Parse(userId) : null,
+                    GeneratedAt       = DateTime.UtcNow,
+                    Status            = "Draft"
+                };
+                _context.GeneratedDocuments.Add(doc);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { id = doc.Id, referenceNumber = refNo, message = "Licence certificate generated successfully." });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error generating licence certificate");
+                return StatusCode(500, new { error = ex.Message });
+            }
+        }
+
         // ── PDF Generation ────────────────────────────────────────────────────
 
         private string GetLogoPath()
@@ -553,6 +589,261 @@ namespace backend.Controllers
             }).GeneratePdf();
         }
 
+        private static byte[] GenerateLicencePdf(LicenceFormData d, string refNo)
+        {
+            const string navy    = "#0d2240";
+            const string teal    = "#0d7377";
+            const string gold    = "#b8960c";
+            const string body    = "#1e293b";
+            const string muted   = "#64748b";
+            const string lightBg = "#f8fafc";
+            const string borderG = "#c9a227";   // gold border for certificate box
+
+            return QuestDocument.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(PageSizes.A4);
+                    page.MarginHorizontal(50);
+                    page.MarginVertical(40);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial").FontColor(body));
+
+                    // ── Running header (pages 2+) ─────────────────────────────
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Row(r =>
+                        {
+                            r.RelativeItem().Text("NBSN-Projects  |  SOFTWARE LICENCE").FontSize(8).FontColor(muted);
+                            r.AutoItem().Text(txt =>
+                            {
+                                txt.CurrentPageNumber().FontSize(8).FontColor(muted);
+                                txt.Span(" / ").FontSize(8).FontColor(muted);
+                                txt.TotalPages().FontSize(8).FontColor(muted);
+                            });
+                        });
+                        col.Item().PaddingTop(4).LineHorizontal(0.4f).LineColor("#e2e8f0");
+                    });
+
+                    page.Content().PaddingTop(10).Column(col =>
+                    {
+                        // ── Page 1: Certificate ───────────────────────────────
+
+                        // NBSN-Projects wordmark
+                        col.Item().AlignCenter()
+                            .Text("NBSN-Projects").Bold().FontSize(13).FontColor(teal);
+
+                        // Title
+                        col.Item().PaddingTop(6).AlignCenter()
+                            .Text("SOFTWARE LICENCE CERTIFICATE")
+                            .Bold().FontSize(22).FontColor(navy);
+
+                        // Sub-title
+                        col.Item().PaddingTop(4).AlignCenter()
+                            .Text("NBSN-Projects Learner Management System")
+                            .FontSize(12).FontColor(teal);
+
+                        // Licence number box (gold border)
+                        col.Item().PaddingTop(18).Border(1.5f).BorderColor(borderG)
+                            .Background(lightBg).Padding(16).Column(nb =>
+                            {
+                                nb.Item().AlignCenter()
+                                    .Text("LICENCE NUMBER").FontSize(9).Bold().FontColor(muted).LetterSpacing(0.1f);
+                                nb.Item().PaddingTop(6).AlignCenter()
+                                    .Text(refNo).Bold().FontSize(16).FontColor(navy);
+                            });
+
+                        // Certifies paragraph
+                        col.Item().PaddingTop(16).AlignCenter().Text(txt =>
+                        {
+                            txt.Span("This certifies that ").FontSize(10).FontColor(body);
+                            txt.Span(d.ClientName.ToUpper()).Bold().FontSize(10).FontColor(navy);
+                            txt.Span(
+                                " is authorised to access and use the NBSN-Projects Learner Management System " +
+                                "under the conditions stated in this certificate, the Software Licence Agreement " +
+                                "and the applicable Service Level Agreement.")
+                                .FontSize(10).FontColor(body);
+                        });
+
+                        // Details table
+                        col.Item().PaddingTop(16).Table(table =>
+                        {
+                            table.ColumnsDefinition(c => { c.ConstantColumn(180); c.RelativeColumn(); });
+
+                            void Row(string label, string value, bool bold = false)
+                            {
+                                table.Cell().Background(lightBg).Border(0.4f).BorderColor("#e2e8f0")
+                                    .Padding(8).Text(label).Bold().FontSize(10).FontColor(body);
+                                var cell = table.Cell().Border(0.4f).BorderColor("#e2e8f0").Padding(8);
+                                if (bold)
+                                    cell.Text(value).Bold().FontSize(10).FontColor(navy);
+                                else
+                                    cell.Text(value).FontSize(10).FontColor(body);
+                            }
+
+                            Row("Licensed client",             d.ClientName, true);
+                            Row("Client registration number",  d.ClientRegNumber ?? "");
+                            Row("Software supplier",           d.SupplierName);
+                            Row("Supplier registration number", d.SupplierRegNumber);
+                            Row("Licence type",                d.LicenceType);
+                            Row("Licence status",              d.LicenceStatus, true);
+                            Row("Effective date",              d.EffectiveDate ?? DateTime.Now.ToString("dd/MM/yyyy"));
+                            Row("Expiry / renewal date",       d.ExpiryDate ?? "");
+                            Row("Authorised usage",            d.AuthorisedUsage ?? "");
+                            Row("Related invoice",             d.RelatedInvoice ?? "");
+                            Row("Related SLA",                 d.RelatedSLA ?? "");
+                        });
+
+                        // Licensed service scope
+                        col.Item().PaddingTop(14).Column(sc =>
+                        {
+                            sc.Item().Background(navy).Padding(8)
+                                .Text("Licensed service scope").Bold().FontColor("#ffffff").FontSize(10);
+                            sc.Item().Border(0.4f).BorderColor("#e2e8f0").Padding(10)
+                                .Text(d.ServiceScope ??
+                                    "NBSN-Projects web and mobile access; learner registration and administration; " +
+                                    "attendance management; agreed biometric and location functions; learner document and POE management; " +
+                                    "assessment, moderation, quality-assurance workflows; reporting; hosting; backups; and support, " +
+                                    "only to the extent selected in the signed SLA or order form.")
+                                .FontSize(10).FontColor(body);
+                        });
+
+                        // Signature table
+                        col.Item().PaddingTop(16).Table(table =>
+                        {
+                            table.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); });
+                            table.Cell().Background(navy).Padding(8).Text("Authorised for the Supplier").Bold().FontColor("#ffffff").FontSize(10);
+                            table.Cell().Background(navy).Padding(8).Text($"Accepted for {d.ClientName}").Bold().FontColor("#ffffff").FontSize(10);
+
+                            // Supplier sig cell
+                            table.Cell().Border(0.4f).BorderColor("#e2e8f0").MinHeight(80).Padding(10).Column(c =>
+                            {
+                                c.Item().Text($"Name and title: {d.SupplierSignatoryName}").FontSize(9).FontColor(muted);
+                                c.Item().PaddingTop(16).Text("Signature:").FontSize(9).FontColor(muted);
+                                c.Item().PaddingTop(16).Text($"Date: {d.EffectiveDate ?? DateTime.Now.ToString("dd/MM/yyyy")}").FontSize(9).FontColor(muted);
+                            });
+
+                            // Client sig cell
+                            table.Cell().Border(0.4f).BorderColor("#e2e8f0").MinHeight(80).Padding(10).Column(c =>
+                            {
+                                c.Item().Text("Name and title:").FontSize(9).FontColor(muted);
+                                c.Item().PaddingTop(16).Text("Signature: _____________________").FontSize(9).FontColor(muted);
+                                c.Item().PaddingTop(16).Text("Date: _________________________").FontSize(9).FontColor(muted);
+                            });
+                        });
+
+                        // Disclaimer
+                        col.Item().PaddingTop(10).AlignCenter()
+                            .Text("This certificate is evidence of a contractual software licence. It is not SETA, QCTO or government accreditation.")
+                            .Italic().FontSize(8).FontColor(muted);
+
+                        // ── Page break → Schedule ─────────────────────────────
+                        col.Item().PageBreak();
+
+                        // Schedule heading
+                        col.Item().PaddingTop(4).AlignCenter()
+                            .Text("Licence Schedule and Conditions").Bold().FontSize(16).FontColor(navy);
+                        col.Item().PaddingTop(4).AlignCenter()
+                            .Text($"Certificate reference: {refNo}").FontSize(9).FontColor(muted);
+                        col.Item().PaddingTop(8).LineHorizontal(1.5f).LineColor(teal);
+
+                        // Schedule helper
+                        void Clause(string num, string title, System.Action<QuestPDF.Infrastructure.IContainer> content)
+                        {
+                            col.Item().PaddingTop(14).Column(sc =>
+                            {
+                                sc.Item().Row(r =>
+                                {
+                                    r.ConstantItem(2).Background(teal);
+                                    r.ConstantItem(6);
+                                    r.RelativeItem().Text($"{num}. {title}").Bold().FontSize(11).FontColor(teal);
+                                });
+                                sc.Item().PaddingTop(2).LineHorizontal(0.4f).LineColor(teal);
+                                sc.Item().PaddingTop(5).Element(content);
+                            });
+                        }
+
+                        void Bullets(QuestPDF.Infrastructure.IContainer c, IEnumerable<string> items)
+                        {
+                            c.Column(bc =>
+                            {
+                                foreach (var item in items)
+                                    bc.Item().Row(r =>
+                                    {
+                                        r.ConstantItem(14).Text("•").FontColor(teal).Bold();
+                                        r.RelativeItem().Text(item).FontSize(10).FontColor(body);
+                                    });
+                            });
+                        }
+
+                        Clause("1", "Licence grant", c => c.Text(
+                            $"Subject to payment and continued compliance with the applicable agreements, the Supplier grants {d.ClientName} " +
+                            "a limited, non-exclusive, non-transferable and revocable right during the licence term to access and use " +
+                            $"NBSN-Projects solely for {d.ClientName}'s authorised internal learner-management and training-administration activities.")
+                            .FontSize(10).FontColor(body));
+
+                        Clause("2", "Permitted users and scope", c => Bullets(c, new[]
+                        {
+                            $"Only users authorised by {d.ClientName} and provisioned under the agreed subscription may access the system.",
+                            "Usage is limited to the learner, user, project, site, storage and module limits recorded on the certificate, SLA, order form or invoice.",
+                            "Additional users, learners, projects, modules, storage or integrations require written approval and may attract additional charges.",
+                        }));
+
+                        Clause("3", "Restrictions", c => Bullets(c, new[]
+                        {
+                            $"{d.ClientName} may not copy, resell, sublicense, lease, distribute, reverse engineer or commercially exploit NBSN-Projects, except where expressly authorised in writing or permitted by law.",
+                            $"{d.ClientName} may not interfere with system security, bypass usage restrictions, share user credentials or allow unauthorised third parties to access the service.",
+                            "The licence does not transfer ownership of NBSN-Projects, its source code, architecture, documentation, templates, updates or other Supplier intellectual property.",
+                        }));
+
+                        Clause("4", "Client data and POPIA", c => c.Text(
+                            $"{d.ClientName} retains its rights and responsibilities in relation to its learner and operational data. " +
+                            "The parties must process Personal Information in accordance with POPIA and the signed data-processing and service agreements. " +
+                            $"{d.ClientName} is responsible for establishing the lawful basis, notices and permissions required for learner, child, biometric and location information used in its deployment.")
+                            .FontSize(10).FontColor(body));
+
+                        Clause("5", "Support and service levels", c => c.Text(
+                            "Hosting, availability, maintenance, backup, recovery, support priority, response target, security-incident and escalation commitments " +
+                            "are governed by the signed SLA. This certificate does not replace or expand those commitments.")
+                            .FontSize(10).FontColor(body));
+
+                        Clause("6", "Payment, validity and termination", c => c.Text(
+                            "The licence remains valid only for the stated term and while applicable fees are paid. Renewal, suspension, cancellation, termination " +
+                            "and data-export arrangements are governed by the signed agreements. A paid invoice or official receipt must be retained with this certificate " +
+                            "as evidence of payment; the certificate itself is not proof that payment was received.")
+                            .FontSize(10).FontColor(body));
+
+                        Clause("7", "Verification", c => c.Table(table =>
+                        {
+                            table.ColumnsDefinition(tc => { tc.ConstantColumn(220); tc.RelativeColumn(); });
+                            void VRow(string label, string value)
+                            {
+                                table.Cell().Background(lightBg).Border(0.4f).BorderColor("#e2e8f0").Padding(8)
+                                    .Text(label).Bold().FontSize(9).FontColor(body);
+                                table.Cell().Border(0.4f).BorderColor("#e2e8f0").Padding(8)
+                                    .Text(value).FontSize(9).FontColor(body);
+                            }
+                            VRow("Supplier verification contact", $"{d.SupplierSignatoryName}, {d.SupplierPhone}");
+                            VRow("Client verification contact",   d.ClientVerificationContact ?? "");
+                            VRow("Issue date",                    d.EffectiveDate ?? DateTime.Now.ToString("dd/MM/yyyy"));
+                            VRow("Document version",              d.DocumentVersion);
+                            VRow("Internal licence register reference", refNo);
+                        }));
+                    });
+
+                    // ── Footer ────────────────────────────────────────────────
+                    page.Footer().Column(fc =>
+                    {
+                        fc.Item().LineHorizontal(0.4f).LineColor("#e2e8f0");
+                        fc.Item().PaddingTop(4).AlignCenter().Text(txt =>
+                        {
+                            txt.Span("NBSN Projects  •  www.nbsnprojects.co.za  •  Confidential  •  Page ").FontSize(8).FontColor(muted);
+                            txt.CurrentPageNumber().FontSize(8).FontColor(muted);
+                        });
+                    });
+                });
+            }).GeneratePdf();
+        }
+
         private static byte[] GenerateSLAPdf(SLAFormData d, string refNo)
         {
             var effectiveDate = d.EffectiveDate ?? DateTime.Now.ToString("dd MMMM yyyy");
@@ -747,6 +1038,31 @@ namespace backend.Controllers
         public string ZKTecoSetupFee    { get; set; } = "R2,500–R4,000 once-off";
         public string OnsiteFee         { get; set; } = "From R1,500 per site";
         public string AdditionalTermFee { get; set; } = "R750 per device";
+    }
+
+    public class LicenceFormData
+    {
+        public int     LicenceNumber              { get; set; } = 1;
+        public string  ClientName                 { get; set; } = string.Empty;
+        public string? ClientRegNumber            { get; set; }
+        public string  SupplierName               { get; set; } = "NBSN Projects (Pty) Ltd.";
+        public string  SupplierRegNumber          { get; set; } = "2023 / 200156 / 07";
+        public string  LicenceType                { get; set; } = "Non-exclusive, non-transferable SaaS subscription licence";
+        public string  LicenceStatus              { get; set; } = "ACTIVE - subject to payment and agreement compliance";
+        public string? EffectiveDate              { get; set; }
+        public string? ExpiryDate                 { get; set; }
+        public string? AuthorisedUsage            { get; set; }   // e.g. "6 users | 100 learners | 3 sites | 2 Projects"
+        public string? RelatedInvoice             { get; set; }
+        public string? RelatedSLA                 { get; set; }
+        public string? ServiceScope               { get; set; }
+        public string  SupplierSignatoryName      { get; set; } = "Sbusiso Madikizela - Director";
+        public string  SupplierPhone              { get; set; } = "0733904588";
+        public string? ClientVerificationContact  { get; set; }
+        public string  DocumentVersion            { get; set; } = "1.0";
+        public int?    AuthorisedUsers            { get; set; }
+        public int?    AuthorisedLearners         { get; set; }
+        public int?    AuthorisedSites            { get; set; }
+        public int?    AuthorisedProjects         { get; set; }
     }
 
     public class SLAFormData
