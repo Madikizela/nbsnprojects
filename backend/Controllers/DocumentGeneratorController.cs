@@ -882,134 +882,266 @@ namespace backend.Controllers
             }).GeneratePdf();
         }
 
-        private static byte[] GenerateSLAPdf(SLAFormData d, string refNo)
+        private byte[] GenerateSLAPdf(SLAFormData d, string refNo)
         {
             var effectiveDate = d.EffectiveDate ?? DateTime.Now.ToString("dd MMMM yyyy");
+
+            const string navy     = "#0d2240";
+            const string teal     = "#0d7377";
+            const string bodyText = "#1e293b";
+            const string mutedText= "#64748b";
+            const string lightBg  = "#f0fdfa";
+            const string white    = "#ffffff";
+
+            var logoPath = GetLogoPath();
 
             return QuestDocument.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    page.Margin(40);
-                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial"));
+                    page.MarginHorizontal(0);
+                    page.MarginTop(0);
+                    page.MarginBottom(32);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial").FontColor(bodyText));
 
+                    // ── Header — navy band with logo ──────────────────────────
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(row =>
+                        col.Item().Background(navy).PaddingHorizontal(36).PaddingVertical(14).Row(row =>
                         {
-                            row.RelativeItem().Column(c =>
+                            row.RelativeItem().Row(lr =>
                             {
-                                c.Item().Text("SERVICE LEVEL AGREEMENT").FontSize(18).Bold().FontColor("#0d9488");
-                                c.Item().Text("NBSN PROJECT — Learner Management System").FontSize(10).FontColor("#475569");
+                                if (!string.IsNullOrEmpty(logoPath))
+                                {
+                                    lr.ConstantItem(48).Image(logoPath).FitArea();
+                                    lr.ConstantItem(10);
+                                }
+                                lr.RelativeItem().Column(c =>
+                                {
+                                    c.Item().Text("NBSN PROJECTS").Bold().FontSize(14).FontColor(white);
+                                    c.Item().Text("Skills Development Solutions").FontSize(8).FontColor("#94c5cc").LetterSpacing(0.08f);
+                                });
                             });
-                            row.RelativeItem().AlignRight().Column(c =>
+                            row.AutoItem().AlignMiddle().Column(c =>
                             {
-                                c.Item().Text("NBSN PROJECTS").Bold().FontSize(12);
-                                c.Item().Text(refNo).FontSize(9).FontColor("#64748b");
-                                c.Item().Text($"Version {d.Version ?? "1.0"}").FontSize(9).FontColor("#64748b");
+                                c.Item().AlignRight().Text("SERVICE LEVEL AGREEMENT").Bold().FontSize(10).FontColor(teal).LetterSpacing(0.1f);
+                                c.Item().AlignRight().Text(refNo).FontSize(8).FontColor("#94c5cc");
+                                c.Item().AlignRight().Text($"Version {d.Version ?? "1.0"}").FontSize(8).FontColor("#94c5cc");
                             });
                         });
-                        col.Item().PaddingTop(8).LineHorizontal(1.5f).LineColor("#0d9488");
+                        col.Item().Height(4).Background(teal);
                     });
 
-                    page.Content().PaddingTop(16).Column(col =>
+                    page.Content().PaddingHorizontal(36).PaddingTop(20).Column(col =>
                     {
-                        // Agreement details box
-                        col.Item().Background("#f0fdfa").Padding(12).Table(table =>
+                        // ── Title block ───────────────────────────────────────
+                        col.Item().Column(tc =>
                         {
-                            table.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); });
-                            void Row(string label, string value)
+                            tc.Item().Text("SERVICE LEVEL AGREEMENT")
+                                .Bold().FontSize(24).FontColor(navy);
+                            tc.Item().PaddingTop(2).Text("NBSN Projects — Learner Management System")
+                                .FontSize(11).FontColor(teal);
+                            tc.Item().PaddingTop(8).LineHorizontal(2).LineColor(teal);
+                            tc.Item().PaddingTop(1).LineHorizontal(0.4f).LineColor(teal);
+                        });
+
+                        // ── Summary card ──────────────────────────────────────
+                        col.Item().PaddingTop(16).Background(lightBg).Border(0.4f).BorderColor("#b2dfdb")
+                            .Padding(16).Table(table =>
                             {
-                                table.Cell().Padding(4).Text(label).Bold().FontSize(9).FontColor("#0d9488");
-                                table.Cell().Padding(4).Text(value).FontSize(9);
-                            }
-                            Row("Client", d.ClientName);
-                            Row("Supplier", "NBSN PROJECTS");
-                            Row("Effective Date", effectiveDate);
-                            Row("Initial Term", d.InitialTerm ?? "12 months");
-                            Row("Agreement Reference", refNo);
-                            Row("Version", d.Version ?? "1.0");
+                                table.ColumnsDefinition(c => { c.ConstantColumn(160); c.RelativeColumn(); });
+
+                                void SRow(string label, string value)
+                                {
+                                    table.Cell().PaddingVertical(5).Text(label).Bold().FontSize(10).FontColor(teal);
+                                    table.Cell().PaddingVertical(5).Text(value).FontSize(10).FontColor(bodyText);
+                                }
+
+                                SRow("Client",               d.ClientName);
+                                SRow("Supplier",             "NBSN PROJECTS");
+                                SRow("Effective Date",       effectiveDate);
+                                SRow("Initial Term",         d.InitialTerm ?? "12 months");
+                                SRow("Agreement Reference",  refNo);
+                                SRow("Version",              d.Version ?? "1.0");
+                            });
+
+                        // ── Agreement Particulars ─────────────────────────────
+                        col.Item().PaddingTop(18).Column(ap =>
+                        {
+                            ap.Item().Text("Agreement Particulars").Bold().FontSize(12).FontColor(bodyText);
+                            ap.Item().PaddingTop(1).LineHorizontal(0.5f).LineColor("#e2e8f0");
+                            ap.Item().PaddingTop(8).Column(inner =>
+                            {
+                                void P(string label, string value)
+                                {
+                                    inner.Item().PaddingBottom(2).Text(txt =>
+                                    {
+                                        txt.Span($"{label}: ").Bold().FontSize(9).FontColor(mutedText);
+                                        txt.Span(value).FontSize(9).FontColor(bodyText);
+                                    });
+                                }
+                                P("Supplier legal name",    "NBSN PROJECTS");
+                                P("Supplier address",       "Durban, KwaZulu-Natal, South Africa");
+                                P("Supplier service owner", "Sbusiso Madikizela — info@nbsnprojects.co.za");
+                                P("Client legal name",      d.ClientName);
+                                if (!string.IsNullOrWhiteSpace(d.ClientRegistrationNumber))
+                                    P("Client registration number", d.ClientRegistrationNumber);
+                                if (!string.IsNullOrWhiteSpace(d.ClientAddress))
+                                    P("Client address",     d.ClientAddress);
+                                if (!string.IsNullOrWhiteSpace(d.ClientContractOwner))
+                                    P("Client contract owner", d.ClientContractOwner);
+                            });
                         });
 
-                        // Agreement particulars
-                        col.Item().PaddingTop(14).Text("Agreement Particulars").Bold().FontSize(11).FontColor("#0f172a");
-                        col.Item().PaddingTop(6).Column(c =>
+                        // ── Section helper ────────────────────────────────────
+                        void Section(string num, string title, System.Action<QuestPDF.Infrastructure.IContainer> content)
                         {
-                            void Detail(string label, string value) =>
-                                c.Item().Text($"{label}: {value}").FontSize(9).FontColor("#475569");
-                            Detail("Supplier legal name", "NBSN PROJECTS");
-                            Detail("Supplier address", "Durban, KwaZulu-Natal, South Africa");
-                            Detail("Supplier service owner", "Sbusiso Madikizela — info@nbsnprojects.co.za");
-                            Detail("Client legal name", d.ClientName);
-                            Detail("Client registration number", d.ClientRegistrationNumber ?? "To be inserted");
-                            Detail("Client address", d.ClientAddress ?? "As stated in the Order Form");
-                            Detail("Client contract owner", d.ClientContractOwner ?? "Client designated representative");
-                        });
-
-                        // Key sections
-                        void Section(string title, string body)
-                        {
-                            col.Item().PaddingTop(12).Text(title).Bold().FontSize(11).FontColor("#0f172a");
-                            col.Item().PaddingTop(4).Text(body).FontSize(9).FontColor("#475569");
+                            col.Item().PaddingTop(16).Column(sc =>
+                            {
+                                sc.Item().Row(r =>
+                                {
+                                    r.ConstantItem(28).Background(navy).AlignMiddle().AlignCenter()
+                                        .Text(num).Bold().FontSize(9).FontColor(white);
+                                    r.ConstantItem(8);
+                                    r.RelativeItem().Text(title).Bold().FontSize(12).FontColor(navy);
+                                });
+                                sc.Item().PaddingTop(3).LineHorizontal(0.5f).LineColor("#e2e8f0");
+                                sc.Item().PaddingTop(5).Element(content);
+                            });
                         }
 
-                        Section("1. Purpose", "This Service Level Agreement records the operational service levels applicable to the Supplier's provision of the NBSN PROJECT Learner Management System to the Client. It supplements the SaaS Subscription and Software Licence Agreement signed by the parties.");
+                        void Bullets(QuestPDF.Infrastructure.IContainer c, IEnumerable<string> items)
+                        {
+                            c.Column(bc =>
+                            {
+                                foreach (var item in items)
+                                    bc.Item().PaddingBottom(3).Row(r =>
+                                    {
+                                        r.ConstantItem(16).PaddingTop(1).Text("•").Bold().FontColor(teal).FontSize(10);
+                                        r.RelativeItem().Text(item).FontSize(10).FontColor(bodyText);
+                                    });
+                            });
+                        }
 
-                        Section("2. Availability Commitment", "The Supplier targets monthly availability of 99.5% for the Production Service, measured 24/7 per Service Month. Planned maintenance window: Sundays 20:00–23:00 SAST with at least 48 hours advance notice.");
+                        // ── 1. Purpose ────────────────────────────────────────
+                        Section("1", "Purpose", c => c.Text(
+                            "This Service Level Agreement records the operational service levels applicable to the Supplier's provision of the NBSN PROJECT " +
+                            "Learner Management System to the Client. It supplements the SaaS Subscription and Software Licence Agreement signed by the parties.")
+                            .FontSize(10).FontColor(bodyText));
 
-                        Section("3. Support Service", "P1 Critical: 30-minute response, 4-hour resolution target, 24/7.\nP2 High: 2-business-hour response, 1 Business Day resolution.\nP3 Medium: 4-business-hour response, 3 Business Days resolution.\nP4 Low: 1 Business Day response, 5 Business Days resolution.\nLog incidents to: info@nbsnprojects.co.za");
+                        // ── 2. Availability ───────────────────────────────────
+                        Section("2", "Availability Commitment", c => c.Text(
+                            "The Supplier targets monthly availability of 99.5% for the Production Service, measured 24/7 per Service Month. " +
+                            "Planned maintenance window: Sundays 20:00–23:00 SAST with at least 48 hours advance notice.")
+                            .FontSize(10).FontColor(teal));
 
-                        Section("4. Backup and Recovery", $"Daily full database backups. Document backup: daily. Retention: 30 days rolling. Encryption: TLS 1.2+ in transit, AES-256 at rest. Target RPO: 24 hours. Target RTO: 8 hours. Hosting region: South Africa.");
+                        // ── 3. Support ────────────────────────────────────────
+                        Section("3", "Support Service", c => Bullets(c, new[]
+                        {
+                            "P1 Critical: 30-minute response, 4-hour resolution target, 24/7.",
+                            "P2 High: 2-business-hour response, 1 Business Day resolution.",
+                            "P3 Medium: 1 Business Day response, 3 Business Day resolution.",
+                            "P4 Low: 2 Business Days response, 5 Business Day resolution.",
+                            "Support channels: support@nbsnprojects.co.za and in-system ticketing.",
+                        }));
 
-                        Section("5. Subscription and Fees", $"Subscription package: {d.SubscriptionPackage ?? "As per Order Form"}\nMonthly fee: {d.MonthlyFee ?? "As per Order Form"}\nImplementation fee: {d.ImplementationFee ?? "As per Order Form"}\nPayment terms: Net 30 days.");
+                        // ── 4. Subscription ───────────────────────────────────
+                        Section("4", "Subscription Package", c =>
+                        {
+                            c.Column(col2 =>
+                            {
+                                if (!string.IsNullOrWhiteSpace(d.SubscriptionPackage))
+                                    col2.Item().Text($"Package: {d.SubscriptionPackage}").FontSize(10).FontColor(bodyText);
+                                if (!string.IsNullOrWhiteSpace(d.MonthlyFee))
+                                    col2.Item().PaddingTop(4).Text($"Monthly fee: {d.MonthlyFee}").FontSize(10).FontColor(bodyText);
+                                if (!string.IsNullOrWhiteSpace(d.ImplementationFee))
+                                    col2.Item().PaddingTop(4).Text($"Implementation fee: {d.ImplementationFee}").FontSize(10).FontColor(bodyText);
+                                col2.Item().PaddingTop(8).Text(
+                                    "Fees are subject to annual review. Any increase will be notified at least 30 days in advance. " +
+                                    "Fees exclude VAT unless stated otherwise.")
+                                    .FontSize(9).FontColor(mutedText).Italic();
+                            });
+                        });
 
-                        Section("6. Data and POPIA", "The Client acts as Responsible Party for Client Data and the Supplier acts as Operator under POPIA. Client Data remains owned by the Client. The Supplier will not share or use Client Data for any purpose beyond providing the agreed services.");
+                        // ── 5. Data and Security ──────────────────────────────
+                        Section("5", "Data and Security", c => Bullets(c, new[]
+                        {
+                            "Client data is stored encrypted at rest using AES-256 and in transit using TLS 1.2+.",
+                            "Daily automated backups are retained for a minimum of 30 days.",
+                            "The Supplier will notify the Client within 72 hours of a confirmed data breach.",
+                            "Personal Information is processed in accordance with POPIA and the data-processing addendum.",
+                        }));
 
-                        Section("7. Term and Renewal", $"This SLA begins on {effectiveDate} for an initial term of {d.InitialTerm ?? "12 months"}, then renews automatically for successive 12-month periods unless either party gives 60 days' written notice of non-renewal.");
+                        // ── 6. POPIA ──────────────────────────────────────────
+                        Section("6", "POPIA and Data Processing", c => c.Text(
+                            "Both parties are responsible for compliance with the Protection of Personal Information Act, 4 of 2013 (POPIA). " +
+                            "The Client is the Responsible Party for learner, staff and third-party personal information loaded into the system. " +
+                            "The Supplier acts as Operator and processes personal information only on the Client's documented instructions.")
+                            .FontSize(10).FontColor(bodyText));
 
-                        // Schedules summary
-                        col.Item().PaddingTop(14).Text("Schedules Forming Part of This SLA").Bold().FontSize(11).FontColor("#0f172a");
-                        col.Item().PaddingTop(4).Text("Schedule A — Selected Services and Subscription Scope\nSchedule B — Charges and Payment Terms\nSchedule C — Support Contacts and Escalation Matrix\nSchedule D — Data Processing and Security Details").FontSize(9).FontColor("#475569");
+                        // ── 7. Exclusions ─────────────────────────────────────
+                        Section("7", "Exclusions from SLA", c => Bullets(c, new[]
+                        {
+                            "Scheduled maintenance windows notified in advance.",
+                            "Events beyond the Supplier's reasonable control (force majeure).",
+                            "Outages caused by the Client's network, hardware or third-party services.",
+                            "Issues arising from Client modifications, misuse or unauthorised access.",
+                        }));
 
+                        // ── 8. Termination ────────────────────────────────────
+                        Section("8", "Term and Termination", c => c.Text(
+                            $"This agreement commences on {effectiveDate} and continues for the initial term of {d.InitialTerm ?? "12 months"}, " +
+                            "renewing automatically on a month-to-month basis unless either party provides 30 days' written notice of termination. " +
+                            "On termination the Supplier will make Client data available for export for 30 days, after which it may be deleted.")
+                            .FontSize(10).FontColor(bodyText));
+
+                        // ── Additional clauses ────────────────────────────────
                         if (!string.IsNullOrWhiteSpace(d.AdditionalClauses))
                         {
-                            Section("Additional Agreed Clauses", d.AdditionalClauses);
+                            Section("9", "Additional Agreed Terms", c =>
+                                c.Text(d.AdditionalClauses).FontSize(10).FontColor(bodyText));
                         }
 
-                        // Signatures
-                        col.Item().PaddingTop(20).LineHorizontal(0.5f).LineColor("#e2e8f0");
-                        col.Item().PaddingTop(10).Text("Acceptance and Signatures").Bold().FontSize(11).FontColor("#0d9488");
-                        col.Item().PaddingTop(8).Row(row =>
+                        // ── Signature block ───────────────────────────────────
+                        col.Item().PaddingTop(20).LineHorizontal(1.5f).LineColor(navy);
+                        col.Item().PaddingTop(14).Table(table =>
                         {
-                            row.RelativeItem().Column(c =>
+                            table.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); });
+                            table.Cell().Background(navy).Padding(8)
+                                .Text("For NBSN Projects").Bold().FontSize(9).FontColor(white);
+                            table.Cell().Background(navy).Padding(8)
+                                .Text($"For {d.ClientName}").Bold().FontSize(9).FontColor(white);
+
+                            table.Cell().Border(0.4f).BorderColor("#e2e8f0").MinHeight(80).Padding(12).Column(c =>
                             {
-                                c.Item().Text("FOR THE SUPPLIER — NBSN PROJECTS").Bold().FontSize(9).FontColor("#0d9488");
-                                c.Item().PaddingTop(14).Text("Signature: _______________________").FontSize(9);
-                                c.Item().PaddingTop(4).Text("Name: Sbusiso Madikizela").FontSize(9);
-                                c.Item().PaddingTop(4).Text("Title: Lead Developer").FontSize(9);
-                                c.Item().PaddingTop(4).Text($"Date: {DateTime.Now:dd/MM/yyyy}").FontSize(9);
-                                c.Item().PaddingTop(4).Text("Place: Durban, KwaZulu-Natal").FontSize(9);
+                                c.Item().Text("Name: Sbusiso Madikizela").FontSize(9).FontColor(mutedText);
+                                c.Item().PaddingTop(14).Text("Signature: ___________________________").FontSize(9).FontColor(mutedText);
+                                c.Item().PaddingTop(10).Text($"Date: {effectiveDate}").FontSize(9).FontColor(mutedText);
                             });
-                            row.ConstantItem(32);
-                            row.RelativeItem().Column(c =>
+                            table.Cell().Border(0.4f).BorderColor("#e2e8f0").MinHeight(80).Padding(12).Column(c =>
                             {
-                                c.Item().Text($"FOR THE CLIENT — {d.ClientName.ToUpper()}").Bold().FontSize(9).FontColor("#0d9488");
-                                c.Item().PaddingTop(14).Text("Signature: _______________________").FontSize(9);
-                                c.Item().PaddingTop(4).Text($"Name: {d.ClientContractOwner ?? "____________________"}").FontSize(9);
-                                c.Item().PaddingTop(4).Text("Title: ______________________").FontSize(9);
-                                c.Item().PaddingTop(4).Text("Date: ______________________").FontSize(9);
-                                c.Item().PaddingTop(4).Text("Place: ______________________").FontSize(9);
+                                c.Item().Text($"Name: {(string.IsNullOrWhiteSpace(d.ClientContractOwner) ? "___________________________" : d.ClientContractOwner)}").FontSize(9).FontColor(mutedText);
+                                c.Item().PaddingTop(14).Text("Signature: ___________________________").FontSize(9).FontColor(mutedText);
+                                c.Item().PaddingTop(10).Text("Date: _____________________________").FontSize(9).FontColor(mutedText);
                             });
                         });
                     });
 
-                    page.Footer().AlignCenter().Text(txt =>
+                    // ── Footer ────────────────────────────────────────────────
+                    page.Footer().Column(fc =>
                     {
-                        txt.Span($"NBSN Projects  |  {refNo}  |  ").FontColor("#94a3b8").FontSize(8);
-                        txt.CurrentPageNumber().FontColor("#94a3b8").FontSize(8);
-                        txt.Span(" / ").FontColor("#94a3b8").FontSize(8);
-                        txt.TotalPages().FontColor("#94a3b8").FontSize(8);
+                        fc.Item().PaddingHorizontal(36).LineHorizontal(0.4f).LineColor("#dde3ea");
+                        fc.Item().PaddingHorizontal(36).PaddingTop(5).Row(row =>
+                        {
+                            row.RelativeItem().Text(txt =>
+                            {
+                                txt.Span("NBSN Projects  •  info@nbsnprojects.co.za  •  www.nbsnprojects.co.za  •  Confidential  •  Page ")
+                                    .FontSize(7).FontColor(mutedText);
+                                txt.CurrentPageNumber().FontSize(7).FontColor(mutedText);
+                            });
+                            row.AutoItem().Text("Reg: 2023 / 200156 / 07").FontSize(7).FontColor(mutedText);
+                        });
                     });
                 });
             }).GeneratePdf();
