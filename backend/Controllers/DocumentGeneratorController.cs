@@ -589,67 +589,81 @@ namespace backend.Controllers
             }).GeneratePdf();
         }
 
-        private static byte[] GenerateLicencePdf(LicenceFormData d, string refNo)
+        private byte[] GenerateLicencePdf(LicenceFormData d, string refNo)
         {
             const string navy    = "#0d2240";
             const string teal    = "#0d7377";
             const string gold    = "#b8960c";
+            const string goldLight = "#fdf6e3";
             const string body    = "#1e293b";
             const string muted   = "#64748b";
             const string lightBg = "#f8fafc";
-            const string borderG = "#c9a227";   // gold border for certificate box
+            const string borderG = "#c9a227";
+
+            var logoPath = GetLogoPath();
 
             return QuestDocument.Create(container =>
             {
                 container.Page(page =>
                 {
                     page.Size(PageSizes.A4);
-                    page.MarginHorizontal(50);
-                    page.MarginVertical(40);
+                    page.MarginHorizontal(0);
+                    page.MarginTop(0);
+                    page.MarginBottom(32);
                     page.DefaultTextStyle(x => x.FontSize(10).FontFamily("Arial").FontColor(body));
 
-                    // ── Running header (pages 2+) ─────────────────────────────
+                    // ── Header — navy band with logo ──────────────────────────
                     page.Header().Column(col =>
                     {
-                        col.Item().Row(r =>
+                        col.Item().Background(navy).PaddingHorizontal(36).PaddingVertical(14).Row(row =>
                         {
-                            r.RelativeItem().Text("NBSN-Projects  |  SOFTWARE LICENCE").FontSize(8).FontColor(muted);
-                            r.AutoItem().Text(txt =>
+                            row.RelativeItem().Row(lr =>
                             {
-                                txt.CurrentPageNumber().FontSize(8).FontColor(muted);
-                                txt.Span(" / ").FontSize(8).FontColor(muted);
-                                txt.TotalPages().FontSize(8).FontColor(muted);
+                                if (!string.IsNullOrEmpty(logoPath))
+                                {
+                                    lr.ConstantItem(48).Image(logoPath).FitArea();
+                                    lr.ConstantItem(10);
+                                }
+                                lr.RelativeItem().Column(c =>
+                                {
+                                    c.Item().Text("NBSN PROJECTS").Bold().FontSize(14).FontColor("#ffffff");
+                                    c.Item().Text("Skills Development Solutions").FontSize(8).FontColor("#94c5cc").LetterSpacing(0.08f);
+                                });
+                            });
+                            row.AutoItem().AlignMiddle().Column(c =>
+                            {
+                                c.Item().AlignRight().Text("SOFTWARE LICENCE CERTIFICATE").Bold().FontSize(10).FontColor(gold).LetterSpacing(0.1f);
+                                c.Item().AlignRight().Text(refNo).FontSize(8).FontColor("#94c5cc");
                             });
                         });
-                        col.Item().PaddingTop(4).LineHorizontal(0.4f).LineColor("#e2e8f0");
+                        col.Item().Height(4).Background(teal);
                     });
 
-                    page.Content().PaddingTop(10).Column(col =>
+                    page.Content().PaddingHorizontal(36).PaddingTop(20).Column(col =>
                     {
                         // ── Page 1: Certificate ───────────────────────────────
 
-                        // NBSN-Projects wordmark
-                        col.Item().AlignCenter()
-                            .Text("NBSN-Projects").Bold().FontSize(13).FontColor(teal);
+                        // Title block
+                        col.Item().AlignCenter().Column(tc =>
+                        {
+                            tc.Item().AlignCenter().Text("SOFTWARE LICENCE CERTIFICATE")
+                                .Bold().FontSize(22).FontColor(navy);
+                            tc.Item().PaddingTop(4).AlignCenter()
+                                .Text("NBSN-Projects Learner Management System")
+                                .FontSize(12).FontColor(teal);
+                            tc.Item().PaddingTop(8).LineHorizontal(1.5f).LineColor(teal);
+                            tc.Item().PaddingTop(1).LineHorizontal(0.4f).LineColor(gold);
+                        });
 
-                        // Title
-                        col.Item().PaddingTop(6).AlignCenter()
-                            .Text("SOFTWARE LICENCE CERTIFICATE")
-                            .Bold().FontSize(22).FontColor(navy);
-
-                        // Sub-title
-                        col.Item().PaddingTop(4).AlignCenter()
-                            .Text("NBSN-Projects Learner Management System")
-                            .FontSize(12).FontColor(teal);
-
-                        // Licence number box (gold border)
+                        // Gold-bordered licence number certificate box
                         col.Item().PaddingTop(18).Border(1.5f).BorderColor(borderG)
-                            .Background(lightBg).Padding(16).Column(nb =>
+                            .Background(lightBg).Column(nb =>
                             {
-                                nb.Item().AlignCenter()
-                                    .Text("LICENCE NUMBER").FontSize(9).Bold().FontColor(muted).LetterSpacing(0.1f);
-                                nb.Item().PaddingTop(6).AlignCenter()
-                                    .Text(refNo).Bold().FontSize(16).FontColor(navy);
+                                nb.Item().Background(gold).PaddingHorizontal(16).PaddingVertical(7)
+                                    .AlignCenter().Text("LICENCE NUMBER")
+                                    .Bold().FontSize(8).FontColor("#ffffff").LetterSpacing(0.15f);
+                                nb.Item().PaddingVertical(14).AlignCenter()
+                                    .Text(refNo).Bold().FontSize(17).FontColor(navy);
                             });
 
                         // Certifies paragraph
@@ -667,84 +681,102 @@ namespace backend.Controllers
                         // Details table
                         col.Item().PaddingTop(16).Table(table =>
                         {
-                            table.ColumnsDefinition(c => { c.ConstantColumn(180); c.RelativeColumn(); });
+                            table.ColumnsDefinition(c => { c.ConstantColumn(185); c.RelativeColumn(); });
 
-                            void Row(string label, string value, bool bold = false)
+                            void Row(string label, string value, bool hl = false)
                             {
-                                table.Cell().Background(lightBg).Border(0.4f).BorderColor("#e2e8f0")
-                                    .Padding(8).Text(label).Bold().FontSize(10).FontColor(body);
-                                var cell = table.Cell().Border(0.4f).BorderColor("#e2e8f0").Padding(8);
-                                if (bold)
-                                    cell.Text(value).Bold().FontSize(10).FontColor(navy);
-                                else
-                                    cell.Text(value).FontSize(10).FontColor(body);
+                                table.Cell()
+                                    .Background(hl ? navy : lightBg)
+                                    .Border(0.4f).BorderColor("#dde3ea")
+                                    .Padding(8)
+                                    .Text(label).Bold().FontSize(9)
+                                    .FontColor(hl ? "#ffffff" : body);
+                                table.Cell()
+                                    .Background(hl ? "#e8f4f8" : "#ffffff")
+                                    .Border(0.4f).BorderColor("#dde3ea")
+                                    .Padding(8)
+                                    .Text(value).FontSize(9)
+                                    .FontColor(hl ? navy : body);
                             }
 
-                            Row("Licensed client",             d.ClientName, true);
-                            Row("Client registration number",  d.ClientRegNumber ?? "");
-                            Row("Software supplier",           d.SupplierName);
+                            Row("Licensed client",              d.ClientName,                                              true);
+                            Row("Client registration number",   d.ClientRegNumber ?? "");
+                            Row("Software supplier",            d.SupplierName,                                            true);
                             Row("Supplier registration number", d.SupplierRegNumber);
-                            Row("Licence type",                d.LicenceType);
-                            Row("Licence status",              d.LicenceStatus, true);
-                            Row("Effective date",              d.EffectiveDate ?? DateTime.Now.ToString("dd/MM/yyyy"));
-                            Row("Expiry / renewal date",       d.ExpiryDate ?? "");
-                            Row("Authorised usage",            d.AuthorisedUsage ?? "");
-                            Row("Related invoice",             d.RelatedInvoice ?? "");
-                            Row("Related SLA",                 d.RelatedSLA ?? "");
+                            Row("Licence type",                 d.LicenceType,                                             true);
+                            Row("Licence status",               d.LicenceStatus);
+                            Row("Effective date",               d.EffectiveDate ?? DateTime.Now.ToString("dd/MM/yyyy"),    true);
+                            Row("Expiry / renewal date",        d.ExpiryDate ?? "");
+                            Row("Authorised usage",             d.AuthorisedUsage ?? "",                                   true);
+                            Row("Related invoice",              d.RelatedInvoice ?? "");
+                            Row("Related SLA",                  d.RelatedSLA ?? "",                                        true);
                         });
 
                         // Licensed service scope
                         col.Item().PaddingTop(14).Column(sc =>
                         {
-                            sc.Item().Background(navy).Padding(8)
-                                .Text("Licensed service scope").Bold().FontColor("#ffffff").FontSize(10);
-                            sc.Item().Border(0.4f).BorderColor("#e2e8f0").Padding(10)
+                            sc.Item().Background(navy).PaddingHorizontal(10).PaddingVertical(7).Row(r =>
+                            {
+                                r.AutoItem().Text("▶ ").FontSize(9).FontColor(teal);
+                                r.RelativeItem().Text("Licensed service scope")
+                                    .Bold().FontSize(9).FontColor("#ffffff").LetterSpacing(0.06f);
+                            });
+                            sc.Item().Border(0.4f).BorderColor("#dde3ea").Padding(10)
                                 .Text(d.ServiceScope ??
                                     "NBSN-Projects web and mobile access; learner registration and administration; " +
                                     "attendance management; agreed biometric and location functions; learner document and POE management; " +
                                     "assessment, moderation, quality-assurance workflows; reporting; hosting; backups; and support, " +
                                     "only to the extent selected in the signed SLA or order form.")
-                                .FontSize(10).FontColor(body);
+                                .FontSize(9).FontColor(body);
                         });
 
                         // Signature table
                         col.Item().PaddingTop(16).Table(table =>
                         {
                             table.ColumnsDefinition(c => { c.RelativeColumn(); c.RelativeColumn(); });
-                            table.Cell().Background(navy).Padding(8).Text("Authorised for the Supplier").Bold().FontColor("#ffffff").FontSize(10);
-                            table.Cell().Background(navy).Padding(8).Text($"Accepted for {d.ClientName}").Bold().FontColor("#ffffff").FontSize(10);
+                            table.Cell().Background(navy).Padding(8).Text("Authorised for the Supplier").Bold().FontColor("#ffffff").FontSize(9);
+                            table.Cell().Background(navy).Padding(8).Text($"Accepted for {d.ClientName}").Bold().FontColor("#ffffff").FontSize(9);
 
-                            // Supplier sig cell
-                            table.Cell().Border(0.4f).BorderColor("#e2e8f0").MinHeight(80).Padding(10).Column(c =>
+                            table.Cell().Border(0.4f).BorderColor("#dde3ea").MinHeight(72).Padding(10).Column(c =>
                             {
-                                c.Item().Text($"Name and title: {d.SupplierSignatoryName}").FontSize(9).FontColor(muted);
-                                c.Item().PaddingTop(16).Text("Signature:").FontSize(9).FontColor(muted);
-                                c.Item().PaddingTop(16).Text($"Date: {d.EffectiveDate ?? DateTime.Now.ToString("dd/MM/yyyy")}").FontSize(9).FontColor(muted);
+                                c.Item().Text($"Name and title:  {d.SupplierSignatoryName}").FontSize(9).FontColor(muted);
+                                c.Item().PaddingTop(14).Text("Signature: ___________________________").FontSize(9).FontColor(muted);
+                                c.Item().PaddingTop(10).Text($"Date:  {d.EffectiveDate ?? DateTime.Now.ToString("dd/MM/yyyy")}").FontSize(9).FontColor(muted);
                             });
-
-                            // Client sig cell
-                            table.Cell().Border(0.4f).BorderColor("#e2e8f0").MinHeight(80).Padding(10).Column(c =>
+                            table.Cell().Border(0.4f).BorderColor("#dde3ea").MinHeight(72).Padding(10).Column(c =>
                             {
-                                c.Item().Text("Name and title:").FontSize(9).FontColor(muted);
-                                c.Item().PaddingTop(16).Text("Signature: _____________________").FontSize(9).FontColor(muted);
-                                c.Item().PaddingTop(16).Text("Date: _________________________").FontSize(9).FontColor(muted);
+                                c.Item().Text("Name and title: ___________________________").FontSize(9).FontColor(muted);
+                                c.Item().PaddingTop(14).Text("Signature: ___________________________").FontSize(9).FontColor(muted);
+                                c.Item().PaddingTop(10).Text("Date: _____________________________").FontSize(9).FontColor(muted);
                             });
                         });
 
                         // Disclaimer
-                        col.Item().PaddingTop(10).AlignCenter()
-                            .Text("This certificate is evidence of a contractual software licence. It is not SETA, QCTO or government accreditation.")
-                            .Italic().FontSize(8).FontColor(muted);
+                        col.Item().PaddingTop(10).Background("#fff8e1").Border(0.4f).BorderColor(gold)
+                            .PaddingHorizontal(12).PaddingVertical(7).Text(txt =>
+                            {
+                                txt.Span("⚠  ").FontColor(gold).Bold().FontSize(9);
+                                txt.Span("This certificate is evidence of a contractual software licence. " +
+                                    "It is not SETA, QCTO or government accreditation.")
+                                    .Italic().FontSize(8).FontColor(muted);
+                            });
 
                         // ── Page break → Schedule ─────────────────────────────
                         col.Item().PageBreak();
 
-                        // Schedule heading
-                        col.Item().PaddingTop(4).AlignCenter()
-                            .Text("Licence Schedule and Conditions").Bold().FontSize(16).FontColor(navy);
-                        col.Item().PaddingTop(4).AlignCenter()
-                            .Text($"Certificate reference: {refNo}").FontSize(9).FontColor(muted);
-                        col.Item().PaddingTop(8).LineHorizontal(1.5f).LineColor(teal);
+                        // Schedule heading with logo
+                        col.Item().Row(hrow =>
+                        {
+                            hrow.RelativeItem().Column(c =>
+                            {
+                                c.Item().Text("Licence Schedule and Conditions").Bold().FontSize(16).FontColor(navy);
+                                c.Item().PaddingTop(2).Text($"Certificate reference: {refNo}").FontSize(9).FontColor(muted);
+                            });
+                            if (!string.IsNullOrEmpty(logoPath))
+                                hrow.ConstantItem(50).AlignRight().Image(logoPath).FitArea();
+                        });
+                        col.Item().PaddingTop(8).LineHorizontal(2).LineColor(navy);
+                        col.Item().PaddingTop(1).LineHorizontal(0.4f).LineColor(teal);
 
                         // Schedule helper
                         void Clause(string num, string title, System.Action<QuestPDF.Infrastructure.IContainer> content)
@@ -753,11 +785,12 @@ namespace backend.Controllers
                             {
                                 sc.Item().Row(r =>
                                 {
-                                    r.ConstantItem(2).Background(teal);
-                                    r.ConstantItem(6);
-                                    r.RelativeItem().Text($"{num}. {title}").Bold().FontSize(11).FontColor(teal);
+                                    r.ConstantItem(28).Background(teal).AlignMiddle().AlignCenter()
+                                        .Text(num).Bold().FontSize(9).FontColor("#ffffff");
+                                    r.ConstantItem(8);
+                                    r.RelativeItem().Text(title).Bold().FontSize(11).FontColor(navy);
                                 });
-                                sc.Item().PaddingTop(2).LineHorizontal(0.4f).LineColor(teal);
+                                sc.Item().PaddingTop(3).LineHorizontal(0.4f).LineColor("#dde3ea");
                                 sc.Item().PaddingTop(5).Element(content);
                             });
                         }
@@ -767,9 +800,9 @@ namespace backend.Controllers
                             c.Column(bc =>
                             {
                                 foreach (var item in items)
-                                    bc.Item().Row(r =>
+                                    bc.Item().PaddingBottom(3).Row(r =>
                                     {
-                                        r.ConstantItem(14).Text("•").FontColor(teal).Bold();
+                                        r.ConstantItem(16).PaddingTop(1).Text("•").Bold().FontColor(teal).FontSize(10);
                                         r.RelativeItem().Text(item).FontSize(10).FontColor(body);
                                     });
                             });
@@ -815,29 +848,34 @@ namespace backend.Controllers
                         Clause("7", "Verification", c => c.Table(table =>
                         {
                             table.ColumnsDefinition(tc => { tc.ConstantColumn(220); tc.RelativeColumn(); });
-                            void VRow(string label, string value)
+                            void VRow(string label, string value, bool hl = false)
                             {
-                                table.Cell().Background(lightBg).Border(0.4f).BorderColor("#e2e8f0").Padding(8)
-                                    .Text(label).Bold().FontSize(9).FontColor(body);
-                                table.Cell().Border(0.4f).BorderColor("#e2e8f0").Padding(8)
-                                    .Text(value).FontSize(9).FontColor(body);
+                                table.Cell().Background(hl ? lightBg : "#ffffff").Border(0.4f).BorderColor("#dde3ea")
+                                    .Padding(8).Text(label).Bold().FontSize(9).FontColor(hl ? navy : body);
+                                table.Cell().Background(hl ? "#ffffff" : lightBg).Border(0.4f).BorderColor("#dde3ea")
+                                    .Padding(8).Text(value).FontSize(9).FontColor(body);
                             }
-                            VRow("Supplier verification contact", $"{d.SupplierSignatoryName}, {d.SupplierPhone}");
+                            VRow("Supplier verification contact", $"{d.SupplierSignatoryName},  {d.SupplierPhone}", true);
                             VRow("Client verification contact",   d.ClientVerificationContact ?? "");
-                            VRow("Issue date",                    d.EffectiveDate ?? DateTime.Now.ToString("dd/MM/yyyy"));
+                            VRow("Issue date",                    d.EffectiveDate ?? DateTime.Now.ToString("dd/MM/yyyy"), true);
                             VRow("Document version",              d.DocumentVersion);
-                            VRow("Internal licence register reference", refNo);
+                            VRow("Internal licence register ref", refNo, true);
                         }));
                     });
 
                     // ── Footer ────────────────────────────────────────────────
                     page.Footer().Column(fc =>
                     {
-                        fc.Item().LineHorizontal(0.4f).LineColor("#e2e8f0");
-                        fc.Item().PaddingTop(4).AlignCenter().Text(txt =>
+                        fc.Item().PaddingHorizontal(36).LineHorizontal(0.4f).LineColor("#dde3ea");
+                        fc.Item().PaddingHorizontal(36).PaddingTop(5).Row(row =>
                         {
-                            txt.Span("NBSN Projects  •  www.nbsnprojects.co.za  •  Confidential  •  Page ").FontSize(8).FontColor(muted);
-                            txt.CurrentPageNumber().FontSize(8).FontColor(muted);
+                            row.RelativeItem().Text(txt =>
+                            {
+                                txt.Span("NBSN Projects  •  info@nbsnprojects.co.za  •  www.nbsnprojects.co.za  •  Confidential  •  Page ")
+                                    .FontSize(7).FontColor(muted);
+                                txt.CurrentPageNumber().FontSize(7).FontColor(muted);
+                            });
+                            row.AutoItem().Text("Reg: 2023 / 200156 / 07").FontSize(7).FontColor(muted);
                         });
                     });
                 });
