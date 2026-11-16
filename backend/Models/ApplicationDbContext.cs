@@ -97,6 +97,9 @@ namespace backend.Models
         // Budget
         public DbSet<ProjectBudgetPhase> ProjectBudgetPhases { get; set; }
         public DbSet<ProjectBudgetLineItem> ProjectBudgetLineItems { get; set; }
+
+        // Generated Documents
+        public DbSet<GeneratedDocument> GeneratedDocuments { get; set; }
         
         // Legacy Assessment System Entities
         public DbSet<AssessmentType> AssessmentTypes { get; set; }

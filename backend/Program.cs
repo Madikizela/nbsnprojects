@@ -380,6 +380,19 @@ try
                 ""IsEditable"" boolean NOT NULL DEFAULT true,
                 ""CreatedAt"" timestamptz NOT NULL DEFAULT NOW(),
                 ""UpdatedAt"" timestamptz NOT NULL DEFAULT NOW()
+            )",
+            // Generated Documents table
+            @"CREATE TABLE IF NOT EXISTS ""generated_documents"" (
+                ""Id"" serial PRIMARY KEY,
+                ""DocumentType"" varchar(20) NOT NULL,
+                ""DocumentTitle"" varchar(200) NOT NULL,
+                ""ReferenceNumber"" varchar(100) NOT NULL DEFAULT '',
+                ""ClientName"" varchar(200) NOT NULL DEFAULT '',
+                ""FormDataJson"" text NOT NULL,
+                ""PdfBase64"" text NULL,
+                ""GeneratedByUserId"" integer NULL,
+                ""GeneratedAt"" timestamptz NOT NULL DEFAULT NOW(),
+                ""Status"" varchar(50) NOT NULL DEFAULT 'Draft'
             )"
         };
 

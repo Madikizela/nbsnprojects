@@ -612,6 +612,344 @@ const NotificationBell: React.FC<{ token: string; apiUrl: string; userId?: numbe
 
 type Toast = { id:number; type:'success'|'error'|'info'; text:string };
 
+// ── Document Generator ────────────────────────────────────────────────────────
+type DocTab = 'list' | 'quotation' | 'sla';
+
+interface SavedDoc {
+  id: number; documentType: string; documentTitle: string;
+  referenceNumber: string; clientName: string; generatedAt: string; status: string;
+}
+
+interface QLineItem { description: string; amount: number; }
+
+const statusColors: Record<string, { bg: string; color: string }> = {
+  Draft:    { bg: '#fef3c7', color: '#d97706' },
+  Sent:     { bg: '#dbeafe', color: '#2563eb' },
+  Accepted: { bg: '#dcfce7', color: '#16a34a' },
+  Rejected: { bg: '#fee2e2', color: '#dc2626' },
+};
+
+const DocumentGenerator: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
+  const [tab, setTab]           = React.useState<DocTab>('list');
+  const [docs, setDocs]         = React.useState<SavedDoc[]>([]);
+  const [docsLoading, setDocsLoading] = React.useState(true);
+  const [generating, setGenerating]   = React.useState(false);
+  const [msg, setMsg]           = React.useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  // Quotation form state
+  const [qForm, setQForm] = React.useState({
+    quoteNumber: 1, clientName: '', clientOrganisation: '', clientContact: '',
+    quoteDate: new Date().toLocaleDateString('en-ZA'),
+    validUntil: new Date(Date.now() + 30 * 86400000).toLocaleDateString('en-ZA'),
+    projectOverview: '', scopeOfWork: '', paymentTerms: '50% deposit on acceptance. 50% balance on delivery. Payment by EFT.',
+    deliveryTimeline: '7–10 working days from receipt of signed quotation and deposit.',
+  });
+  const [qItems, setQItems] = React.useState<QLineItem[]>([
+    { description: 'System design and master lists', amount: 1000 },
+    { description: 'Enrolment Register', amount: 1500 },
+    { description: 'Attendance Register', amount: 1000 },
+    { description: 'Assessment Results', amount: 1500 },
+    { description: 'Verification Register', amount: 1500 },
+    { description: 'Dashboard and summaries', amount: 1000 },
+    { description: 'Protection, branding and user guide', amount: 1000 },
+    { description: 'Testing, handover and revisions', amount: 1500 },
+  ]);
+
+  // SLA form state
+  const [sForm, setSForm] = React.useState({
+    slaNumber: 1, clientName: '', clientRegistrationNumber: '', clientAddress: '',
+    clientContractOwner: '', effectiveDate: new Date().toLocaleDateString('en-ZA'),
+    initialTerm: '12 months', version: '1.0',
+    subscriptionPackage: '', monthlyFee: '', implementationFee: '',
+    additionalClauses: '',
+  });
+
+  const loadDocs = React.useCallback(async () => {
+    setDocsLoading(true);
+    try {
+      const r = await fetch(`${apiUrl}/api/DocumentGenerator`, { headers: { Authorization: `Bearer ${token}` } });
+      const d = await r.json();
+      setDocs(Array.isArray(d) ? d : []);
+    } finally { setDocsLoading(false); }
+  }, [token, apiUrl]);
+
+  React.useEffect(() => { loadDocs(); }, [loadDocs]);
+
+  const generate = async (type: 'quotation' | 'sla') => {
+    setGenerating(true); setMsg(null);
+    const body = type === 'quotation' ? { ...qForm, lineItems: qItems } : sForm;
+    try {
+      const r = await fetch(`${apiUrl}/api/DocumentGenerator/${type}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(body),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setMsg({ type: 'ok', text: `✅ ${d.referenceNumber} generated successfully!` });
+        loadDocs();
+        setTab('list');
+      } else { setMsg({ type: 'err', text: `❌ ${d.error || 'Generation failed.'}` }); }
+    } catch { setMsg({ type: 'err', text: '❌ Network error.' }); }
+    finally { setGenerating(false); }
+  };
+
+  const download = async (doc: SavedDoc) => {
+    const r = await fetch(`${apiUrl}/api/DocumentGenerator/${doc.id}/download`, { headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) { alert('Download failed.'); return; }
+    const blob = await r.blob();
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = `${doc.referenceNumber.replace(/\//g, '-')}.pdf`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const updateStatus = async (id: number, status: string) => {
+    await fetch(`${apiUrl}/api/DocumentGenerator/${id}/status`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status })
+    });
+    loadDocs();
+  };
+
+  const deleteDoc = async (id: number) => {
+    if (!window.confirm('Delete this document?')) return;
+    await fetch(`${apiUrl}/api/DocumentGenerator/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    loadDocs();
+  };
+
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 12px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: 13, boxSizing: 'border-box' };
+  const labelStyle: React.CSSProperties = { display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 4, marginTop: 12 };
+  const thS: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#64748b', padding: '8px 12px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' };
+  const tdS: React.CSSProperties = { padding: '10px 12px', fontSize: 13, verticalAlign: 'middle' };
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ background: 'linear-gradient(135deg,#0f172a,#1e3a5f)', borderRadius: 16, padding: '24px 28px', marginBottom: 20 }}>
+        <h2 style={{ color: '#fff', fontWeight: 800, fontSize: '1.4rem', margin: 0 }}>📝 Document Generator</h2>
+        <p style={{ color: 'rgba(255,255,255,0.6)', margin: '4px 0 0', fontSize: 14 }}>Generate Quotations and Service Level Agreements — saved to database as PDFs</p>
+      </div>
+
+      {msg && (
+        <div style={{ padding: '10px 16px', borderRadius: 10, marginBottom: 16, fontWeight: 600, fontSize: 13,
+          background: msg.type === 'ok' ? '#dcfce7' : '#fee2e2',
+          color: msg.type === 'ok' ? '#16a34a' : '#dc2626' }}>
+          {msg.text}
+        </div>
+      )}
+
+      {/* Tab bar */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {([['list', '📋 Saved Documents'], ['quotation', '💰 New Quotation'], ['sla', '📄 New SLA']] as [DocTab, string][]).map(([t, label]) => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: '8px 20px', borderRadius: 20, border: 'none', cursor: 'pointer', fontWeight: tab === t ? 700 : 500, fontSize: 13,
+              background: tab === t ? 'linear-gradient(135deg,#0f172a,#1e3a5f)' : '#f1f5f9',
+              color: tab === t ? '#fff' : '#64748b' }}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Tab: Saved Documents ── */}
+      {tab === 'list' && (
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid #f1f5f9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span style={{ fontWeight: 700, fontSize: 13 }}>All Generated Documents ({docs.length})</span>
+            <button onClick={loadDocs} style={{ padding: '5px 12px', borderRadius: 8, border: '1px solid #e2e8f0', background: '#f8fafc', fontSize: 12, cursor: 'pointer' }}>🔄 Refresh</button>
+          </div>
+          {docsLoading ? <div className="text-center py-4"><div className="spinner-border text-primary" role="status" /></div> : (
+            <table className="table table-hover mb-0">
+              <thead><tr>
+                {['Reference', 'Type', 'Client', 'Generated', 'Status', 'Actions'].map(h => <th key={h} style={thS}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {docs.length === 0
+                  ? <tr><td colSpan={6} className="text-center text-muted py-4">No documents generated yet.</td></tr>
+                  : docs.map(doc => {
+                    const sc = statusColors[doc.status] ?? { bg: '#f1f5f9', color: '#64748b' };
+                    return (
+                      <tr key={doc.id}>
+                        <td style={{ ...tdS, fontWeight: 600, fontSize: 12 }}>{doc.referenceNumber}</td>
+                        <td style={tdS}>
+                          <span style={{ padding: '2px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                            background: doc.documentType === 'QUOTATION' ? '#eff6ff' : '#f0fdf4',
+                            color: doc.documentType === 'QUOTATION' ? '#2563eb' : '#16a34a' }}>
+                            {doc.documentType}
+                          </span>
+                        </td>
+                        <td style={{ ...tdS, fontWeight: 600 }}>{doc.clientName}</td>
+                        <td style={{ ...tdS, color: '#64748b', fontSize: 12 }}>{new Date(doc.generatedAt).toLocaleDateString('en-ZA')}</td>
+                        <td style={tdS}>
+                          <select value={doc.status} onChange={e => updateStatus(doc.id, e.target.value)}
+                            style={{ padding: '3px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                              background: sc.bg, color: sc.color, border: 'none', cursor: 'pointer' }}>
+                            {['Draft', 'Sent', 'Accepted', 'Rejected'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </td>
+                        <td style={{ ...tdS, display: 'flex', gap: 6 }}>
+                          <button onClick={() => download(doc)}
+                            style={{ padding: '4px 12px', borderRadius: 6, border: 'none', background: '#0d9488', color: '#fff', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                            ⬇️ PDF
+                          </button>
+                          <button onClick={() => deleteDoc(doc.id)}
+                            style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid #fee2e2', background: '#fff', color: '#dc2626', fontSize: 11, cursor: 'pointer' }}>
+                            🗑️
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+
+      {/* ── Tab: New Quotation ── */}
+      {tab === 'quotation' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          {/* Left — client info */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>📋 Quotation Details</div>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>Fill in client and project information</div>
+
+            <label style={labelStyle}>Quote Number</label>
+            <input type="number" style={inputStyle} value={qForm.quoteNumber} onChange={e => setQForm(p => ({ ...p, quoteNumber: parseInt(e.target.value) || 1 }))} min={1} />
+
+            <label style={labelStyle}>Client Name *</label>
+            <input style={inputStyle} value={qForm.clientName} onChange={e => setQForm(p => ({ ...p, clientName: e.target.value }))} placeholder="e.g. John Smith" />
+
+            <label style={labelStyle}>Client Organisation *</label>
+            <input style={inputStyle} value={qForm.clientOrganisation} onChange={e => setQForm(p => ({ ...p, clientOrganisation: e.target.value }))} placeholder="e.g. LMIS Training Academy" />
+
+            <label style={labelStyle}>Client Email / Phone</label>
+            <input style={inputStyle} value={qForm.clientContact} onChange={e => setQForm(p => ({ ...p, clientContact: e.target.value }))} placeholder="e.g. john@example.com | 082 000 0000" />
+
+            <label style={labelStyle}>Quote Date</label>
+            <input style={inputStyle} value={qForm.quoteDate} onChange={e => setQForm(p => ({ ...p, quoteDate: e.target.value }))} />
+
+            <label style={labelStyle}>Valid Until</label>
+            <input style={inputStyle} value={qForm.validUntil} onChange={e => setQForm(p => ({ ...p, validUntil: e.target.value }))} />
+
+            <label style={labelStyle}>Project Overview</label>
+            <textarea rows={3} style={{ ...inputStyle, resize: 'vertical' }} value={qForm.projectOverview}
+              onChange={e => setQForm(p => ({ ...p, projectOverview: e.target.value }))}
+              placeholder="Describe the project (optional — default text used if blank)" />
+
+            <label style={labelStyle}>Payment Terms</label>
+            <textarea rows={2} style={{ ...inputStyle, resize: 'vertical' }} value={qForm.paymentTerms}
+              onChange={e => setQForm(p => ({ ...p, paymentTerms: e.target.value }))} />
+
+            <label style={labelStyle}>Delivery Timeline</label>
+            <input style={inputStyle} value={qForm.deliveryTimeline} onChange={e => setQForm(p => ({ ...p, deliveryTimeline: e.target.value }))} />
+          </div>
+
+          {/* Right — line items */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>💰 Line Items</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+              {qItems.map((item, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input style={{ flex: 1, ...inputStyle, marginTop: 0 }} value={item.description}
+                    onChange={e => setQItems(prev => prev.map((it, idx) => idx === i ? { ...it, description: e.target.value } : it))} />
+                  <input type="number" style={{ width: 100, ...inputStyle, marginTop: 0 }} value={item.amount}
+                    onChange={e => setQItems(prev => prev.map((it, idx) => idx === i ? { ...it, amount: parseFloat(e.target.value) || 0 } : it))} />
+                  <button onClick={() => setQItems(prev => prev.filter((_, idx) => idx !== i))}
+                    style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid #fee2e2', background: '#fff', color: '#dc2626', cursor: 'pointer', fontSize: 12 }}>✕</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setQItems(prev => [...prev, { description: '', amount: 0 }])}
+              style={{ padding: '6px 14px', borderRadius: 8, border: '1px dashed #e2e8f0', background: '#f8fafc', color: '#475569', fontSize: 12, cursor: 'pointer', width: '100%' }}>
+              + Add Line Item
+            </button>
+
+            <div style={{ marginTop: 12, padding: '10px 12px', background: '#f0fdf4', borderRadius: 8, display: 'flex', justifyContent: 'space-between', fontWeight: 700 }}>
+              <span style={{ color: '#16a34a' }}>Total (excl. VAT)</span>
+              <span style={{ color: '#16a34a' }}>R {qItems.reduce((s, i) => s + i.amount, 0).toLocaleString('en-ZA', { minimumFractionDigits: 2 })}</span>
+            </div>
+
+            <button onClick={() => generate('quotation')} disabled={generating || !qForm.clientName || !qForm.clientOrganisation}
+              style={{ marginTop: 20, width: '100%', padding: '12px', borderRadius: 10, border: 'none',
+                background: generating || !qForm.clientName ? '#e2e8f0' : 'linear-gradient(135deg,#0d9488,#0284c7)',
+                color: generating || !qForm.clientName ? '#94a3b8' : '#fff',
+                fontWeight: 700, fontSize: 14, cursor: generating || !qForm.clientName ? 'not-allowed' : 'pointer' }}>
+              {generating ? <><span className="spinner-border spinner-border-sm me-2" role="status" />Generating…</> : '📄 Generate Quotation PDF'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Tab: New SLA ── */}
+      {tab === 'sla' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          {/* Left */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 4 }}>📄 SLA — Client Details</div>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 12 }}>All fields except Client Name are optional</div>
+
+            <label style={labelStyle}>SLA Number</label>
+            <input type="number" style={inputStyle} value={sForm.slaNumber} onChange={e => setSForm(p => ({ ...p, slaNumber: parseInt(e.target.value) || 1 }))} min={1} />
+
+            <label style={labelStyle}>Client Name *</label>
+            <input style={inputStyle} value={sForm.clientName} onChange={e => setSForm(p => ({ ...p, clientName: e.target.value }))} placeholder="e.g. Nomaku Training" />
+
+            <label style={labelStyle}>Client Registration Number</label>
+            <input style={inputStyle} value={sForm.clientRegistrationNumber} onChange={e => setSForm(p => ({ ...p, clientRegistrationNumber: e.target.value }))} placeholder="e.g. 2020/123456/07" />
+
+            <label style={labelStyle}>Client Address</label>
+            <input style={inputStyle} value={sForm.clientAddress} onChange={e => setSForm(p => ({ ...p, clientAddress: e.target.value }))} placeholder="e.g. 123 Main Street, Johannesburg" />
+
+            <label style={labelStyle}>Client Contract Owner</label>
+            <input style={inputStyle} value={sForm.clientContractOwner} onChange={e => setSForm(p => ({ ...p, clientContractOwner: e.target.value }))} placeholder="Name of designated representative" />
+
+            <label style={labelStyle}>Effective Date</label>
+            <input style={inputStyle} value={sForm.effectiveDate} onChange={e => setSForm(p => ({ ...p, effectiveDate: e.target.value }))} />
+
+            <label style={labelStyle}>Initial Term</label>
+            <input style={inputStyle} value={sForm.initialTerm} onChange={e => setSForm(p => ({ ...p, initialTerm: e.target.value }))} placeholder="e.g. 12 months" />
+
+            <label style={labelStyle}>Version</label>
+            <input style={inputStyle} value={sForm.version} onChange={e => setSForm(p => ({ ...p, version: e.target.value }))} placeholder="1.0" />
+          </div>
+
+          {/* Right */}
+          <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b', marginBottom: 12 }}>💼 Commercial Terms</div>
+
+            <label style={labelStyle}>Subscription Package</label>
+            <input style={inputStyle} value={sForm.subscriptionPackage} onChange={e => setSForm(p => ({ ...p, subscriptionPackage: e.target.value }))} placeholder="e.g. Standard — up to 200 learners" />
+
+            <label style={labelStyle}>Monthly Fee</label>
+            <input style={inputStyle} value={sForm.monthlyFee} onChange={e => setSForm(p => ({ ...p, monthlyFee: e.target.value }))} placeholder="e.g. R 2,500.00 excl. VAT" />
+
+            <label style={labelStyle}>Implementation Fee</label>
+            <input style={inputStyle} value={sForm.implementationFee} onChange={e => setSForm(p => ({ ...p, implementationFee: e.target.value }))} placeholder="e.g. R 5,000.00 once-off" />
+
+            <label style={labelStyle}>Additional Agreed Clauses (optional)</label>
+            <textarea rows={6} style={{ ...inputStyle, resize: 'vertical' }} value={sForm.additionalClauses}
+              onChange={e => setSForm(p => ({ ...p, additionalClauses: e.target.value }))}
+              placeholder="Enter any additional clauses or special conditions agreed with the client…" />
+
+            <div style={{ marginTop: 16, padding: '10px 12px', background: '#eff6ff', borderRadius: 8, fontSize: 12, color: '#2563eb' }}>
+              ℹ️ The SLA document includes all standard clauses (availability, support SLAs, POPIA, backup, security) pre-populated from the NBSN template. Only client-specific details need to be entered here.
+            </div>
+
+            <button onClick={() => generate('sla')} disabled={generating || !sForm.clientName}
+              style={{ marginTop: 16, width: '100%', padding: '12px', borderRadius: 10, border: 'none',
+                background: generating || !sForm.clientName ? '#e2e8f0' : 'linear-gradient(135deg,#0f172a,#1e3a5f)',
+                color: generating || !sForm.clientName ? '#94a3b8' : '#fff',
+                fontWeight: 700, fontSize: 14, cursor: generating || !sForm.clientName ? 'not-allowed' : 'pointer' }}>
+              {generating ? <><span className="spinner-border spinner-border-sm me-2" role="status" />Generating…</> : '📄 Generate SLA PDF'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ── SDP Inactivity Report ─────────────────────────────────────────────────────
 const InactivityReport: React.FC<{ token: string; apiUrl: string }> = ({ token, apiUrl }) => {
   const [sdps, setSdps]       = React.useState<any[]>([]);
@@ -1159,6 +1497,7 @@ const Dashboard = () => {
     { id: 'clients', label: 'Client Management', icon: '🏢' },
     { id: 'sdp', label: 'SDP Management', icon: '🎓' },
     { id: 'documents', label: 'Documents', icon: '📄' },
+    { id: 'doc-generator', label: 'Doc Generator', icon: '📝' },
     { id: 'audit', label: 'Audit Log', icon: '📋' },
     { id: 'inactivity', label: 'Inactivity Report', icon: '💤' },
     { id: 'profile', label: 'Profile', icon: '👤' },
@@ -1382,6 +1721,8 @@ const Dashboard = () => {
         );
       case 'documents':
         return <AdminDocumentBrowser token={localStorage.getItem('token') || ''} apiUrl={API} />;
+      case 'doc-generator':
+        return <DocumentGenerator token={localStorage.getItem('token') || ''} apiUrl={API} />;
       case 'audit':
         return <AuditLogView token={localStorage.getItem('token') || ''} apiUrl={API} />;
       case 'inactivity':
