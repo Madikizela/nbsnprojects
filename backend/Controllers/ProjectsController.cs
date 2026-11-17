@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using backend.Models;
@@ -87,7 +87,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error in GetProjects: {ex.Message}");
+                
                 // Log error and return empty list
                 return new List<Project>();
             }
@@ -363,7 +363,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 // Log the error (you might want to inject ILogger here)
-                Console.WriteLine($"Error retrieving SDP projects: {ex.Message}");
+                
                 return StatusCode(500, "An error occurred while retrieving SDP projects");
             }
         }
@@ -408,7 +408,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message, type = ex.GetType().Name });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -617,9 +617,9 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error creating project: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
-                return StatusCode(500, new { message = "Error creating project", error = ex.Message });
+                
+                
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -677,7 +677,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error updating project", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 

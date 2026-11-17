@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -110,7 +110,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating quotation");
-                return StatusCode(500, new { error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -145,7 +145,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating SLA");
-                return StatusCode(500, new { error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -204,7 +204,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating licence certificate");
-                return StatusCode(500, new { error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -239,7 +239,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating invoice");
-                return StatusCode(500, new { error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 

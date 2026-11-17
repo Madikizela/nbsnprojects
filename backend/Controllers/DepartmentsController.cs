@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Services.Interfaces;
@@ -268,9 +268,7 @@ namespace backend.Controllers
                         {
                             department = createdWithCreds ?? (object)department,
                             emailSent = false,
-                            message = "Department created. Email could not be sent — save these credentials:",
-                            adminUsername = username,
-                            temporaryPassword = password
+                            message = "Department created. Email could not be delivered. Use the admin panel to resend credentials."
                         });
                     }
                 }
@@ -286,7 +284,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating department: {DepartmentName}", request.Name);
-                return StatusCode(500, new { message = "An error occurred while creating the department", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -352,10 +350,8 @@ namespace backend.Controllers
 
                 return Ok(new
                 {
-                    message = "Password reset but email could not be sent. Save these credentials:",
                     emailSent = false,
-                    adminUsername = managerUser.Username ?? managerUser.Email,
-                    temporaryPassword = newPassword
+                    message = "Password reset but email could not be delivered. Use the admin panel to resend."
                 });
             }
             catch (Exception ex)

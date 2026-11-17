@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
@@ -377,10 +377,8 @@ namespace backend.Controllers
 
                 return Ok(new
                 {
-                    message = "Password reset but email could not be sent. Save these credentials:",
                     emailSent = false,
-                    username = teacher.Email,
-                    temporaryPassword = newPassword
+                    message = "Password reset but email could not be delivered. Use the admin panel to resend."
                 });
             }
             catch (Exception ex)

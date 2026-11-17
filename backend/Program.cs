@@ -359,6 +359,8 @@ try
             // Users table — new columns added in feature batch
             "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"MustChangePassword\" boolean NOT NULL DEFAULT false",
             "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"LastLoginAt\" timestamptz NULL",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"LoginAttempts\" integer NOT NULL DEFAULT 0",
+            "ALTER TABLE \"Users\" ADD COLUMN IF NOT EXISTS \"LockedUntil\" timestamptz NULL",
             // AdminAuditLogs table
             @"CREATE TABLE IF NOT EXISTS ""admin_audit_logs"" (
                 ""Id"" serial PRIMARY KEY,

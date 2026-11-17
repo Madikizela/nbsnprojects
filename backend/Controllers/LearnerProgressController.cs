@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 
@@ -109,7 +109,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -166,7 +166,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { error = ex.Message, inner = ex.InnerException?.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
     }

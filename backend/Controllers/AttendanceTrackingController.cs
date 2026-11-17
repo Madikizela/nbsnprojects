@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using backend.Models;
@@ -1379,7 +1379,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching at-risk learners for SDP {SdpId}", sdpId);
-                return StatusCode(500, new { error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
     }

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using QuestPDF.Fluent;
@@ -253,7 +253,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating funder report for project {ProjectId}", projectId);
-                return StatusCode(500, new { message = "Error generating report", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -431,7 +431,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error generating certificate for learner {LearnerId}", learnerId);
-                return StatusCode(500, new { message = "Error generating certificate", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
     }

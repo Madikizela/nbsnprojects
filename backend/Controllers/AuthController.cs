@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -134,9 +134,24 @@ namespace backend.Controllers
                 {
                     try
                     {
+                        // Check lockout before verifying password (timing-safe)
+                        if (user.LockedUntil.HasValue && user.LockedUntil > DateTime.UtcNow)
+                            return Unauthorized(new { message = "Your account has been temporarily locked. Please try again later.", code = "ACCOUNT_LOCKED" });
+
                         userPasswordOk = _passwordHashingService.VerifyPassword(password, user.PasswordHash);
                         var clientActive = user.Client == null || user.Client.Status == ClientStatus.Active;
                         userActive = user.Status == UserStatus.Active && clientActive;
+
+                        if (!userPasswordOk)
+                        {
+                            user.LoginAttempts += 1;
+                            if (user.LoginAttempts >= 10)
+                            {
+                                user.LockedUntil = DateTime.UtcNow.AddMinutes(30);
+                                _logger.LogWarning("User account locked after too many failed attempts: {Email}", normalizedEmail);
+                            }
+                            await _context.SaveChangesAsync();
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -181,9 +196,11 @@ namespace backend.Controllers
                 // If admin is not valid or inactive, try regular user
                 if (user != null && userPasswordOk && userActive)
                 {
-                    // Update last login time
-                    user.LastLoginAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
-                    user.UpdatedAt   = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+                    // Reset lockout on successful login
+                    user.LoginAttempts = 0;
+                    user.LockedUntil   = null;
+                    user.LastLoginAt   = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
+                    user.UpdatedAt     = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
                     await _context.SaveChangesAsync();
 
                     // Generate JWT token
@@ -589,7 +606,6 @@ namespace backend.Controllers
                         name            = learner.FirstName,
                         surname         = learner.LastName,
                         email           = learner.Email,
-                        username        = learner.Username,
                         role            = "Learner",
                         mustChangePassword = learner.MustChangePassword,
                         profilePhotoPath   = learner.ProfilePhotoPath

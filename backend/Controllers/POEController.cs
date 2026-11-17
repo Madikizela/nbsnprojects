@@ -14,6 +14,7 @@ namespace backend.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize]
     public class POEController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -177,9 +178,13 @@ namespace backend.Controllers
         }
 
         [HttpGet("compile/{learnerId}")]
-        [AllowAnonymous]
         public async Task<IActionResult> CompilePOE(int learnerId)
         {
+            // Ownership check: learners may only compile their own POE; staff roles can compile any
+            var callerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var callerRole  = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (callerRole == "Learner" && callerIdStr != learnerId.ToString())
+                return Forbid();
             try
             {
                 var learner = await _context.Learners

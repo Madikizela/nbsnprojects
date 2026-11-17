@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -89,7 +89,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting SDP projects");
-                return StatusCode(500, new { message = "Error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -137,7 +137,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting SDP dashboard for user {UserId}", GetCurrentUserId());
-                return StatusCode(500, new { message = "Error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -179,7 +179,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 

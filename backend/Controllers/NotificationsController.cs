@@ -1,11 +1,14 @@
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
+using System.Security.Claims;
 
 namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class NotificationsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -15,27 +18,32 @@ namespace backend.Controllers
             _context = context;
         }
 
-        // GET: api/Notifications?userId=5&unreadOnly=true
+        // GET: api/Notifications — returns notifications for the authenticated caller only
         [HttpGet]
         public async Task<IActionResult> GetNotifications(
-            [FromQuery] int? userId = null,
             [FromQuery] bool unreadOnly = false,
             [FromQuery] int page = 1,
             [FromQuery] int pageSize = 20)
         {
+            // Extract caller ID from JWT — never trust a client-supplied userId
+            var callerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var callerRole  = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            int.TryParse(callerIdStr, out int callerId);
+
             var query = _context.Notifications.AsQueryable();
 
-            if (userId.HasValue)
-                query = query.Where(n => n.UserId == userId || n.UserId == null);
+            // SystemAdmin sees platform-wide; everyone else only sees their own + platform-wide
+            if (callerRole == "SystemAdmin")
+                query = query; // all notifications
             else
-                query = query.Where(n => n.UserId == null); // platform-wide only
+                query = query.Where(n => n.UserId == null || n.UserId == callerId);
 
             if (unreadOnly)
                 query = query.Where(n => !n.IsRead);
 
-            var total   = await query.CountAsync();
-            var unread  = await query.CountAsync(n => !n.IsRead);
-            var items   = await query
+            var total  = await query.CountAsync();
+            var unread = await query.CountAsync(n => !n.IsRead);
+            var items  = await query
                 .OrderByDescending(n => n.CreatedAt)
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
@@ -45,15 +53,17 @@ namespace backend.Controllers
             return Ok(new { total, unread, page, pageSize, notifications = items });
         }
 
-        // GET: api/Notifications/unread-count?userId=5
+        // GET: api/Notifications/unread-count — count for the authenticated caller
         [HttpGet("unread-count")]
-        public async Task<IActionResult> GetUnreadCount([FromQuery] int? userId = null)
+        public async Task<IActionResult> GetUnreadCount()
         {
+            var callerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var callerRole  = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            int.TryParse(callerIdStr, out int callerId);
+
             var query = _context.Notifications.Where(n => !n.IsRead);
-            if (userId.HasValue)
-                query = query.Where(n => n.UserId == userId || n.UserId == null);
-            else
-                query = query.Where(n => n.UserId == null);
+            if (callerRole != "SystemAdmin")
+                query = query.Where(n => n.UserId == null || n.UserId == callerId);
 
             var count = await query.CountAsync();
             return Ok(new { unreadCount = count });
@@ -63,23 +73,34 @@ namespace backend.Controllers
         [HttpPut("{id}/read")]
         public async Task<IActionResult> MarkRead(int id)
         {
+            var callerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var callerRole  = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            int.TryParse(callerIdStr, out int callerId);
+
             var n = await _context.Notifications.FindAsync(id);
             if (n == null) return NotFound();
+
+            // Only allow reading own notifications (or admin reads any)
+            if (callerRole != "SystemAdmin" && n.UserId.HasValue && n.UserId != callerId)
+                return Forbid();
+
             n.IsRead = true;
             n.ReadAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
             return Ok(new { message = "Marked as read" });
         }
 
-        // PUT: api/Notifications/mark-all-read?userId=5
+        // PUT: api/Notifications/mark-all-read — marks caller's notifications as read
         [HttpPut("mark-all-read")]
-        public async Task<IActionResult> MarkAllRead([FromQuery] int? userId = null)
+        public async Task<IActionResult> MarkAllRead()
         {
+            var callerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var callerRole  = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            int.TryParse(callerIdStr, out int callerId);
+
             var query = _context.Notifications.Where(n => !n.IsRead);
-            if (userId.HasValue)
-                query = query.Where(n => n.UserId == userId || n.UserId == null);
-            else
-                query = query.Where(n => n.UserId == null);
+            if (callerRole != "SystemAdmin")
+                query = query.Where(n => n.UserId == null || n.UserId == callerId);
 
             await query.ExecuteUpdateAsync(s =>
                 s.SetProperty(n => n.IsRead, true)

@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 
@@ -38,7 +38,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Database error", error = ex.Message, stackTrace = ex.StackTrace });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 

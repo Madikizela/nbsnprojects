@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
@@ -268,7 +268,7 @@ namespace backend.Controllers
                     PhoneNumber = newUser.PhoneNumber,
                     EmailSent = emailSent,
                     // Show credentials in response if email could not be sent
-                    TemporaryPassword = emailSent ? null : password
+                    TemporaryPassword = emailSent ? null : "(email failed — reset via admin panel)"
                 };
 
                 _logger.LogInformation("Team member {Email} added to department {DepartmentName} by manager {ManagerEmail}", 
@@ -506,7 +506,7 @@ namespace backend.Controllers
                     _logger.LogInformation("Credentials resent to {Email}", member.Email);
                     return Ok(new { message = $"Credentials sent to {member.Email}", emailSent = true });
                 }
-                return Ok(new { message = "Password reset but email could not be delivered. Share credentials manually.", emailSent = false, username = member.Email, temporaryPassword = newPassword });
+                return Ok(new { message = "Password reset but email could not be delivered. Use the admin panel to resend.", emailSent = false });
             }
             catch (Exception ex)
             {

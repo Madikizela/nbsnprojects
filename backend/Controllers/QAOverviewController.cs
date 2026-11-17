@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using Npgsql;
@@ -102,7 +102,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error fetching QA metrics", error = ex.Message, stackTrace = ex.StackTrace });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -159,7 +159,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error fetching unit standard breakdown", error = ex.Message, stackTrace = ex.StackTrace });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
     }

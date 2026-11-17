@@ -152,6 +152,11 @@ namespace backend.Controllers
         [HttpGet("learner/{learnerId}")]
         public async Task<IActionResult> GetByLearner(int learnerId)
         {
+            // IDOR check — learners may only see their own announcements
+            var callerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var callerRole  = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (callerRole == "Learner" && callerIdStr != learnerId.ToString())
+                return Forbid();
             // Find all active class IDs for this learner
             var classIds = await _context.ClassEnrollments
                 .AsNoTracking()

@@ -1,3 +1,4 @@
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
@@ -6,6 +7,7 @@ namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class BudgetController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -76,7 +78,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error fetching budget for project {ProjectId}", projectId);
-                return StatusCode(500, new { error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -143,7 +145,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error saving budget for project {ProjectId}", projectId);
-                return StatusCode(500, new { error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 

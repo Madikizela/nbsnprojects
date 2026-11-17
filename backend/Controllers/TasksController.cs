@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
@@ -124,7 +124,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting tasks");
-                return StatusCode(500, new { message = "Error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -210,7 +210,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting task {TaskId}", id);
-                return StatusCode(500, new { message = "Error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -339,7 +339,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating task");
-                return StatusCode(500, new { message = "Error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -447,7 +447,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating task {TaskId}", id);
-                return StatusCode(500, new { message = "Error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -493,7 +493,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting task {TaskId}", id);
-                return StatusCode(500, new { message = "Error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -553,7 +553,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting task summary");
-                return StatusCode(500, new { message = "Error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -609,7 +609,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error getting available users");
-                return StatusCode(500, new { message = "Error occurred", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 

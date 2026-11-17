@@ -72,6 +72,12 @@ namespace backend.Models
         /// <summary>Tracked for audit log display.</summary>
         public DateTime? LastLoginAt { get; set; }
 
+        /// <summary>Failed login attempt counter — resets on successful login.</summary>
+        public int LoginAttempts { get; set; } = 0;
+
+        /// <summary>When set, login is blocked until this time (account lockout).</summary>
+        public DateTime? LockedUntil { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 

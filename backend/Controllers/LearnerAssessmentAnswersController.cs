@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Models.DTOs;
@@ -310,7 +310,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error uploading assessment answer", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -347,7 +347,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error deleting assessment answer", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -428,8 +428,8 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error marking answer: {ex.Message}");
-                return StatusCode(500, new { message = "Error marking answer", error = ex.Message });
+                
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -489,7 +489,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error moderating answer", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -526,7 +526,7 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Error clearing moderation data", error = ex.Message });
+                return StatusCode(500, new { message = "An internal server error occurred." });
             }
         }
 
@@ -743,7 +743,7 @@ namespace backend.Controllers
                     catch (Exception ex)
                     {
                         // Log error but don't fail the main operation
-                        Console.WriteLine($"Error updating assessment progress: {ex.Message}");
+                        
                     }
                 }
 

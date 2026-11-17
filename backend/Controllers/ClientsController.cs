@@ -1,3 +1,4 @@
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
@@ -9,6 +10,7 @@ namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class ClientsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -285,7 +287,7 @@ namespace backend.Controllers
                     EmailSent = emailSent,
                     CreatedAt = client.CreatedAt,
                     AdminUsername = !emailSent ? username : null,
-                    TemporaryPassword = !emailSent ? password : null
+                    TemporaryPassword = !emailSent ? "(email failed — reset via admin panel)" : null
                 };
 
                 return CreatedAtAction("GetClient", new { id = client.Id }, response);
@@ -404,10 +406,8 @@ namespace backend.Controllers
                     _logger.LogWarning("Failed to send credentials email to {Email}", adminUser.Email);
                     return Ok(new
                     {
-                        message = "Password reset but email could not be sent. Save these credentials:",
                         emailSent = false,
-                        adminUsername = adminUser.Username ?? adminUser.Email,
-                        temporaryPassword = newPassword
+                    message = "Password reset but email could not be delivered. Use the admin panel to resend."
                     });
                 }
             }
