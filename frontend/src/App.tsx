@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
+﻿import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
@@ -61,7 +61,7 @@ function isLearnerDashboard(path: string): boolean {
 
 /** Redirects to /login if the staff token is missing or expired. */
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!token || isTokenExpired(token)) {
     return <Navigate to="/login?reason=session_expired" replace />;
   }
@@ -81,7 +81,7 @@ function RoleProtectedRoute({
   children: ReactNode;
   allow: (roles: RoleInfo, user: NormalizedUser | null) => boolean;
 }) {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (!token || isTokenExpired(token)) {
     return <Navigate to="/login?reason=session_expired" replace />;
   }
@@ -89,8 +89,8 @@ function RoleProtectedRoute({
   const roles = getUserRoleInfo(user);
   if (!allow(roles, user)) {
     // Clear token so a follow-up login redirect can happen cleanly without stale state
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     return <Navigate to="/login?reason=unauthorized" replace />;
   }
   return <>{children}</>;
@@ -144,7 +144,7 @@ function InactivityWatcher() {
   // Determine whether there is currently an *active* (authenticated) session on this page type
   const hasActiveSession = (): boolean => {
     if (isStaffPage) {
-      const t = localStorage.getItem('token');
+      const t = sessionStorage.getItem('token');
       return !!t && !isTokenExpired(t);
     }
     if (isLearnerPage) {

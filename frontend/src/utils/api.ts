@@ -1,4 +1,4 @@
-/**
+﻿/**
  * API utility for making requests to the backend.
  *
  * VITE_API_URL is baked into the bundle at build time by Vite.
@@ -14,6 +14,20 @@ const getApiUrl = (): string => {
 
 /** Name of the custom event used to request an SPA-friendly logout redirect. */
 export const AUTH_LOGOUT_EVENT = 'app:auth-logout';
+
+// ── Token storage helpers ─────────────────────────────────────────────────
+// Using sessionStorage instead of localStorage so the token is cleared when
+// the browser tab closes, reducing the XSS token-theft window.
+// All reads/writes go through these helpers so the storage layer can be
+// changed in one place.
+export const TokenStore = {
+  getToken:    ()          => sessionStorage.getItem('token'),
+  setToken:    (t: string) => sessionStorage.setItem('token', t),
+  removeToken: ()          => sessionStorage.removeItem('token'),
+  getUser:     ()          => sessionStorage.getItem('user'),
+  setUser:     (u: string) => sessionStorage.setItem('user', u),
+  removeUser:  ()          => sessionStorage.removeItem('user'),
+};
 
 /** Decode JWT payload without a library — returns full claims object (not just exp). */
 export function decodeJwtPayload<T = Record<string, unknown>>(token: string): T | null {
@@ -162,7 +176,7 @@ export function getUserRoleInfo(user: NormalizedUser | null | undefined): RoleIn
 /** Convenience — read and parse the stored user (staff/portal auth). */
 export function getStoredUser(): NormalizedUser | null {
   try {
-    const raw = localStorage.getItem('user');
+    const raw = sessionStorage.getItem('user');
     return raw ? (JSON.parse(raw) as NormalizedUser) : null;
   } catch {
     return null;
@@ -187,8 +201,8 @@ export function getStoredLearner(): { user: unknown | null; token: string | null
  * reload (which used to cause double router initialization + state wipe).
  */
 export function forceLogout(reason = 'session_expired') {
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('user');
   localStorage.removeItem('learner_token');
   localStorage.removeItem('learner_user');
 
@@ -209,7 +223,7 @@ export const apiCall = async (
   const url = apiUrl ? `${apiUrl}${endpoint}` : endpoint;
 
   // Check token expiry before making the request
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token && isTokenExpired(token)) {
     forceLogout('session_expired');
     return new Response(null, { status: 401 });

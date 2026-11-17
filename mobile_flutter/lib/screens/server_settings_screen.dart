@@ -37,8 +37,9 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
 
   String _normaliseUrl(String raw) {
     var url = raw.trim().replaceAll(RegExp(r'/+$'), '');
+    // Always default to HTTPS — HTTP would expose the Bearer token in transit
     if (!url.startsWith('http://') && !url.startsWith('https://')) {
-      url = 'http://$url';
+      url = 'https://$url';
     }
     return url;
   }
@@ -60,7 +61,10 @@ class _ServerSettingsScreenState extends State<ServerSettingsScreen> {
       await dio.get('$url/api/LearnerAssessmentAnswers/ping');
       setState(() {
         _testSuccess = true;
-        _testResult = '✅ Connected successfully to $url';
+        final httpWarn = url.startsWith('http://')
+            ? ' ⚠️ HTTP is insecure — use HTTPS in production.'
+            : '';
+        _testResult = '✅ Connected successfully to $url$httpWarn';
       });
     } on DioException catch (e) {
       // A 401/404 still means the server is reachable

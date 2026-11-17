@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ClientForm from './ClientForm';
 import PersonalInfoForm from './PersonalInfoForm';
@@ -1954,8 +1954,8 @@ const Dashboard = () => {
 
   useEffect(() => {
     // Get user data from localStorage or token
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
+    const token = sessionStorage.getItem('token');
+    const userData = sessionStorage.getItem('user');
     
     if (!token || !userData) {
       navigate('/login');
@@ -1971,8 +1971,8 @@ const Dashboard = () => {
   }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     navigate('/login');
   };
 
@@ -1980,7 +1980,7 @@ const Dashboard = () => {
     setClientsLoading(true);
     setClientsError('');
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch(`${API}/api/Clients`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -2006,7 +2006,7 @@ const Dashboard = () => {
     setResendingId(clientId);
     setResendMessage(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch(`${API}/api/Clients/${clientId}/resend-credentials`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -2033,7 +2033,7 @@ const Dashboard = () => {
     const newActive = !clientActive;
     setTogglingClientId(client.id);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const r = await fetch(`${API}/api/Clients/${client.id}/status`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -2282,19 +2282,19 @@ const Dashboard = () => {
             </div>
 
             {/* Platform analytics */}
-            <AdminOverviewCards token={localStorage.getItem('token') || ''} apiUrl={API} />
+            <AdminOverviewCards token={sessionStorage.getItem('token') || ''} apiUrl={API} />
 
-            <SDPListView token={localStorage.getItem('token') || ''} apiUrl={API} />
+            <SDPListView token={sessionStorage.getItem('token') || ''} apiUrl={API} />
           </div>
         );
       case 'documents':
-        return <AdminDocumentBrowser token={localStorage.getItem('token') || ''} apiUrl={API} />;
+        return <AdminDocumentBrowser token={sessionStorage.getItem('token') || ''} apiUrl={API} />;
       case 'doc-generator':
-        return <DocumentGenerator token={localStorage.getItem('token') || ''} apiUrl={API} />;
+        return <DocumentGenerator token={sessionStorage.getItem('token') || ''} apiUrl={API} />;
       case 'audit':
-        return <AuditLogView token={localStorage.getItem('token') || ''} apiUrl={API} />;
+        return <AuditLogView token={sessionStorage.getItem('token') || ''} apiUrl={API} />;
       case 'inactivity':
-        return <InactivityReport token={localStorage.getItem('token') || ''} apiUrl={API} />;
+        return <InactivityReport token={sessionStorage.getItem('token') || ''} apiUrl={API} />;
       case 'profile':
         return (
           <PersonalInfoForm 
@@ -2406,7 +2406,7 @@ const Dashboard = () => {
             <button onClick={handleLogout} style={{ background:'rgba(255,255,255,0.1)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:8, padding:'6px 14px', fontSize:13, fontWeight:600, cursor:'pointer' }}>
               Logout
             </button>
-            <NotificationBell token={localStorage.getItem('token') || ''} apiUrl={API} />
+            <NotificationBell token={sessionStorage.getItem('token') || ''} apiUrl={API} />
           </div>
         </nav>
 

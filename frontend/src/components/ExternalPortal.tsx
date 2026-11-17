@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
@@ -62,7 +62,7 @@ export default function ExternalPortal() {
   const [summaryMonth, setSummaryMonth] = useState(new Date().getMonth()+1);
   // Inline toasts
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
 
   const pushToast = (type:Toast['type'], text:string) => {
     const id = Date.now() + Math.random();
@@ -244,7 +244,7 @@ export default function ExternalPortal() {
         </div>
         <div className="d-flex gap-2 align-items-center">
           <span style={{fontSize:'0.8rem',color:'#93c5fd'}}>👤 {userName}</span>
-          <button className="btn btn-outline-light btn-sm" onClick={()=>{localStorage.removeItem('token');navigate('/login');}}>Logout</button>
+          <button className="btn btn-outline-light btn-sm" onClick={()=>{sessionStorage.removeItem('token');navigate('/login');}}>Logout</button>
         </div>
       </div>
 

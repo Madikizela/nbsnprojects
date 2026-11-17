@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import productIcon from '../assets/mobile_icon.png';
 import {
@@ -39,8 +39,8 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
     if (!password) {
       return 'Password is required';
     }
-    if (password.length < 6) {
-      return 'Password must be at least 6 characters long';
+    if (password.length < 10) {
+      return 'Password must be at least 10 characters long';
     }
     return '';
   };
@@ -109,9 +109,12 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
           mustChangePassword: data.user?.mustChangePassword ?? data.user?.MustChangePassword ?? false,
         };
         
-        // Store authentication data
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('user', JSON.stringify(normalizedUser));
+        // Store authentication data in sessionStorage (not localStorage)
+        // sessionStorage is cleared when the tab closes, reducing XSS token-theft window.
+        // The token is httpOnly-cookie–level protection is not available in SPAs;
+        // sessionStorage is the next best option.
+        sessionStorage.setItem('token', data.token);
+        sessionStorage.setItem('user', JSON.stringify(normalizedUser));
         
         // Determine role from normalized user
         const isClient =
@@ -206,8 +209,8 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
 
   const handlePopiaDecline = () => {
     // Clear token & state — user refused consent
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     setShowPopiaModal(false);
     setPendingRoute(null);
     setError('You must accept the POPIA Privacy Notice to use this system.');

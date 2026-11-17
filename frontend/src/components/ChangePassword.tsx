@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
@@ -13,9 +13,9 @@ const ChangePassword = () => {
   const [showCurrent, setShowCurrent]         = useState(false);
   const [showNew, setShowNew]                 = useState(false);
 
-  const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const storedUser = JSON.parse(sessionStorage.getItem('user') || '{}');
   const userId     = storedUser?.id;
-  const token      = localStorage.getItem('token');
+  const token      = sessionStorage.getItem('token');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,9 +41,9 @@ const ChangePassword = () => {
       const d = await r.json();
       if (r.ok) {
         // Clear the mustChangePassword flag in localStorage
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        const user = JSON.parse(sessionStorage.getItem('user') || '{}');
         user.mustChangePassword = false;
-        localStorage.setItem('user', JSON.stringify(user));
+        sessionStorage.setItem('user', JSON.stringify(user));
         // Navigate to the correct dashboard
         const role = String(storedUser.role ?? '');
         const isSDP = role === 'SDPAdministrator' || role === '3' || storedUser.skillsDevelopmentProviderId;

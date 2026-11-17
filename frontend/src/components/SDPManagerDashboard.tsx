@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import SignatureCanvas from 'react-signature-canvas';
 import FunderReport from './FunderReport';
@@ -905,7 +905,7 @@ const SDPManagerDashboard: React.FC = () => {
 
   // Helper function for authenticated fetch with 401 handling
   const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (!token) {
       navigate('/login');
       return null;
@@ -922,8 +922,8 @@ const SDPManagerDashboard: React.FC = () => {
     try {
       const response = await fetch(apiUrl, { ...options, headers });
       if (response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
         navigate('/login');
         return null;
       }
@@ -1739,7 +1739,7 @@ const SDPManagerDashboard: React.FC = () => {
   // Initialize user data
   useEffect(() => {
     console.log('SDPManagerDashboard: Initializing user data...');
-    const userData = localStorage.getItem('user');
+    const userData = sessionStorage.getItem('user');
     if (userData) {
       try {
         const parsedUser = JSON.parse(userData);
@@ -1765,11 +1765,11 @@ const SDPManagerDashboard: React.FC = () => {
             const assignments = await response.json();
             setUser(prev => prev ? { ...prev, projectAssignments: assignments } : null);
             // Also update localStorage
-            const userData = localStorage.getItem('user');
+            const userData = sessionStorage.getItem('user');
             if (userData) {
               const parsed = JSON.parse(userData);
               parsed.projectAssignments = assignments;
-              localStorage.setItem('user', JSON.stringify(parsed));
+              sessionStorage.setItem('user', JSON.stringify(parsed));
             }
           }
         } catch (error) {
@@ -2733,7 +2733,7 @@ const SDPManagerDashboard: React.FC = () => {
     if (!confirm(`Resend login credentials to ${teacherName}?`)) return;
     try {
       const API = (import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '');
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch(`${API}/api/Attendance/teacher/${teacherId}/resend-credentials`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -3451,8 +3451,8 @@ const SDPManagerDashboard: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     navigate('/login');
   };
 
@@ -11482,7 +11482,7 @@ const SDPManagerDashboard: React.FC = () => {
               {activeSection === 'candidatePreparation' && renderCandidatePreparation()}
               {activeSection === 'learningMaterials' && isQA && renderLearningMaterials()}
               {activeSection === 'assessorReport' && renderAssessorReport()}
-              {activeSection === 'reports' && (isAdmin || isQA) && <FunderReport token={localStorage.getItem('token') || ''} />}
+              {activeSection === 'reports' && (isAdmin || isQA) && <FunderReport token={sessionStorage.getItem('token') || ''} />}
               {activeSection === 'sickNotes' && (isAdmin || isFinance) && renderSickNotes()}
               {activeSection === 'attendanceTracking' && (!isAssessor && (!isModerator || isQA || isIT)) && renderAttendanceTracking()}
               {activeSection === 'documentApprovals' && (!isAssessor && (!isModerator || isQA)) && renderDocumentApprovals()}

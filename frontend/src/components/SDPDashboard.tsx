@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { southAfricaData, type District, type Municipality } from '../data/southAfricaData';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
@@ -1364,7 +1364,7 @@ const SDPDashboard: React.FC = () => {
   // Initialize user data
   useEffect(() => {
     console.log('SDPDashboard: Initializing user data...');
-    const userData = localStorage.getItem('user');
+    const userData = sessionStorage.getItem('user');
     if (userData) {
       try {
         const parsedUser = JSON.parse(userData);
@@ -1398,7 +1398,7 @@ const SDPDashboard: React.FC = () => {
     const sdpId = user?.skillsDevelopmentProviderId;
     if (!sdpId) return;
     setProjectsLoading(true);
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     fetch(`/api/sdp/projects`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
       .then(d => { setProjects(d.projects || []); setProjectsError(null); })
@@ -1411,7 +1411,7 @@ const SDPDashboard: React.FC = () => {
     const sdpId = user?.skillsDevelopmentProviderId;
     if (!sdpId) return;
     setDepartmentsLoading(true);
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     fetch(`${API}/api/Departments/BySDP/${sdpId}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
       .then(d => { setDepartments(d); setDepartmentsError(null); })
@@ -1424,7 +1424,7 @@ const SDPDashboard: React.FC = () => {
     const sdpId = user?.skillsDevelopmentProviderId;
     if (!sdpId) return;
     setUsersLoading(true);
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     fetch(`/api/Users/BySDP/${sdpId}`, { headers: { Authorization: `Bearer ${token}` } })
       .then(r => r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`))
       .then(d => { setUsers(d); setUsersError(null); })
@@ -1445,7 +1445,7 @@ const SDPDashboard: React.FC = () => {
         setUsersLoading(true);
         
         try {
-          const token = localStorage.getItem('token');
+          const token = sessionStorage.getItem('token');
           
           // Fetch projects for this SDP
           const projectsResponse = await fetch(`/api/sdp/projects`, {
@@ -1523,7 +1523,7 @@ const SDPDashboard: React.FC = () => {
   useEffect(() => {
     if (activeSection === 'projects' && user?.skillsDevelopmentProviderId && projects.length === 0 && !projectsError) {
       const fetchProjectsForActiveSection = async () => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (!token) return;
 
         setProjectsLoading(true);
@@ -1557,7 +1557,7 @@ const SDPDashboard: React.FC = () => {
   useEffect(() => {
     if (activeSection === 'users' && user?.skillsDevelopmentProviderId && users.length === 0 && !usersError) {
       const fetchUsersForActiveSection = async () => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
         if (!token) return;
 
         setUsersLoading(true);
@@ -1632,7 +1632,7 @@ const SDPDashboard: React.FC = () => {
       if (selectedSdp?.id) {
         setProjectsLoading(true);
         try {
-          const token = localStorage.getItem('token');
+          const token = sessionStorage.getItem('token');
           const response = await fetch(`/api/sdp/projects`, {
             headers: {
               'Authorization': `Bearer ${token}`
@@ -1664,7 +1664,7 @@ const SDPDashboard: React.FC = () => {
       if (selectedSdp?.id) {
         setDepartmentsLoading(true);
         try {
-          const token = localStorage.getItem('token');
+          const token = sessionStorage.getItem('token');
           // Match backend route: GET api/Departments/BySDP/{sdpId}
           const response = await fetch(`${API}/api/Departments/BySDP/${selectedSdp.id}`, {
             headers: {
@@ -1728,7 +1728,7 @@ const SDPDashboard: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch(`${API}/api/Departments`, {
         method: 'POST',
         headers: {
@@ -1791,7 +1791,7 @@ const SDPDashboard: React.FC = () => {
   const handleDeleteDepartment = async (departmentId: number, departmentName: string) => {
     if (!confirm(`Delete the "${departmentName}" department?\n\nThis will also delete the associated manager user account.`)) return;
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch(`${API}/api/Departments/${departmentId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -1813,7 +1813,7 @@ const SDPDashboard: React.FC = () => {
   const handleResendCredentials = async (departmentId: number, departmentName: string) => {
     if (!confirm(`Resend login credentials to the manager of "${departmentName}"?`)) return;
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch(`${API}/api/Departments/${departmentId}/resend-credentials`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
@@ -1845,7 +1845,7 @@ const SDPDashboard: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       
       // Only send the fields that SDP users are allowed to edit
       const sdpUpdateData = {
@@ -2025,7 +2025,7 @@ const SDPDashboard: React.FC = () => {
         clientId: user.clientId
       };
 
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch('/api/SkillsDevelopmentProviders/register', {
         method: 'POST',
         headers: {
@@ -2089,8 +2089,8 @@ const SDPDashboard: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     navigate('/login');
   };
 
@@ -2265,7 +2265,7 @@ const SDPDashboard: React.FC = () => {
                     if (!sdpId) return;
                     const formData = new FormData();
                     formData.append('logo', file);
-                    const token = localStorage.getItem('token');
+                    const token = sessionStorage.getItem('token');
                     const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/SkillsDevelopmentProviders/${sdpId}/logo`, {
                       method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: formData,
                     });
@@ -3171,7 +3171,7 @@ const SDPDashboard: React.FC = () => {
     if (!project) return;
     setBudgetLoading(true);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const r = await fetch(`${API}/api/Budget/project/${project.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -3231,7 +3231,7 @@ const SDPDashboard: React.FC = () => {
     setBudgetSaving(true);
     setBudgetSaveMsg(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const payload = {
         phases: budget.phases.map(ph => ({
           name: ph.name,
@@ -4170,7 +4170,7 @@ const SDPDashboard: React.FC = () => {
             <button onClick={handleLogout} className="btn btn-sm" style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1px solid rgba(255,255,255,0.2)', borderRadius:8, fontWeight:600 }}>
               Logout
             </button>
-            <NotificationBell token={localStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} userId={user?.id} />
+            <NotificationBell token={sessionStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} userId={user?.id} />
           </div>
         </div>
       </nav>
@@ -4385,40 +4385,40 @@ const SDPDashboard: React.FC = () => {
               {activeSection === 'learner-progress' && (
                 <LearnerProgressView
                   sdpId={user?.skillsDevelopmentProviderId ?? 0}
-                  token={localStorage.getItem('token') ?? ''}
+                  token={sessionStorage.getItem('token') ?? ''}
                   apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
                 />
               )}
               {activeSection === 'bulk-import' && (
                 <BulkImportView
-                  token={localStorage.getItem('token') ?? ''}
+                  token={sessionStorage.getItem('token') ?? ''}
                   apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
                 />
               )}
               {activeSection === 'document-summary' && (
                 <SDPDocumentSummary
-                  token={localStorage.getItem('token') ?? ''}
+                  token={sessionStorage.getItem('token') ?? ''}
                   apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
                 />
               )}
               {activeSection === 'sites-map' && (
                 <SiteMapView
                   sdpId={user?.skillsDevelopmentProviderId ?? 0}
-                  token={localStorage.getItem('token') ?? ''}
+                  token={sessionStorage.getItem('token') ?? ''}
                   apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')}
                 />
               )}
               {activeSection === 'at-risk' && (
-                <AtRiskView sdpId={user?.skillsDevelopmentProviderId ?? 0} token={localStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} />
+                <AtRiskView sdpId={user?.skillsDevelopmentProviderId ?? 0} token={sessionStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} />
               )}
               {activeSection === 'notice-board' && (
-                <NoticeBoardView sdpId={user?.skillsDevelopmentProviderId ?? 0} token={localStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} projects={projects} />
+                <NoticeBoardView sdpId={user?.skillsDevelopmentProviderId ?? 0} token={sessionStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} projects={projects} />
               )}
               {activeSection === 'doc-expiry' && (
-                <DocExpiryView token={localStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} />
+                <DocExpiryView token={sessionStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} />
               )}
               {activeSection === 'popia-export' && (
-                <PopiaExportView token={localStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} />
+                <PopiaExportView token={sessionStorage.getItem('token') ?? ''} apiUrl={(import.meta.env.VITE_API_URL as string || '').replace(/\/$/, '')} />
               )}
             </div>
           </div>

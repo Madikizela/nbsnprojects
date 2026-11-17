@@ -66,6 +66,9 @@ dependencies:
   # URL Launcher
   url_launcher: ^6.2.0
 
+  # Cryptography (for secure offline credential hashing)
+  crypto: ^3.0.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

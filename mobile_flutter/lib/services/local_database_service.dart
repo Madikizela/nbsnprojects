@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 import 'package:flutter/foundation.dart';
@@ -340,8 +341,13 @@ class LocalDatabaseService {
   }
 
   String _hashPassword(String password) {
-    // Simple hash for demo - in production use crypto package with salt
-    return password.hashCode.toString();
+    // SHA-256 with a fixed app-level salt.
+    // This prevents the offline DB from storing plain-searchable passwords.
+    // The server still validates credentials when online; this is only for
+    // offline fallback comparison on the same device.
+    const salt = 'nbsn-offline-salt-v1';
+    final bytes = utf8.encode('$salt:$password');
+    return sha256.convert(bytes).toString();
   }
 
   // ─────────────────────────────────────────────────────────────────────────

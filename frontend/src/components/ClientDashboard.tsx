@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { southAfricaData, type District, type Municipality } from '../data/southAfricaData';
 import { getClientSDPs, getClientProjects, type SkillsDevelopmentProvider, type Project } from '../services/projectService';
@@ -50,7 +50,7 @@ const ClientDashboard: React.FC = () => {
     setResendingId(sdpId);
     setResendMsg(null);
     try {
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const res = await fetch(`${API}/api/SkillsDevelopmentProviders/${sdpId}/resend-credentials`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -96,7 +96,7 @@ const ClientDashboard: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const userData = localStorage.getItem('user');
+    const userData = sessionStorage.getItem('user');
     if (userData) {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
@@ -295,7 +295,7 @@ const ClientDashboard: React.FC = () => {
         clientId: user.clientId
       };
 
-      const token = localStorage.getItem('token');
+      const token = sessionStorage.getItem('token');
       const response = await fetch('/api/SkillsDevelopmentProviders/register', {
         method: 'POST',
         headers: {
@@ -363,8 +363,8 @@ const ClientDashboard: React.FC = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
     navigate('/login');
   };
 
