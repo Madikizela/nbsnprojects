@@ -1,12 +1,15 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Services.Interfaces;
+using System.Security.Claims;
 
 namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]  // All endpoints require authentication
     public class UsersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -18,20 +21,33 @@ namespace backend.Controllers
             _passwordHashingService = passwordHashingService;
         }
 
+        // Safe user DTO — never exposes PasswordHash
+        private static object ToSafeDto(User u) => new
+        {
+            u.Id, u.FirstName, u.LastName, u.Email, u.Username, u.PhoneNumber,
+            Role = u.Role.ToString(), Status = u.Status.ToString(),
+            u.SkillsDevelopmentProviderId,
+            SkillsDevelopmentProviderName = u.SkillsDevelopmentProvider?.Name,
+            u.ClientId, ClientName = u.Client?.Name,
+            u.DepartmentId, DepartmentName = u.Department?.Name,
+            u.CreatedAt, u.UpdatedAt, u.LastLoginAt, u.MustChangePassword
+        };
+
         // GET: api/Users
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsers()
+        public async Task<ActionResult<IEnumerable<object>>> GetUsers()
         {
-            return await _context.Users
+            var users = await _context.Users
                 .Include(u => u.Client)
                 .Include(u => u.SkillsDevelopmentProvider)
                 .Include(u => u.Department)
                 .ToListAsync();
+            return Ok(users.Select(ToSafeDto));
         }
 
         // GET: api/Users/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<User>> GetUser(int id)
+        public async Task<ActionResult<object>> GetUser(int id)
         {
             var user = await _context.Users
                 .Include(u => u.Client)
@@ -39,24 +55,21 @@ namespace backend.Controllers
                 .Include(u => u.Department)
                 .FirstOrDefaultAsync(u => u.Id == id);
 
-            if (user == null)
-            {
-                return NotFound();
-            }
-
-            return user;
+            if (user == null) return NotFound();
+            return Ok(ToSafeDto(user));
         }
 
         // GET: api/Users/ByRole/{role}
         [HttpGet("ByRole/{role}")]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsersByRole(UserRole role)
+        public async Task<ActionResult<IEnumerable<object>>> GetUsersByRole(UserRole role)
         {
-            return await _context.Users
+            var users = await _context.Users
                 .Where(u => u.Role == role)
                 .Include(u => u.Client)
                 .Include(u => u.SkillsDevelopmentProvider)
                 .Include(u => u.Department)
                 .ToListAsync();
+            return Ok(users.Select(ToSafeDto));
         }
 
         // GET: api/Users/ByClient/{clientId}
@@ -69,12 +82,8 @@ namespace backend.Controllers
                 .Include(u => u.SkillsDevelopmentProvider)
                 .Include(u => u.Department)
                 .Select(u => new {
-                    u.Id,
-                    u.FirstName,
-                    u.LastName,
-                    u.Email,
-                    Role = u.Role.ToString(),
-                    Status = u.Status.ToString(),
+                    u.Id, u.FirstName, u.LastName, u.Email,
+                    Role = u.Role.ToString(), Status = u.Status.ToString(),
                     DepartmentName = u.Department != null ? u.Department.Name : null
                 })
                 .ToListAsync();
@@ -84,36 +93,36 @@ namespace backend.Controllers
 
         // GET: api/Users/BySDP/{sdpId}
         [HttpGet("BySDP/{sdpId}")]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsersBySDP(int sdpId)
+        public async Task<ActionResult<IEnumerable<object>>> GetUsersBySDP(int sdpId)
         {
-            return await _context.Users
+            var users = await _context.Users
                 .Where(u => u.SkillsDevelopmentProviderId == sdpId)
                 .Include(u => u.Client)
                 .Include(u => u.SkillsDevelopmentProvider)
                 .Include(u => u.Department)
                 .ToListAsync();
+            return Ok(users.Select(ToSafeDto));
         }
 
         // GET: api/Users/ByDepartment/{departmentId}
         [HttpGet("ByDepartment/{departmentId}")]
-        public async Task<ActionResult<IEnumerable<User>>> GetUsersByDepartment(int departmentId)
+        public async Task<ActionResult<IEnumerable<object>>> GetUsersByDepartment(int departmentId)
         {
-            return await _context.Users
+            var users = await _context.Users
                 .Where(u => u.DepartmentId == departmentId)
                 .Include(u => u.Client)
                 .Include(u => u.SkillsDevelopmentProvider)
                 .Include(u => u.Department)
                 .ToListAsync();
+            return Ok(users.Select(ToSafeDto));
         }
 
         // PUT: api/Users/5
         [HttpPut("{id}")]
+        [Authorize(Roles = "SystemAdmin,SDPAdministrator")]
         public async Task<IActionResult> PutUser(int id, User user)
         {
-            if (id != user.Id)
-            {
-                return BadRequest();
-            }
+            if (id != user.Id) return BadRequest();
 
             user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
             _context.Entry(user).State = EntityState.Modified;
@@ -124,14 +133,8 @@ namespace backend.Controllers
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!UserExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
+                if (!UserExists(id)) return NotFound();
+                throw;
             }
 
             return NoContent();
@@ -139,28 +142,27 @@ namespace backend.Controllers
 
         // POST: api/Users
         [HttpPost]
-        public async Task<ActionResult<User>> PostUser(User user)
+        [Authorize(Roles = "SystemAdmin,SDPAdministrator")]
+        public async Task<ActionResult<object>> PostUser(User user)
         {
             user.CreatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
             user.UpdatedAt = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
-            
+
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            return CreatedAtAction("GetUser", new { id = user.Id }, user);
+            return CreatedAtAction("GetUser", new { id = user.Id }, ToSafeDto(user));
         }
 
         // DELETE: api/Users/5
         [HttpDelete("{id}")]
+        [Authorize(Roles = "SystemAdmin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
-            if (user == null)
-            {
-                return NotFound();
-            }
+            if (user == null) return NotFound();
 
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             user.SoftDelete(userId != null ? int.Parse(userId) : null);
             await _context.SaveChangesAsync();
 
@@ -173,15 +175,14 @@ namespace backend.Controllers
         }
 
         // PUT: api/Users/{id}/status
-        // Allows a System Admin to enable or disable a single user independently of their SDP.
         [HttpPut("{id}/status")]
+        [Authorize(Roles = "SystemAdmin")]
         public async Task<IActionResult> SetUserStatus(int id, [FromBody] SetUserStatusRequest request)
         {
             var user = await _context.Users.FindAsync(id);
             if (user == null)
                 return NotFound(new { message = "User not found" });
 
-            // Prevent disabling a SystemAdmin via this endpoint — use SystemAdmin-specific management
             if (user.Role == UserRole.SystemAdmin)
                 return BadRequest(new { message = "System admin accounts cannot be managed through this endpoint" });
 
@@ -192,35 +193,37 @@ namespace backend.Controllers
 
             await _context.SaveChangesAsync();
 
-            // Write audit log
-            var adminEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "System Admin";
+            var adminEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? "System Admin";
             var action = request.Active ? "USER_ENABLED" : "USER_DISABLED";
             var description = $"User '{user.FirstName} {user.LastName}' ({user.Email}) was {(request.Active ? "enabled" : "disabled")} by {adminEmail}. Previous status: {previousStatus}.";
             await AuditLogHelper.LogAsync(_context, action, description, "User", user.Id,
                 $"{user.FirstName} {user.LastName}", adminEmail,
                 metadata: $"{{\"previousStatus\":\"{previousStatus}\",\"newStatus\":\"{newStatus}\"}}");
 
-            return Ok(new
-            {
-                message = $"User '{user.FirstName} {user.LastName}' is now {newStatus}.",
-                userId = user.Id,
-                status = newStatus.ToString()
-            });
+            return Ok(new { message = $"User '{user.FirstName} {user.LastName}' is now {newStatus}.", userId = user.Id, status = newStatus.ToString() });
         }
 
         // PUT: api/Users/{id}/change-password
-        // Used on forced first-login password change for staff/SDP users.
         [HttpPut("{id}/change-password")]
         public async Task<IActionResult> ChangePassword(int id, [FromBody] ChangePasswordRequest request)
         {
+            // Users can only change their own password; SystemAdmin can change any
+            var callerIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var callerRole  = User.FindFirst(ClaimTypes.Role)?.Value;
+            if (!int.TryParse(callerIdStr, out int callerId))
+                return Unauthorized();
+            if (callerId != id && callerRole != "SystemAdmin")
+                return Forbid();
+
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound(new { message = "User not found" });
 
             if (!_passwordHashingService.VerifyPassword(request.CurrentPassword, user.PasswordHash))
                 return BadRequest(new { message = "Current password is incorrect" });
 
-            if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
-                return BadRequest(new { message = "New password must be at least 8 characters" });
+            var policy = PasswordPolicy.Validate(request.NewPassword);
+            if (!policy.IsValid)
+                return BadRequest(new { message = policy.Error });
 
             user.PasswordHash       = _passwordHashingService.HashPassword(request.NewPassword);
             user.MustChangePassword = false;
@@ -234,7 +237,6 @@ namespace backend.Controllers
     // DTO for individual user status toggle
     public class SetUserStatusRequest
     {
-        /// <summary>true = Active, false = Inactive</summary>
         public bool Active { get; set; }
     }
 

@@ -1,15 +1,17 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 
 namespace backend.Controllers
 {
     /// <summary>
-    /// One-time data seeding endpoint.
+    /// One-time data seeding endpoint — restricted to SystemAdmin.
     /// Seeds qualifications and unit standards into the Railway database.
     /// </summary>
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "SystemAdmin")]  // All seed endpoints require SystemAdmin
     public class SeedController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -218,12 +220,18 @@ namespace backend.Controllers
 
         /// <summary>
         /// POST /api/seed/run-sql — executes raw SQL sent in the request body.
-        /// Used for bulk seeding from local SQL files. Admin only — no auth guard here
-        /// since this is a one-time setup endpoint; restrict by removing after seeding.
+        /// Used for bulk seeding from local SQL files.
+        /// Requires SystemAdmin auth AND the ENABLE_RUN_SQL=true environment variable.
+        /// Remove or disable after seeding is complete.
         /// </summary>
         [HttpPost("run-sql")]
         public async Task<IActionResult> RunSql()
         {
+            // Double-gate: env var must be explicitly enabled
+            var enabled = Environment.GetEnvironmentVariable("ENABLE_RUN_SQL");
+            if (string.IsNullOrEmpty(enabled) || enabled != "true")
+                return StatusCode(403, new { success = false, message = "run-sql endpoint is disabled. Set ENABLE_RUN_SQL=true to enable." });
+
             try
             {
                 using var reader = new StreamReader(Request.Body);
@@ -232,7 +240,7 @@ namespace backend.Controllers
                 if (string.IsNullOrWhiteSpace(sql))
                     return BadRequest(new { success = false, message = "No SQL provided in request body." });
 
-                _logger.LogInformation("run-sql: received {Len} chars of SQL", sql.Length);
+                _logger.LogWarning("run-sql invoked by {User} — {Len} chars of SQL", User.Identity?.Name, sql.Length);
 
                 // Split on semicolons + newline to get individual statements
                 var statements = sql

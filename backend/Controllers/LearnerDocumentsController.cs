@@ -132,6 +132,14 @@ namespace backend.Controllers
         [HttpGet("learner/{learnerId}")]
         public async Task<ActionResult<IEnumerable<LearnerDocumentResponseDto>>> GetLearnerDocuments(int learnerId)
         {
+            // IDOR check — learners may only list their own documents
+            var callerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var callerRole  = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+            if (callerRole == "Learner")
+            {
+                if (!int.TryParse(callerIdStr, out int callerId) || callerId != learnerId)
+                    return Forbid();
+            }
             var documents = await _context.LearnerDocuments
                 .Include(d => d.UploadedByUser)
                 .Where(d => d.LearnerId == learnerId)
@@ -219,6 +227,12 @@ namespace backend.Controllers
                         fileContent = memoryStream.ToArray();
                     }
 
+                    // Magic-byte verification — client-declared ContentType can be spoofed
+                    if (!IsAllowedByMagicBytes(fileContent))
+                    {
+                        return BadRequest(new { message = $"File {file.FileName} content does not match an allowed type (PDF, JPEG, PNG)." });
+                    }
+
                     // Encrypt and save file
                     var (encryptedPath, iv, hash) = await _encryptionService.EncryptAndSaveFileAsync(
                         fileContent,
@@ -278,28 +292,40 @@ namespace backend.Controllers
         {
             try
             {
-                var document = await _context.LearnerDocuments.FindAsync(id);
-                if (document == null)
-                {
-                    return NotFound(new { message = "Document not found" });
-                }
+                var document = await _context.LearnerDocuments
+                    .Include(d => d.Learner)
+                        .ThenInclude(l => l!.ClassEnrollments!)
+                            .ThenInclude(ce => ce.SiteClass!)
+                                .ThenInclude(sc => sc.ProjectSite)
+                    .FirstOrDefaultAsync(d => d.Id == id);
 
-                // Decrypt file
+                if (document == null)
+                    return NotFound(new { message = "Document not found" });
+
+                // ── IDOR ownership check ──────────────────────────────────
+                var callerIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+                var callerRole  = User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value;
+                int.TryParse(callerIdStr, out int callerId);
+
+                bool isLearnerSelf = callerRole == "Learner" && callerId == document.LearnerId;
+                bool isStaff       = callerRole != null && callerRole != "Learner";
+
+                if (!isLearnerSelf && !isStaff)
+                    return Forbid();
+                // ─────────────────────────────────────────────────────────
+
                 var decryptedContent = await _encryptionService.DecryptFileAsync(
                     document.EncryptedFilePath,
                     document.EncryptionIV
                 );
 
-                // Verify file integrity
                 if (!_encryptionService.VerifyFileIntegrity(decryptedContent, document.FileHash))
                 {
-                    _logger.LogWarning($"File integrity check failed for document ID {id}");
+                    _logger.LogWarning("File integrity check failed for document ID {Id}", id);
                     return StatusCode(500, new { message = "File integrity verification failed" });
                 }
 
-                _logger.LogInformation($"Document downloaded: ID={id}, LearnerId={document.LearnerId}, Type={document.DocumentType}");
-
-                // Return file with proper content type
+                _logger.LogInformation("Document downloaded: ID={Id}, LearnerId={LearnerId}", id, document.LearnerId);
                 return File(decryptedContent, document.MimeType, document.FileName);
             }
             catch (FileNotFoundException)
@@ -418,6 +444,29 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Expiry date updated", expiryDate = request.ExpiryDate });
+        }
+
+        /// <summary>
+        /// Validates file content by reading magic bytes — rejects files whose content
+        /// does not match a known-safe signature regardless of the client-declared ContentType.
+        /// </summary>
+        private static bool IsAllowedByMagicBytes(byte[] content)
+        {
+            if (content.Length < 4) return false;
+
+            // PDF: %PDF  (25 50 44 46)
+            if (content[0] == 0x25 && content[1] == 0x50 && content[2] == 0x44 && content[3] == 0x46)
+                return true;
+
+            // JPEG: FF D8 FF
+            if (content[0] == 0xFF && content[1] == 0xD8 && content[2] == 0xFF)
+                return true;
+
+            // PNG: 89 50 4E 47
+            if (content[0] == 0x89 && content[1] == 0x50 && content[2] == 0x4E && content[3] == 0x47)
+                return true;
+
+            return false;
         }
     }
 

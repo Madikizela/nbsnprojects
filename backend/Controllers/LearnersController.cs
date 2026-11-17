@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Models.DTOs;
@@ -10,6 +11,7 @@ namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]  // All learner endpoints require authentication
     public class LearnersController : ControllerBase
     {
         private readonly ApplicationDbContext _context;

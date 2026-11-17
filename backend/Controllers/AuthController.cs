@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -41,6 +42,7 @@ namespace backend.Controllers
 
         [HttpPost("login")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
             string email = request.Email;
@@ -51,39 +53,30 @@ namespace backend.Controllers
             password = password?.Trim() ?? string.Empty;
             var normalizedEmail = email.ToLowerInvariant();
 
-            _logger.LogInformation("DEBUG: Login attempt for {Email}. Normalized email: {NormEmail}, Plain password length: {PassLen}", 
-                email, normalizedEmail, password.Length);
-
             try
             {
                 // Support encrypted login payloads
                 if ((string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password)) &&
                     !string.IsNullOrWhiteSpace(request.EncryptedLoginData))
                 {
-                    _logger.LogInformation("DEBUG: Plain text missing or empty, attempting to decrypt EncryptedLoginData (Length: {EncLen})", 
-                        request.EncryptedLoginData.Length);
                     try
                     {
                         var decrypted = _dataEncryptionService.DecryptObject<LoginPayload>(request.EncryptedLoginData);
                         if (decrypted != null)
                         {
-                            var decryptedEmail = decrypted.Email?.Trim() ?? string.Empty;
+                            var decryptedEmail    = decrypted.Email?.Trim()    ?? string.Empty;
                             var decryptedPassword = decrypted.Password?.Trim() ?? string.Empty;
-                            
                             if (!string.IsNullOrWhiteSpace(decryptedEmail) && !string.IsNullOrWhiteSpace(decryptedPassword))
                             {
-                                email = decryptedEmail;
-                                password = decryptedPassword;
+                                email           = decryptedEmail;
+                                password        = decryptedPassword;
                                 normalizedEmail = email.ToLowerInvariant();
-                                _logger.LogInformation("DEBUG: Decryption successful. Decrypted email: {Email}, Decrypted password length: {PassLen}", 
-                                    email, password.Length);
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "DEBUG: Failed to decrypt login payload");
-                        // Don't return error yet, try to proceed with what we have
+                        _logger.LogWarning(ex, "Failed to decrypt login payload");
                     }
                 }
 
@@ -99,7 +92,7 @@ namespace backend.Controllers
                 }
 
                 // Fetch both system admin and regular user by email
-                _logger.LogInformation("Looking for user/admin with email: {Email}", email);
+                _logger.LogInformation("Login attempt: {Email}", normalizedEmail);
                 
                 var systemAdmin = await _context.SystemAdmins
                     .FirstOrDefaultAsync(sa => sa.Email != null && sa.Email.ToLower() == normalizedEmail);
@@ -110,8 +103,6 @@ namespace backend.Controllers
                     .Include(u => u.Department)
                     .FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == normalizedEmail);
 
-                _logger.LogInformation("DEBUG: Found admin: {AdminFound}, Found user: {UserFound}", systemAdmin != null, user != null);
-
                 bool adminPasswordOk = false;
                 bool adminActive = false;
                 if (systemAdmin != null)
@@ -120,7 +111,16 @@ namespace backend.Controllers
                     {
                         adminPasswordOk = _passwordHashingService.VerifyPassword(password, systemAdmin.PasswordHash);
                         adminActive = systemAdmin.Status == SystemAdminStatus.Active;
-                        _logger.LogInformation("DEBUG: Admin password check: {PassOk}, Status: {Status}", adminPasswordOk, systemAdmin.Status);
+                        if (!adminPasswordOk)
+                        {
+                            systemAdmin.LoginAttempts = systemAdmin.LoginAttempts + 1;
+                            if (systemAdmin.LoginAttempts >= 10)
+                            {
+                                systemAdmin.Status = SystemAdminStatus.Inactive;
+                                _logger.LogWarning("Admin account locked after too many failed attempts: {Email}", normalizedEmail);
+                            }
+                            await _context.SaveChangesAsync();
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -135,10 +135,8 @@ namespace backend.Controllers
                     try
                     {
                         userPasswordOk = _passwordHashingService.VerifyPassword(password, user.PasswordHash);
-                        // Block login if the user is inactive OR their parent client is disabled
                         var clientActive = user.Client == null || user.Client.Status == ClientStatus.Active;
                         userActive = user.Status == UserStatus.Active && clientActive;
-                        _logger.LogInformation("DEBUG: User password check: {PassOk}, Status: {Status}", userPasswordOk, user.Status);
                     }
                     catch (Exception ex)
                     {
@@ -276,19 +274,20 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error during login attempt for email: {Email}", email);
-                return StatusCode(500, new { message = "An error occurred during login", error = ex.Message, details = ex.InnerException?.Message });
+                _logger.LogError(ex, "Error during login attempt for email: {Email}", normalizedEmail);
+                return StatusCode(500, new { message = "An error occurred during login." });
             }
         }
 
         private string GenerateJwtTokenForSystemAdmin(SystemAdmin systemAdmin)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
-            var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET") ?? jwtSettings["SecretKey"] ?? "YourSuperSecretKeyThatIsAtLeast32CharactersLong!";
-            var issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? jwtSettings["Issuer"] ?? "YourAppName";
-            var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? jwtSettings["Audience"] ?? "YourAppUsers";
-            var expiryMinutesStr = Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES") ?? jwtSettings["ExpiryMinutes"] ?? "60";
-            var expiryMinutes = int.Parse(expiryMinutesStr);
+            var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET")
+                ?? jwtSettings["SecretKey"]
+                ?? throw new InvalidOperationException("JWT_SECRET is not configured.");
+            var issuer   = Environment.GetEnvironmentVariable("JWT_ISSUER")   ?? jwtSettings["Issuer"]   ?? "NBSNProjects";
+            var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? jwtSettings["Audience"] ?? "NBSNProjectsUsers";
+            var expiryMinutes = int.Parse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES") ?? jwtSettings["ExpiryMinutes"] ?? "60");
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -325,6 +324,7 @@ namespace backend.Controllers
         }
 
         [HttpPost("forgot-password")]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
         {
             string email = request.Email?.Trim() ?? string.Empty;
@@ -347,21 +347,20 @@ namespace backend.Controllers
                 var user = await _context.Users
                     .FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == normalizedEmail);
 
-                // Always return success to prevent email enumeration attacks
+                // Always return 200 regardless — prevents email enumeration
                 if (systemAdmin == null && user == null)
                 {
-                    _logger.LogWarning("Password reset requested for non-existent email: {Email}", email);
-                    // Still return 404 since I added logic to show it on frontend, but we could return 200 for security
-                    return NotFound(new { message = "Email not registered in our system" });
+                    _logger.LogInformation("Password reset for unknown email (not disclosed to caller)");
+                    return Ok(new { message = "If an account exists with that email, a reset link has been sent." });
                 }
 
                 // Generate reset token
                 var resetToken = Guid.NewGuid().ToString();
-                // Build reset link using FRONTEND_URL env var
                 var frontendUrl = Environment.GetEnvironmentVariable("FRONTEND_URL")?.TrimEnd('/')
                                   ?? "https://portal.nbsnprojects.co.za";
                 var resetLink = $"{frontendUrl}/reset-password?token={resetToken}";
-                _logger.LogInformation("Generated reset token for {Email}. Link: {ResetLink}", email, resetLink);
+                // Log only that a reset was initiated — NEVER log the token or link
+                _logger.LogInformation("Password reset initiated for {Email}", normalizedEmail);
 
                 // Send password reset email
                 var emailSent = false;
@@ -421,8 +420,8 @@ namespace backend.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing forgot password request for email: {Email}", email);
-                return StatusCode(500, new { message = "An error occurred while processing your request", error = ex.Message, details = ex.InnerException?.Message });
+                _logger.LogError(ex, "Error processing forgot password request");
+                return StatusCode(500, new { message = "An error occurred while processing your request." });
             }
         }
 
@@ -432,14 +431,14 @@ namespace backend.Controllers
             try
             {
                 if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
-                {
                     return BadRequest(new { message = "Token and new password are required" });
-                }
+
+                var policy = PasswordPolicy.Validate(request.NewPassword);
+                if (!policy.IsValid)
+                    return BadRequest(new { message = policy.Error });
 
                 if (!_resetTokens.TryGetValue(request.Token, out var entry))
-                {
                     return BadRequest(new { message = "Invalid or expired reset token" });
-                }
 
                 if (DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc) > entry.ExpiresAt)
                 {
@@ -491,11 +490,12 @@ namespace backend.Controllers
         private string GenerateJwtToken(User user)
         {
             var jwtSettings = _configuration.GetSection("JwtSettings");
-            var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET") ?? jwtSettings["SecretKey"] ?? "YourSuperSecretKeyThatIsAtLeast32CharactersLong!";
-            var issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? jwtSettings["Issuer"] ?? "YourAppName";
-            var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? jwtSettings["Audience"] ?? "YourAppUsers";
-            var expiryMinutesStr = Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES") ?? jwtSettings["ExpiryMinutes"] ?? "60";
-            var expiryMinutes = int.Parse(expiryMinutesStr);
+            var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET")
+                ?? jwtSettings["SecretKey"]
+                ?? throw new InvalidOperationException("JWT_SECRET is not configured.");
+            var issuer   = Environment.GetEnvironmentVariable("JWT_ISSUER")   ?? jwtSettings["Issuer"]   ?? "NBSNProjects";
+            var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? jwtSettings["Audience"] ?? "NBSNProjectsUsers";
+            var expiryMinutes = int.Parse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES") ?? jwtSettings["ExpiryMinutes"] ?? "60");
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -526,6 +526,7 @@ namespace backend.Controllers
         // ─── Learner Portal Login ───────────────────────────────────────────
         [HttpPost("learner-login")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> LearnerLogin([FromBody] LearnerLoginRequest request)
         {
             var login = request.Login?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -550,10 +551,12 @@ namespace backend.Controllers
 
                 // Generate JWT
                 var jwtSettings = _configuration.GetSection("JwtSettings");
-                var secretKey   = Environment.GetEnvironmentVariable("JWT_SECRET") ?? jwtSettings["SecretKey"] ?? "YourSuperSecretKeyThatIsAtLeast32CharactersLong!";
-                var issuer      = Environment.GetEnvironmentVariable("JWT_ISSUER")   ?? jwtSettings["Issuer"]   ?? "YourAppName";
-                var audience    = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? jwtSettings["Audience"] ?? "YourAppUsers";
-                var expiryMin   = int.Parse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES") ?? jwtSettings["ExpiryMinutes"] ?? "480");
+                var secretKey   = Environment.GetEnvironmentVariable("JWT_SECRET")
+                    ?? jwtSettings["SecretKey"]
+                    ?? throw new InvalidOperationException("JWT_SECRET is not configured.");
+                var issuer   = Environment.GetEnvironmentVariable("JWT_ISSUER")   ?? jwtSettings["Issuer"]   ?? "NBSNProjects";
+                var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? jwtSettings["Audience"] ?? "NBSNProjectsUsers";
+                var expiryMin = int.Parse(Environment.GetEnvironmentVariable("JWT_EXPIRY_MINUTES") ?? jwtSettings["ExpiryMinutes"] ?? "480");
 
                 var key         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
                 var creds       = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -596,7 +599,7 @@ namespace backend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Learner login error for {Login}", login);
-                return StatusCode(500, new { message = "Login error", error = ex.Message });
+                return StatusCode(500, new { message = "Login error." });
             }
         }
 
@@ -625,6 +628,7 @@ namespace backend.Controllers
         // ─── Learner Forgot Password ────────────────────────────────────────
         [HttpPost("learner-forgot-password")]
         [AllowAnonymous]
+        [EnableRateLimiting("auth")]
         public async Task<IActionResult> LearnerForgotPassword([FromBody] ForgotPasswordRequest request)
         {
             var email = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
@@ -688,6 +692,10 @@ namespace backend.Controllers
         {
             if (string.IsNullOrWhiteSpace(request.Token) || string.IsNullOrWhiteSpace(request.NewPassword))
                 return BadRequest(new { message = "Token and new password are required" });
+
+            var policyCheck = PasswordPolicy.Validate(request.NewPassword);
+            if (!policyCheck.IsValid)
+                return BadRequest(new { message = policyCheck.Error });
 
             try
             {
@@ -763,6 +771,27 @@ namespace backend.Controllers
     public class ForgotPasswordRequest
     {
         public string Email { get; set; } = string.Empty;
+    }
+
+    /// <summary>Centralised password policy — applied to all reset/change endpoints.</summary>
+    public static class PasswordPolicy
+    {
+        public static (bool IsValid, string Error) Validate(string password)
+        {
+            if (string.IsNullOrWhiteSpace(password))
+                return (false, "Password is required.");
+            if (password.Length < 10)
+                return (false, "Password must be at least 10 characters.");
+            if (!password.Any(char.IsUpper))
+                return (false, "Password must contain at least one uppercase letter.");
+            if (!password.Any(char.IsLower))
+                return (false, "Password must contain at least one lowercase letter.");
+            if (!password.Any(char.IsDigit))
+                return (false, "Password must contain at least one digit.");
+            if (!password.Any(c => "!@#$%^&*()_+-=[]{}|;':\",./<>?".Contains(c)))
+                return (false, "Password must contain at least one special character.");
+            return (true, string.Empty);
+        }
     }
 
     public class ResetPasswordRequest

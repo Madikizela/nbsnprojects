@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.RateLimiting;
 using backend.Services;
 using backend.Services.Interfaces;
 using QuestPDF.Infrastructure;
@@ -63,17 +65,6 @@ builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
     
-    // Log available environment variables for debugging
-    Console.WriteLine("🔍 Database Configuration Debug Info:");
-    Console.WriteLine($"  DB_HOST: {Environment.GetEnvironmentVariable("DB_HOST") ?? "(not set)"}");
-    Console.WriteLine($"  PGHOST: {Environment.GetEnvironmentVariable("PGHOST") ?? "(not set)"}");
-    Console.WriteLine($"  DB_PORT: {Environment.GetEnvironmentVariable("DB_PORT") ?? "(not set)"}");
-    Console.WriteLine($"  PGPORT: {Environment.GetEnvironmentVariable("PGPORT") ?? "(not set)"}");
-    Console.WriteLine($"  DB_NAME: {Environment.GetEnvironmentVariable("DB_NAME") ?? "(not set)"}");
-    Console.WriteLine($"  PGDATABASE: {Environment.GetEnvironmentVariable("PGDATABASE") ?? "(not set)"}");
-    Console.WriteLine($"  DATABASE_URL: {(string.IsNullOrEmpty(Environment.GetEnvironmentVariable("DATABASE_URL")) ? "(not set)" : "(set)")}");
-    
-    // Support both the application's DB_* names and Railway's standard PG* names.
     var dbHost = Environment.GetEnvironmentVariable("DB_HOST") ?? Environment.GetEnvironmentVariable("PGHOST");
     var dbPort = Environment.GetEnvironmentVariable("DB_PORT") ?? Environment.GetEnvironmentVariable("PGPORT") ?? "5432";
     var dbName = Environment.GetEnvironmentVariable("DB_NAME") ?? Environment.GetEnvironmentVariable("PGDATABASE");
@@ -131,9 +122,12 @@ builder.Services.AddDbContext<backend.Models.ApplicationDbContext>(options =>
                maxRetryDelay: TimeSpan.FromSeconds(5),
                errorCodesToAdd: null);
        });
-    options.EnableSensitiveDataLogging(true);
-    options.EnableDetailedErrors(true);
-    options.LogTo(Console.WriteLine, LogLevel.Information);
+    // Only enable sensitive data logging in development — never in production
+    if (builder.Environment.IsDevelopment())
+    {
+        options.EnableSensitiveDataLogging(true);
+        options.EnableDetailedErrors(true);
+    }
 }, ServiceLifetime.Scoped);
 
 // Add password hashing service
@@ -181,9 +175,12 @@ builder.Services.AddControllers()
 
 // Add JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET") ?? jwtSettings["SecretKey"] ?? "YourSuperSecretKeyThatIsAtLeast32CharactersLong!";
-var issuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? jwtSettings["Issuer"] ?? "YourAppName";
-var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? jwtSettings["Audience"] ?? "YourAppUsers";
+// Fail closed — no hardcoded fallback secret in production
+var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET")
+    ?? jwtSettings["SecretKey"]
+    ?? throw new InvalidOperationException("JWT_SECRET environment variable must be set.");
+var issuer   = Environment.GetEnvironmentVariable("JWT_ISSUER")   ?? jwtSettings["Issuer"]   ?? "NBSNProjects";
+var audience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? jwtSettings["Audience"] ?? "NBSNProjectsUsers";
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -202,12 +199,49 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-// Add CORS for React frontend and mobile app
+// Rate limiting — strict on auth endpoints, general elsewhere
+builder.Services.AddRateLimiter(options =>
+{
+    // Auth endpoints: 5 requests per 15 minutes per IP
+    options.AddFixedWindowLimiter("auth", o =>
+    {
+        o.PermitLimit = 5;
+        o.Window = TimeSpan.FromMinutes(15);
+        o.QueueLimit = 0;
+    });
+    // General API: 300 requests per minute per IP
+    options.AddFixedWindowLimiter("api", o =>
+    {
+        o.PermitLimit = 300;
+        o.Window = TimeSpan.FromMinutes(1);
+        o.QueueLimit = 0;
+    });
+    options.RejectionStatusCode = 429;
+});
+
+// Add CORS — explicit allow-list (mobile apps use custom schemes so AllowAnyOrigin is kept
+// for the mobile-only entry point; web origins are locked down)
+var allowedOrigins = new[]
+{
+    "https://nbsn-frontend-production.up.railway.app",
+    "https://portal.nbsnprojects.co.za",
+    "https://nbsn-frontend-production.up.railway.app",
+    // Add any additional trusted web origins here
+};
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReactApp", 
-        builder => builder
-            .AllowAnyOrigin() // Allow all origins (mobile apps don't send Origin header)
+    options.AddPolicy("AllowReactApp",
+        b => b
+            .WithOrigins(allowedOrigins)
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials());
+
+    // Separate open policy ONLY for mobile apps (no credentials)
+    options.AddPolicy("AllowMobile",
+        b => b
+            .AllowAnyOrigin()
             .AllowAnyMethod()
             .AllowAnyHeader());
 });
@@ -624,46 +658,33 @@ else
     Console.WriteLine($"✅ Uploads directory exists: {uploadsPath}");
 }
 
-// Serve static files from uploads directory
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(uploadsPath),
-    RequestPath = "/uploads"
-});
+// NOTE: /uploads is NOT served as static files — documents must be accessed
+// through the authenticated download endpoints only (security hardening H-1).
 
-// Global logging and error handling middleware
+// Global error handler — never return internal exception details to clients
 app.Use(async (context, next) =>
 {
-    var logPath = Path.Combine(builder.Environment.ContentRootPath, "poe_error.log");
-    var logMsg = $"[{DateTime.Now}] Incoming Request: {context.Request.Method} {context.Request.Path}{context.Request.QueryString}\n";
-    Console.Write(logMsg);
-    try { System.IO.File.AppendAllText(logPath, logMsg); } catch {}
     try
     {
         await next();
     }
     catch (Exception ex)
     {
-        Console.WriteLine("--------------------------------------------------");
-        Console.WriteLine($"🔥 UNHANDLED EXCEPTION: {ex.GetType().Name}");
-        Console.WriteLine($"Message: {ex.Message}");
-        Console.WriteLine($"Stack Trace: {ex.StackTrace}");
-        if (ex.InnerException != null)
-        {
-            Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
-            Console.WriteLine($"Inner Stack Trace: {ex.InnerException.StackTrace}");
-        }
-        Console.WriteLine("--------------------------------------------------");
-        
-        var errorMsg = $"[{DateTime.Now}] 🔥 UNHANDLED EXCEPTION: {ex.GetType().Name}: {ex.Message}\n{ex.StackTrace}\n\n";
-        try { System.IO.File.AppendAllText(logPath, errorMsg); } catch {}
-        
+        var correlationId = Guid.NewGuid().ToString("N")[..8];
+        var logger = context.RequestServices.GetService<ILogger<Program>>();
+        logger?.LogError(ex, "Unhandled exception [{CorrelationId}]: {Path}", correlationId, context.Request.Path);
+
         context.Response.StatusCode = 500;
-        await context.Response.WriteAsJsonAsync(new { message = "An internal server error occurred.", details = ex.Message });
+        await context.Response.WriteAsJsonAsync(new
+        {
+            message = "An internal server error occurred.",
+            correlationId   // Caller can reference this in support requests
+        });
     }
 });
 
 // Use Authentication and Authorization
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 

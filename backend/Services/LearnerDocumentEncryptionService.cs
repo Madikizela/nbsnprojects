@@ -23,10 +23,15 @@ namespace backend.Services
                 Directory.CreateDirectory(_uploadDirectory);
             }
 
-            // Get encryption key from configuration (should be stored securely, e.g., Azure Key Vault)
-            var keyString = _configuration["Encryption:LearnerDocumentKey"] 
-                ?? "YourSecure256BitEncryptionKeyHere!!"; // 32 characters for AES-256
-            
+            // Get encryption key — MUST be set via Encryption:LearnerDocumentKey env/config.
+            // We fail closed: if the key is missing or is the default placeholder, throw at startup.
+            var keyString = _configuration["Encryption:LearnerDocumentKey"];
+
+            if (string.IsNullOrWhiteSpace(keyString) || keyString.Contains("YourSecure"))
+                throw new InvalidOperationException(
+                    "Encryption:LearnerDocumentKey must be set to a secure 32-character secret. " +
+                    "Set the environment variable Encryption__LearnerDocumentKey on Railway.");
+
             _encryptionKey = System.Text.Encoding.UTF8.GetBytes(keyString.PadRight(32).Substring(0, 32));
         }
 

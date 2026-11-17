@@ -21,24 +21,31 @@ namespace backend.Services
             _logger = logger;
             _configuration = configuration;
             
-            // Get encryption key from environment variables, configuration, or generate one
             var keyString = Environment.GetEnvironmentVariable("ENCRYPTION_DATA_KEY") ?? _configuration["Encryption:DataKey"];
             
-            // Clean the key string
             if (!string.IsNullOrEmpty(keyString))
-            {
                 keyString = keyString.Trim().Replace("\"", "").Replace("'", "");
-            }
 
+            // Fail closed — do not silently fall back to a random session key in production.
             if (string.IsNullOrEmpty(keyString) || keyString.Contains("YOUR_ENCRYPTION_KEY") || !IsValidBase64(keyString))
             {
-                _logger.LogWarning("Valid encryption key not found in environment or configuration. Generating a temporary key for this session.");
-                keyString = GenerateBase64Key();
+                // In development we allow a generated key (data only lives for the session anyway)
+                var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+                if (env == "Development")
+                {
+                    _logger.LogWarning("ENCRYPTION_DATA_KEY not set — generating a temporary session key (Development only).");
+                    keyString = GenerateBase64Key();
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        "ENCRYPTION_DATA_KEY environment variable must be a valid Base64-encoded 32-byte key. " +
+                        "Set it on Railway as a secret environment variable.");
+                }
             }
 
             try 
             {
-                // Support Base64Url keys as well, just in case
                 string base64 = keyString.Trim().Replace('-', '+').Replace('_', '/').Replace("\"", "").Replace("'", "");
                 switch (base64.Length % 4)
                 {
@@ -49,8 +56,8 @@ namespace backend.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to parse encryption key as Base64. Generating a temporary key.");
-                _encryptionKey = Convert.FromBase64String(GenerateBase64Key());
+                _logger.LogError(ex, "Failed to parse ENCRYPTION_DATA_KEY as Base64.");
+                throw new InvalidOperationException("ENCRYPTION_DATA_KEY is not a valid Base64 string.", ex);
             }
         }
 
