@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'api_service.dart';
 import 'local_database_service.dart';
 import 'sync_service.dart';
+import 'secure_token_store.dart';
 
 class LearnerAuthService extends ChangeNotifier {
   bool _isAuthenticated = false;
@@ -25,9 +26,10 @@ class LearnerAuthService extends ChangeNotifier {
   }
 
   Future<void> _loadToken() async {
+    // Token in secure storage; flags in SharedPreferences
+    _token = await SecureTokenStore.read('learner_token');
     final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('learner_token');
-    final stored = prefs.getString('learner_user');
+    final stored = await SecureTokenStore.read('learner_user');
     _isOfflineMode = prefs.getBool('is_offline_mode') ?? false;
 
     if (_token != null && stored != null) {
@@ -83,10 +85,10 @@ class LearnerAuthService extends ChangeNotifier {
 
         if (_token == null || _learner == null) return false;
 
-        // Save to SharedPreferences
+        // Token to secure storage; non-sensitive flags to SharedPreferences
+        await SecureTokenStore.write('learner_token', _token!);
+        await SecureTokenStore.write('learner_user', jsonEncode(_learner!));
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('learner_token', _token!);
-        await prefs.setString('learner_user', jsonEncode(_learner!));
         await prefs.setBool('is_offline_mode', false);
 
         // Cache credentials for offline login
@@ -134,9 +136,9 @@ class LearnerAuthService extends ChangeNotifier {
 
     if (_learner == null) return false;
 
-    // Save offline mode state
+    // Offline mode — token stays from cache, save state flag only
+    await SecureTokenStore.write('learner_user', jsonEncode(_learner!));
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('learner_user', jsonEncode(_learner!));
     await prefs.setBool('is_offline_mode', true);
 
     _isAuthenticated = true;
@@ -147,9 +149,9 @@ class LearnerAuthService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await SecureTokenStore.delete('learner_token');
+    await SecureTokenStore.delete('learner_user');
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('learner_token');
-    await prefs.remove('learner_user');
     await prefs.remove('is_offline_mode');
     _token = null;
     _learner = null;

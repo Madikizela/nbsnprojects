@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'api_service.dart';
 import 'local_database_service.dart';
+import 'secure_token_store.dart';
 
 class AuthService extends ChangeNotifier {
   bool _isAuthenticated = false;
@@ -24,11 +25,12 @@ class AuthService extends ChangeNotifier {
 
   /// Restore session from SharedPreferences on cold start.
   Future<void> _loadSession() async {
+    // Token stored in secure enclave; non-sensitive flags in SharedPreferences
+    _token = await SecureTokenStore.read('token');
     final prefs = await SharedPreferences.getInstance();
-    _token = prefs.getString('token');
     _isOfflineMode = prefs.getBool('staff_offline_mode') ?? false;
 
-    final stored = prefs.getString('staff_user');
+    final stored = await SecureTokenStore.read('staff_user');
     if (_token != null && stored != null) {
       try {
         _user = jsonDecode(stored) as Map<String, dynamic>;
@@ -86,16 +88,17 @@ class AuthService extends ChangeNotifier {
         return false;
       }
 
-      // Persist token and full user object
+      // Persist token in secure storage; non-sensitive flags in SharedPreferences
+      await SecureTokenStore.write('token', _token!);
+      await SecureTokenStore.write('staff_user', jsonEncode(_user!));
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', _token!);
-      await prefs.setString('staff_user', jsonEncode(_user!));
       await prefs.setBool('staff_offline_mode', false);
 
       // Cache credentials for offline login (30-day validity)
       try {
         final userId = _user!['id'];
-        final id = userId is int ? userId : int.tryParse(userId.toString()) ?? 0;
+        final id =
+            userId is int ? userId : int.tryParse(userId.toString()) ?? 0;
         await _localDb.cacheStaffCredentials(
           userId: id,
           email: email,
@@ -133,9 +136,9 @@ class AuthService extends ChangeNotifier {
 
     if (_user == null) return false;
 
+    if (_token != null) await SecureTokenStore.write('token', _token!);
+    await SecureTokenStore.write('staff_user', jsonEncode(_user!));
     final prefs = await SharedPreferences.getInstance();
-    if (_token != null) await prefs.setString('token', _token!);
-    await prefs.setString('staff_user', jsonEncode(_user!));
     await prefs.setBool('staff_offline_mode', true);
 
     _isAuthenticated = true;
@@ -164,9 +167,9 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await SecureTokenStore.delete('token');
+    await SecureTokenStore.delete('staff_user');
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('token');
-    await prefs.remove('staff_user');
     await prefs.remove('staff_offline_mode');
     _token = null;
     _user = null;

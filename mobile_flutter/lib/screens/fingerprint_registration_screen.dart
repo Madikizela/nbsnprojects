@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../services/fingerprint_service.dart';
 import '../services/api_service.dart';
 
@@ -29,7 +30,7 @@ class _FingerprintRegistrationScreenState
   bool _hasRightThumbZkteco = false;
   bool _capturing = false;
   String? _currentCapture;
-  bool _scannerConnected = false;
+  final bool _scannerConnected = false;
   ScannerType _scannerType = ScannerType.none;
 
   @override
@@ -89,7 +90,72 @@ class _FingerprintRegistrationScreenState
     return _scannerType == ScannerType.none ? Icons.usb_off : Icons.usb;
   }
 
+  /// Shows a POPIA-compliant biometric consent dialog.
+  /// Returns true only if the user explicitly consents.
+  Future<bool> _checkBiometricConsent() async {
+    final consentKey = 'biometric_popia_consent_${widget.learnerId}';
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.getBool(consentKey) == true) return true;
+
+    if (!mounted) return false;
+    final agreed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Row(children: [
+          Icon(Icons.fingerprint, color: Color(0xFF0d7377)),
+          SizedBox(width: 8),
+          Text('Biometric Data Consent'),
+        ]),
+        content: SingleChildScrollView(
+          child: Text(
+            'NBSN Projects will capture and store a fingerprint template for '
+            '${widget.learnerName} to enable biometric attendance verification.\n\n'
+            'Under the Protection of Personal Information Act (POPIA):\n'
+            '• Biometric data will only be used for attendance purposes.\n'
+            '• It will be stored securely and not shared with third parties.\n'
+            '• You may withdraw consent by contacting your training administrator.\n\n'
+            'Do you consent to biometric data collection?',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Decline', style: TextStyle(color: Colors.red)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF0d7377)),
+            onPressed: () => Navigator.pop(ctx, true),
+            child:
+                const Text('I Consent', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (agreed == true) {
+      await prefs.setBool(consentKey, true);
+      return true;
+    }
+    return false;
+  }
+
   Future<void> _captureFingerprint(String fingerprintType) async {
+    // POPIA: obtain explicit consent before first biometric capture
+    final hasConsent = await _checkBiometricConsent();
+    if (!hasConsent) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Biometric capture requires consent under POPIA.'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+      return;
+    }
+
     // Refresh scanner detection first
     await _detectScanner();
 

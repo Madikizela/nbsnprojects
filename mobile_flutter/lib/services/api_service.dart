@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'server_config_service.dart';
+import 'secure_token_store.dart';
 
 class ApiService {
   late final Dio _dio;
@@ -40,10 +41,9 @@ class ApiService {
   void _attachInterceptors() {
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final prefs = await SharedPreferences.getInstance();
-        // Use admin token if present, otherwise fall back to learner token
-        final token =
-            prefs.getString('token') ?? prefs.getString('learner_token');
+        // Staff token from secure storage; learner token from SharedPreferences
+        final token = await SecureTokenStore.read('token') ??
+            await SecureTokenStore.read('learner_token');
         if (token != null) {
           options.headers['Authorization'] = 'Bearer $token';
         }
