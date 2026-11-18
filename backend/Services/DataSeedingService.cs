@@ -11,8 +11,9 @@ namespace backend.Services
         private readonly ApplicationDbContext _context;
         private readonly ILogger<DataSeedingService> _logger;
         private readonly IPasswordHashingService _passwordHasher;
-        private const string DEFAULT_ADMIN_EMAIL = "admin@system.local";
-        private const string DEFAULT_ADMIN_PASSWORD = "Admin@123";
+        private const string DEFAULT_ADMIN_EMAIL    = "sthembisomaphango@gmail.com";
+        private const string DEFAULT_ADMIN_PASSWORD = "Admin@12345";
+        private const string OLD_ADMIN_EMAIL        = "admin@system.local";
 
         public DataSeedingService(
             ApplicationDbContext context, 
@@ -31,17 +32,32 @@ namespace backend.Services
 
         public async Task CreateDefaultSystemAdminAsync()
         {
+            // If the old placeholder admin still exists, update it in-place instead of creating a duplicate
+            var existing = await _context.SystemAdmins
+                .FirstOrDefaultAsync(a => a.Email == OLD_ADMIN_EMAIL);
+
+            if (existing != null)
+            {
+                existing.Email        = DEFAULT_ADMIN_EMAIL;
+                existing.Username     = DEFAULT_ADMIN_EMAIL.Split('@')[0];
+                existing.PasswordHash = _passwordHasher.HashPassword(DEFAULT_ADMIN_PASSWORD);
+                existing.UpdatedAt    = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                _logger.LogInformation("System admin migrated from {Old} to {New}", OLD_ADMIN_EMAIL, DEFAULT_ADMIN_EMAIL);
+                return;
+            }
+
             var admin = new SystemAdmin
             {
-                Email = DEFAULT_ADMIN_EMAIL,
-                Username = "admin",
-                FirstName = "System",
-                LastName = "Administrator",
-                PasswordHash = _passwordHasher.HashPassword(DEFAULT_ADMIN_PASSWORD),
-                Status = SystemAdminStatus.Active,
-                AccessLevel = SystemAdminLevel.SuperAdmin,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                Email         = DEFAULT_ADMIN_EMAIL,
+                Username      = DEFAULT_ADMIN_EMAIL.Split('@')[0],
+                FirstName     = "Sthembiso",
+                LastName      = "Maphango",
+                PasswordHash  = _passwordHasher.HashPassword(DEFAULT_ADMIN_PASSWORD),
+                Status        = SystemAdminStatus.Active,
+                AccessLevel   = SystemAdminLevel.SuperAdmin,
+                CreatedAt     = DateTime.UtcNow,
+                UpdatedAt     = DateTime.UtcNow
             };
 
             _context.SystemAdmins.Add(admin);
@@ -54,15 +70,17 @@ namespace backend.Services
             {
                 _logger.LogInformation("Starting database seeding process...");
 
-                // Create default system admin if it doesn't exist
-                if (!await DefaultSystemAdminExistsAsync())
+                // Create / migrate default system admin
+                var newAdminExists = await DefaultSystemAdminExistsAsync();
+                var oldAdminExists = await _context.SystemAdmins.AnyAsync(a => a.Email == OLD_ADMIN_EMAIL);
+                if (!newAdminExists || oldAdminExists)
                 {
                     await CreateDefaultSystemAdminAsync();
-                    _logger.LogInformation("Default system admin user created successfully.");
+                    _logger.LogInformation("Default system admin created/updated successfully.");
                 }
                 else
                 {
-                    _logger.LogInformation("Default system admin user already exists. Skipping creation.");
+                    _logger.LogInformation("Default system admin already exists. Skipping creation.");
                 }
 
                 // Seed other data

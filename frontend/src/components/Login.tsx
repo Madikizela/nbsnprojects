@@ -39,9 +39,8 @@ const Login: React.FC<{ expiredMessage?: string | null }> = ({ expiredMessage })
     if (!password) {
       return 'Password is required';
     }
-    if (password.length < 10) {
-      return 'Password must be at least 10 characters long';
-    }
+    // No minimum length check on login — the server decides if credentials are valid.
+    // Length policy is enforced on registration/reset endpoints.
     return '';
   };
 
