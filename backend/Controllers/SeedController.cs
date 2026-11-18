@@ -24,6 +24,58 @@ namespace backend.Controllers
         }
 
         /// <summary>
+        /// POST /api/seed/purge-orphaned-documents
+        /// Deletes all LearnerDocument DB records and their encrypted files on disk.
+        /// Use after rotating Encryption__LearnerDocumentKey (Scenario A).
+        /// Requires SystemAdmin auth AND ENABLE_RUN_SQL=true env var as a safety gate.
+        /// </summary>
+        [HttpPost("purge-orphaned-documents")]
+        public async Task<IActionResult> PurgeOrphanedDocuments([FromServices] IWebHostEnvironment env)
+        {
+            var enabled = Environment.GetEnvironmentVariable("ENABLE_RUN_SQL");
+            if (enabled != "true")
+                return StatusCode(403, new { message = "Set ENABLE_RUN_SQL=true to enable this endpoint." });
+
+            try
+            {
+                // 1) Delete physical encrypted files
+                var uploadDir = Environment.GetEnvironmentVariable("FileStorage__LearnerDocumentsPath")
+                    ?? Path.Combine(env.ContentRootPath, "uploads", "learner_documents");
+
+                int filesDeleted = 0;
+                if (Directory.Exists(uploadDir))
+                {
+                    foreach (var file in Directory.GetFiles(uploadDir))
+                    {
+                        System.IO.File.Delete(file);
+                        filesDeleted++;
+                    }
+                }
+
+                // 2) Hard-delete all LearnerDocument records (IgnoreQueryFilters to catch soft-deleted too)
+                var allDocs = await _context.LearnerDocuments
+                    .IgnoreQueryFilters()
+                    .ToListAsync();
+                _context.LearnerDocuments.RemoveRange(allDocs);
+                await _context.SaveChangesAsync();
+
+                _logger.LogWarning("PurgeOrphanedDocuments: deleted {Files} files and {Rows} DB records.", filesDeleted, allDocs.Count);
+
+                return Ok(new
+                {
+                    message = "Purge complete. All learner document files and records deleted.",
+                    filesDeleted,
+                    dbRecordsDeleted = allDocs.Count
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "PurgeOrphanedDocuments failed");
+                return StatusCode(500, new { message = "An error occurred during purge." });
+            }
+        }
+
+        /// <summary>
         /// GET /api/seed/status — check how many records exist
         /// </summary>
         [HttpGet("status")]
