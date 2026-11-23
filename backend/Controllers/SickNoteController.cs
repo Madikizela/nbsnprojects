@@ -82,12 +82,18 @@ namespace backend.Controllers
                 // Generate unique filename
                 var extension = Path.GetExtension(file.FileName) ?? ".jpg";
                 var fileName = $"sicknote_{dto.LearnerId}_{DateTime.UtcNow.Ticks}{extension}";
-                var finalPath = Path.Combine(uploadsDir, fileName);
+                var baseFull = Path.GetFullPath(uploadsDir);
+                var fullPath = Path.GetFullPath(Path.Combine(baseFull, fileName));
+                if (!fullPath.StartsWith(baseFull + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                    && fullPath != baseFull)
+                {
+                    throw new ArgumentException("Invalid file path");
+                }
 
-                _logger.LogInformation("Saving sick note to {Path}", finalPath);
+                _logger.LogInformation("Saving sick note to {Path}", fullPath);
 
                 // Save file directly
-                using (var stream = new FileStream(finalPath, FileMode.Create))
+                using (var stream = new FileStream(fullPath, FileMode.Create))
                 {
                     await file.CopyToAsync(stream);
                 }
