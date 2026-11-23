@@ -140,7 +140,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Snyk Code to check for vulnerabilities
-        uses: snyk/actions/node@master
+        uses: snyk/actions/node@11b673cfb4b0dc0d860a1323caa199d54950dcce # master
         continue-on-error: true
         env:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
