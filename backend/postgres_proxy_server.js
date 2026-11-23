@@ -5,12 +5,14 @@ const jwt = require('jsonwebtoken');
 const cors = require('cors');
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
+const helmet = require('helmet');
 
 const app = express();
 const PORT = process.env.PORT || 5001; // Different port from the main backend
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'GQbHycf1uFOsWncLBQokFZD2yKJHlwl1MmxvxXkNx2I='; // Base64 encoded key matching frontend
 
 // Middleware
+app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
