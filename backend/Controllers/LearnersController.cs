@@ -779,8 +779,16 @@ namespace backend.Controllers
             var fileName = $"learner_{id}_{DateTime.UtcNow.Ticks}{extension}";
             var filePath = Path.Combine(uploadsDir, fileName);
 
+            var baseFull = Path.GetFullPath(uploadsDir);
+            var fullPath = Path.GetFullPath(filePath);
+            if (!fullPath.StartsWith(baseFull + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                && fullPath != baseFull)
+            {
+                return BadRequest(new { message = "Invalid file path" });
+            }
+
             // Save file
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            using (var stream = new FileStream(fullPath, FileMode.Create))
             {
                 await photo.CopyToAsync(stream);
             }
