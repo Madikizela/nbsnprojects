@@ -33,6 +33,11 @@ namespace backend.Services
             {
                 _logger.LogInformation("Starting mock virus scan for file: {FilePath}", filePath);
 
+                if (filePath == null || filePath.Contains(".."))
+                {
+                    throw new ArgumentException("Invalid file path");
+                }
+
                 // Simulate scanning delay
                 await Task.Delay(_random.Next(100, 500));
 
