@@ -1115,10 +1115,16 @@ namespace backend.Controllers
                             {
                                 if (string.IsNullOrEmpty(storedPath)) return null;
                                 var clean = storedPath.TrimStart('/', '\\').Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
-                                var full = Path.Combine(_env.ContentRootPath, clean);
-                                if (System.IO.File.Exists(full))
+                                var baseFull = Path.GetFullPath(_env.ContentRootPath);
+                                var fullPath = Path.GetFullPath(Path.Combine(baseFull, clean));
+                                if (!fullPath.StartsWith(baseFull + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                                    && fullPath != baseFull)
                                 {
-                                    try { return System.IO.File.ReadAllBytes(full); } catch { }
+                                    throw new ArgumentException("Invalid file path");
+                                }
+                                if (System.IO.File.Exists(fullPath))
+                                {
+                                    try { return System.IO.File.ReadAllBytes(fullPath); } catch { }
                                 }
                                 try
                                 {
