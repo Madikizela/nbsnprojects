@@ -235,8 +235,16 @@ namespace backend.Controllers
                     var fileName = $"learner_{dto.LearnerId}_assessment_{dto.AssessmentId}_{dto.AssessmentType.ToLower()}_q{dto.QuestionNumber}_{(dto.IsRemedial ? "remedial_" : "")}{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString().Substring(0, 8)}{fileExtension}";
                     var filePath = Path.Combine(uploadsPath, fileName);
 
+                    var uploadsPathFull = Path.GetFullPath(uploadsPath);
+                    var filePathFull = Path.GetFullPath(filePath);
+                    if (!filePathFull.StartsWith(uploadsPathFull + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                        && filePathFull != uploadsPathFull)
+                    {
+                        throw new ArgumentException("Invalid file path");
+                    }
+
                     // Save file
-                    using (var stream = new FileStream(filePath, FileMode.Create))
+                    using (var stream = new FileStream(filePathFull, FileMode.Create))
                     {
                         await file.CopyToAsync(stream);
                     }
